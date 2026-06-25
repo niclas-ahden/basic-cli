@@ -41,80 +41,104 @@ type DirListResult = TryType18;
 type DirListResultPayload = TryType18Payload;
 type DirListResultTag = TryType18Tag;
 
-type EnvVarResult = TryType20;
-type EnvVarResultPayload = TryType20Payload;
-type EnvVarResultTag = TryType20Tag;
-type EnvCwdResult = TryType23;
-type EnvCwdResultPayload = TryType23Payload;
-type EnvCwdResultTag = TryType23Tag;
-type EnvExePathResult = TryType26;
-type EnvExePathResultPayload = TryType26Payload;
-type EnvExePathResultTag = TryType26Tag;
+type EnvVarResult = TryType21;
+type EnvVarResultPayload = TryType21Payload;
+type EnvVarResultTag = TryType21Tag;
+type EnvCwdResult = TryType24;
+type EnvCwdResultPayload = TryType24Payload;
+type EnvCwdResultTag = TryType24Tag;
+type EnvExePathResult = TryType27;
+type EnvExePathResultPayload = TryType27Payload;
+type EnvExePathResultTag = TryType27Tag;
 
-type FileBytesResult = TryType28;
-type FileBytesResultPayload = TryType28Payload;
-type FileBytesResultTag = TryType28Tag;
-type FileIOErr = IOErrType30;
-type FileIOErrPayload = IOErrType30Payload;
-type FileIOErrTag = IOErrType30Tag;
-type FileUnitResult = TryType34;
-type FileUnitResultPayload = TryType34Payload;
-type FileUnitResultTag = TryType34Tag;
-type FileStrResult = TryType36;
-type FileStrResultPayload = TryType36Payload;
-type FileStrResultTag = TryType36Tag;
+type FileBytesResult = TryType29;
+type FileBytesResultPayload = TryType29Payload;
+type FileBytesResultTag = TryType29Tag;
+type FileIOErr = IOErrType31;
+type FileIOErrPayload = IOErrType31Payload;
+type FileIOErrTag = IOErrType31Tag;
+type FileWriteBytesResult = TryType35;
+type FileWriteBytesResultPayload = TryType35Payload;
+type FileWriteBytesResultTag = TryType35Tag;
+type FileStrResult = TryType38;
+type FileStrResultPayload = TryType38Payload;
+type FileStrResultTag = TryType38Tag;
+type FileWriteUtf8Result = TryType40;
+type FileWriteUtf8ResultPayload = TryType40Payload;
+type FileWriteUtf8ResultTag = TryType40Tag;
+type FileDeleteResult = TryType42;
+type FileDeleteResultPayload = TryType42Payload;
+type FileDeleteResultTag = TryType42Tag;
+type FileSizeResult = TryType44;
+type FileSizeResultPayload = TryType44Payload;
+type FileSizeResultTag = TryType44Tag;
+type FileBoolResult = TryType47;
+type FileBoolResultPayload = TryType47Payload;
+type FileBoolResultTag = TryType47Tag;
+type FileTimeResult = TryType50;
+type FileTimeResultPayload = TryType50Payload;
+type FileTimeResultTag = TryType50Tag;
 
-type LocaleGetResult = TryType37;
-type LocaleGetResultPayload = TryType37Payload;
-type LocaleGetResultTag = TryType37Tag;
+type LocaleGetResult = TryType53;
+type LocaleGetResultPayload = TryType53Payload;
+type LocaleGetResultTag = TryType53Tag;
 
-type PathTypeResult = TryType41;
-type PathTypeResultPayload = TryType41Payload;
-type PathTypeResultTag = TryType41Tag;
-type PathIOErr = IOErrType42;
-type PathIOErrPayload = IOErrType42Payload;
-type PathIOErrTag = IOErrType42Tag;
-type PathInfo = AnonStruct44;
+type PathTypeResult = TryType57;
+type PathTypeResultPayload = TryType57Payload;
+type PathTypeResultTag = TryType57Tag;
+type PathIOErr = IOErrType58;
+type PathIOErrPayload = IOErrType58Payload;
+type PathIOErrTag = IOErrType58Tag;
+type PathInfo = AnonStruct60;
 
-type RandomU64Result = TryType48;
-type RandomU64ResultPayload = TryType48Payload;
-type RandomU64ResultTag = TryType48Tag;
-type RandomIOErr = IOErrType50;
-type RandomIOErrPayload = IOErrType50Payload;
-type RandomIOErrTag = IOErrType50Tag;
-type RandomU32Result = TryType54;
-type RandomU32ResultPayload = TryType54Payload;
-type RandomU32ResultTag = TryType54Tag;
+type RandomU64Result = TryType64;
+type RandomU64ResultPayload = TryType64Payload;
+type RandomU64ResultTag = TryType64Tag;
+type RandomIOErr = IOErrType66;
+type RandomIOErrPayload = IOErrType66Payload;
+type RandomIOErrTag = IOErrType66Tag;
+type RandomU32Result = TryType70;
+type RandomU32ResultPayload = TryType70Payload;
+type RandomU32ResultTag = TryType70Tag;
 
-type StderrUnitResult = TryType58;
-type StderrUnitResultPayload = TryType58Payload;
-type StderrUnitResultTag = TryType58Tag;
-type StderrIOErr = IOErrType60;
-type StderrIOErrPayload = IOErrType60Payload;
-type StderrIOErrTag = IOErrType60Tag;
+type StderrUnitResult = TryType75;
+type StderrUnitResultPayload = TryType75Payload;
+type StderrUnitResultTag = TryType75Tag;
+type StderrBytesResult = TryType80;
+type StderrBytesResultPayload = TryType80Payload;
+type StderrBytesResultTag = TryType80Tag;
+type StderrIOErr = IOErrType77;
+type StderrIOErrPayload = IOErrType77Payload;
+type StderrIOErrTag = IOErrType77Tag;
 
-type StdinLineResult = TryType65;
-type StdinLineResultPayload = TryType65Payload;
-type StdinLineResultTag = TryType65Tag;
-type StdinReadErr = EndOfFileOrStdinErr;
-type StdinReadErrPayload = EndOfFileOrStdinErrPayload;
-type StdinReadErrTag = EndOfFileOrStdinErrTag;
-type StdinIOErr = IOErrType67;
-type StdinIOErrPayload = IOErrType67Payload;
-type StdinIOErrTag = IOErrType67Tag;
-type StdinBytesResult = TryType70;
-type StdinBytesResultPayload = TryType70Payload;
-type StdinBytesResultTag = TryType70Tag;
-type StdinReadToEndResult = TryType73;
-type StdinReadToEndResultPayload = TryType73Payload;
-type StdinReadToEndResultTag = TryType73Tag;
+type StdinLineResult = TryType84;
+type StdinLineResultPayload = TryType84Payload;
+type StdinLineResultTag = TryType84Tag;
+type StdinLineReadErr = EndOfFileOrStdinErrType85;
+type StdinLineReadErrPayload = EndOfFileOrStdinErrType85Payload;
+type StdinLineReadErrTag = EndOfFileOrStdinErrType85Tag;
+type StdinIOErr = IOErrType86;
+type StdinIOErrPayload = IOErrType86Payload;
+type StdinIOErrTag = IOErrType86Tag;
+type StdinBytesResult = TryType89;
+type StdinBytesResultPayload = TryType89Payload;
+type StdinBytesResultTag = TryType89Tag;
+type StdinBytesReadErr = EndOfFileOrStdinErrType90;
+type StdinBytesReadErrPayload = EndOfFileOrStdinErrType90Payload;
+type StdinBytesReadErrTag = EndOfFileOrStdinErrType90Tag;
+type StdinReadToEndResult = TryType93;
+type StdinReadToEndResultPayload = TryType93Payload;
+type StdinReadToEndResultTag = TryType93Tag;
 
-type StdoutUnitResult = TryType75;
-type StdoutUnitResultPayload = TryType75Payload;
-type StdoutUnitResultTag = TryType75Tag;
-type StdoutIOErr = IOErrType77;
-type StdoutIOErrPayload = IOErrType77Payload;
-type StdoutIOErrTag = IOErrType77Tag;
+type StdoutUnitResult = TryType95;
+type StdoutUnitResultPayload = TryType95Payload;
+type StdoutUnitResultTag = TryType95Tag;
+type StdoutBytesResult = TryType100;
+type StdoutBytesResultPayload = TryType100Payload;
+type StdoutBytesResultTag = TryType100Tag;
+type StdoutIOErr = IOErrType97;
+type StdoutIOErrPayload = IOErrType97Payload;
+type StdoutIOErrTag = IOErrType97Tag;
 
 extern "C" {
     fn roc_main(args: RocList<RocStr>) -> i32;
@@ -444,21 +468,21 @@ fn try_file_bytes_err(error: FileIOErr) -> FileBytesResult {
     }
 }
 
-fn try_file_unit_ok() -> FileUnitResult {
-    FileUnitResult {
-        payload: FileUnitResultPayload {
+fn try_file_write_bytes_ok() -> FileWriteBytesResult {
+    FileWriteBytesResult {
+        payload: FileWriteBytesResultPayload {
             ok: ManuallyDrop::new(()),
         },
-        tag: FileUnitResultTag::Ok,
+        tag: FileWriteBytesResultTag::Ok,
     }
 }
 
-fn try_file_unit_err(error: FileIOErr) -> FileUnitResult {
-    FileUnitResult {
-        payload: FileUnitResultPayload {
+fn try_file_write_bytes_err(error: FileIOErr) -> FileWriteBytesResult {
+    FileWriteBytesResult {
+        payload: FileWriteBytesResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: FileUnitResultTag::Err,
+        tag: FileWriteBytesResultTag::Err,
     }
 }
 
@@ -477,6 +501,96 @@ fn try_file_str_err(error: FileIOErr) -> FileStrResult {
             err: ManuallyDrop::new(error),
         },
         tag: FileStrResultTag::Err,
+    }
+}
+
+fn try_file_write_utf8_ok() -> FileWriteUtf8Result {
+    FileWriteUtf8Result {
+        payload: FileWriteUtf8ResultPayload {
+            ok: ManuallyDrop::new(()),
+        },
+        tag: FileWriteUtf8ResultTag::Ok,
+    }
+}
+
+fn try_file_write_utf8_err(error: FileIOErr) -> FileWriteUtf8Result {
+    FileWriteUtf8Result {
+        payload: FileWriteUtf8ResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: FileWriteUtf8ResultTag::Err,
+    }
+}
+
+fn try_file_delete_ok() -> FileDeleteResult {
+    FileDeleteResult {
+        payload: FileDeleteResultPayload {
+            ok: ManuallyDrop::new(()),
+        },
+        tag: FileDeleteResultTag::Ok,
+    }
+}
+
+fn try_file_delete_err(error: FileIOErr) -> FileDeleteResult {
+    FileDeleteResult {
+        payload: FileDeleteResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: FileDeleteResultTag::Err,
+    }
+}
+
+fn try_file_size_ok(value: u64) -> FileSizeResult {
+    FileSizeResult {
+        payload: FileSizeResultPayload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: FileSizeResultTag::Ok,
+    }
+}
+
+fn try_file_size_err(error: FileIOErr) -> FileSizeResult {
+    FileSizeResult {
+        payload: FileSizeResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: FileSizeResultTag::Err,
+    }
+}
+
+fn try_file_bool_ok(value: bool) -> FileBoolResult {
+    FileBoolResult {
+        payload: FileBoolResultPayload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: FileBoolResultTag::Ok,
+    }
+}
+
+fn try_file_bool_err(error: FileIOErr) -> FileBoolResult {
+    FileBoolResult {
+        payload: FileBoolResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: FileBoolResultTag::Err,
+    }
+}
+
+fn try_file_time_ok(value: u128) -> FileTimeResult {
+    FileTimeResult {
+        payload: FileTimeResultPayload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: FileTimeResultTag::Ok,
+    }
+}
+
+fn try_file_time_err(error: FileIOErr) -> FileTimeResult {
+    FileTimeResult {
+        payload: FileTimeResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: FileTimeResultTag::Err,
     }
 }
 
@@ -561,19 +675,53 @@ fn try_stderr_unit_err(error: StderrIOErr) -> StderrUnitResult {
     }
 }
 
-fn stdin_eof_or_err_eof() -> StdinReadErr {
-    StdinReadErr {
-        payload: StdinReadErrPayload { end_of_file: [] },
-        tag: StdinReadErrTag::EndOfFile,
+fn try_stderr_bytes_ok() -> StderrBytesResult {
+    StderrBytesResult {
+        payload: StderrBytesResultPayload {
+            ok: ManuallyDrop::new(()),
+        },
+        tag: StderrBytesResultTag::Ok,
     }
 }
 
-fn stdin_eof_or_err_io(error: StdinIOErr) -> StdinReadErr {
-    StdinReadErr {
-        payload: StdinReadErrPayload {
+fn try_stderr_bytes_err(error: StderrIOErr) -> StderrBytesResult {
+    StderrBytesResult {
+        payload: StderrBytesResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: StderrBytesResultTag::Err,
+    }
+}
+
+fn stdin_line_eof_or_err_eof() -> StdinLineReadErr {
+    StdinLineReadErr {
+        payload: StdinLineReadErrPayload { end_of_file: [] },
+        tag: StdinLineReadErrTag::EndOfFile,
+    }
+}
+
+fn stdin_line_eof_or_err_io(error: StdinIOErr) -> StdinLineReadErr {
+    StdinLineReadErr {
+        payload: StdinLineReadErrPayload {
             stdin_err: ManuallyDrop::new(error),
         },
-        tag: StdinReadErrTag::StdinErr,
+        tag: StdinLineReadErrTag::StdinErr,
+    }
+}
+
+fn stdin_bytes_eof_or_err_eof() -> StdinBytesReadErr {
+    StdinBytesReadErr {
+        payload: StdinBytesReadErrPayload { end_of_file: [] },
+        tag: StdinBytesReadErrTag::EndOfFile,
+    }
+}
+
+fn stdin_bytes_eof_or_err_io(error: StdinIOErr) -> StdinBytesReadErr {
+    StdinBytesReadErr {
+        payload: StdinBytesReadErrPayload {
+            stdin_err: ManuallyDrop::new(error),
+        },
+        tag: StdinBytesReadErrTag::StdinErr,
     }
 }
 
@@ -586,7 +734,7 @@ fn try_stdin_line_ok(value: RocStr) -> StdinLineResult {
     }
 }
 
-fn try_stdin_line_err(error: StdinReadErr) -> StdinLineResult {
+fn try_stdin_line_err(error: StdinLineReadErr) -> StdinLineResult {
     StdinLineResult {
         payload: StdinLineResultPayload {
             err: ManuallyDrop::new(error),
@@ -604,7 +752,7 @@ fn try_stdin_bytes_ok(value: RocListWith<u8, false>) -> StdinBytesResult {
     }
 }
 
-fn try_stdin_bytes_err(error: StdinReadErr) -> StdinBytesResult {
+fn try_stdin_bytes_err(error: StdinBytesReadErr) -> StdinBytesResult {
     StdinBytesResult {
         payload: StdinBytesResultPayload {
             err: ManuallyDrop::new(error),
@@ -646,6 +794,24 @@ fn try_stdout_unit_err(error: StdoutIOErr) -> StdoutUnitResult {
             err: ManuallyDrop::new(error),
         },
         tag: StdoutUnitResultTag::Err,
+    }
+}
+
+fn try_stdout_bytes_ok() -> StdoutBytesResult {
+    StdoutBytesResult {
+        payload: StdoutBytesResultPayload {
+            ok: ManuallyDrop::new(()),
+        },
+        tag: StdoutBytesResultTag::Ok,
+    }
+}
+
+fn try_stdout_bytes_err(error: StdoutIOErr) -> StdoutBytesResult {
+    StdoutBytesResult {
+        payload: StdoutBytesResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: StdoutBytesResultTag::Err,
     }
 }
 
@@ -792,6 +958,12 @@ pub extern "C" fn hosted_env_exe_path() -> EnvExePathResult {
 }
 
 #[no_mangle]
+pub extern "C" fn hosted_env_temp_dir() -> RocStr {
+    let roc_host = roc_host();
+    RocStr::from_str(std::env::temp_dir().to_string_lossy().as_ref(), roc_host)
+}
+
+#[no_mangle]
 pub extern "C" fn hosted_env_var(name: RocStr) -> EnvVarResult {
     let roc_host = roc_host();
     let key = name.as_str().to_owned();
@@ -805,11 +977,11 @@ pub extern "C" fn hosted_env_var(name: RocStr) -> EnvVarResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_delete(path: RocStr) -> FileUnitResult {
+pub extern "C" fn hosted_file_delete(path: RocStr) -> FileDeleteResult {
     let roc_host = roc_host();
     match fs::remove_file(path_from_roc_str(path, roc_host)) {
-        Ok(()) => try_file_unit_ok(),
-        Err(error) => try_file_unit_err(file_io_err_from_io(&error, roc_host)),
+        Ok(()) => try_file_delete_ok(),
+        Err(error) => try_file_delete_err(file_io_err_from_io(&error, roc_host)),
     }
 }
 
@@ -831,32 +1003,139 @@ pub extern "C" fn hosted_file_read_utf8(path: RocStr) -> FileStrResult {
     }
 }
 
+fn file_metadata(path: RocStr, roc_host: &RocHost) -> io::Result<fs::Metadata> {
+    fs::metadata(path_from_roc_str(path, roc_host))
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_size_in_bytes(path: RocStr) -> FileSizeResult {
+    let roc_host = roc_host();
+    match file_metadata(path, roc_host) {
+        Ok(metadata) => try_file_size_ok(metadata.len()),
+        Err(error) => try_file_size_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
+#[cfg(not(unix))]
+fn unsupported_file_permission_error() -> io::Error {
+    io::Error::new(
+        io::ErrorKind::Unsupported,
+        "file permission checks are not implemented on this platform",
+    )
+}
+
+fn file_permission_bit(path: RocStr, roc_host: &RocHost, bit: u32) -> io::Result<bool> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let metadata = file_metadata(path, roc_host)?;
+        Ok(metadata.permissions().mode() & bit != 0)
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = path_from_roc_str(path, roc_host);
+        let _ = bit;
+        Err(unsupported_file_permission_error())
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_is_executable(path: RocStr) -> FileBoolResult {
+    let roc_host = roc_host();
+    match file_permission_bit(path, roc_host, 0o111) {
+        Ok(value) => try_file_bool_ok(value),
+        Err(error) => try_file_bool_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_is_readable(path: RocStr) -> FileBoolResult {
+    let roc_host = roc_host();
+    match file_permission_bit(path, roc_host, 0o400) {
+        Ok(value) => try_file_bool_ok(value),
+        Err(error) => try_file_bool_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_is_writable(path: RocStr) -> FileBoolResult {
+    let roc_host = roc_host();
+    match file_permission_bit(path, roc_host, 0o200) {
+        Ok(value) => try_file_bool_ok(value),
+        Err(error) => try_file_bool_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
+fn nanos_since_epoch(time: std::time::SystemTime) -> io::Result<u128> {
+    time.duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .map_err(|error| io::Error::new(io::ErrorKind::Other, error.to_string()))
+}
+
+fn file_time(
+    path: RocStr,
+    roc_host: &RocHost,
+    read_time: fn(&fs::Metadata) -> io::Result<std::time::SystemTime>,
+) -> io::Result<u128> {
+    let metadata = file_metadata(path, roc_host)?;
+    read_time(&metadata).and_then(nanos_since_epoch)
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_time_accessed(path: RocStr) -> FileTimeResult {
+    let roc_host = roc_host();
+    match file_time(path, roc_host, fs::Metadata::accessed) {
+        Ok(value) => try_file_time_ok(value),
+        Err(error) => try_file_time_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_time_created(path: RocStr) -> FileTimeResult {
+    let roc_host = roc_host();
+    match file_time(path, roc_host, fs::Metadata::created) {
+        Ok(value) => try_file_time_ok(value),
+        Err(error) => try_file_time_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_time_modified(path: RocStr) -> FileTimeResult {
+    let roc_host = roc_host();
+    match file_time(path, roc_host, fs::Metadata::modified) {
+        Ok(value) => try_file_time_ok(value),
+        Err(error) => try_file_time_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn hosted_file_write_bytes(
     path: RocStr,
     bytes: RocListWith<u8, false>,
-) -> FileUnitResult {
+) -> FileWriteBytesResult {
     let roc_host = roc_host();
     let path_string = path_from_roc_str(path, roc_host);
     let result = fs::write(path_string, bytes.as_slice());
     bytes.decref(roc_host);
 
     match result {
-        Ok(()) => try_file_unit_ok(),
-        Err(error) => try_file_unit_err(file_io_err_from_io(&error, roc_host)),
+        Ok(()) => try_file_write_bytes_ok(),
+        Err(error) => try_file_write_bytes_err(file_io_err_from_io(&error, roc_host)),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_write_utf8(path: RocStr, content: RocStr) -> FileUnitResult {
+pub extern "C" fn hosted_file_write_utf8(path: RocStr, content: RocStr) -> FileWriteUtf8Result {
     let roc_host = roc_host();
     let path_string = path_from_roc_str(path, roc_host);
     let content_string = content.as_str().to_owned();
     content.decref(roc_host);
 
     match fs::write(path_string, content_string) {
-        Ok(()) => try_file_unit_ok(),
-        Err(error) => try_file_unit_err(file_io_err_from_io(&error, roc_host)),
+        Ok(()) => try_file_write_utf8_ok(),
+        Err(error) => try_file_write_utf8_err(file_io_err_from_io(&error, roc_host)),
     }
 }
 
@@ -1036,7 +1315,7 @@ pub extern "C" fn hosted_stderr_write(message: RocStr) -> StderrUnitResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_stderr_write_bytes(bytes: RocListWith<u8, false>) -> StderrUnitResult {
+pub extern "C" fn hosted_stderr_write_bytes(bytes: RocListWith<u8, false>) -> StderrBytesResult {
     let roc_host = roc_host();
     let result = {
         let mut stderr = io::stderr().lock();
@@ -1047,8 +1326,8 @@ pub extern "C" fn hosted_stderr_write_bytes(bytes: RocListWith<u8, false>) -> St
     bytes.decref(roc_host);
 
     match result {
-        Ok(()) => try_stderr_unit_ok(),
-        Err(error) => try_stderr_unit_err(stderr_io_err_from_io(&error, roc_host)),
+        Ok(()) => try_stderr_bytes_ok(),
+        Err(error) => try_stderr_bytes_err(stderr_io_err_from_io(&error, roc_host)),
     }
 }
 
@@ -1057,14 +1336,14 @@ pub extern "C" fn hosted_stdin_line() -> StdinLineResult {
     let roc_host = roc_host();
     let mut line = String::new();
     match io::stdin().lock().read_line(&mut line) {
-        Ok(0) => try_stdin_line_err(stdin_eof_or_err_eof()),
+        Ok(0) => try_stdin_line_err(stdin_line_eof_or_err_eof()),
         Ok(_) => {
             let trimmed = line.trim_end_matches('\n').trim_end_matches('\r');
             try_stdin_line_ok(RocStr::from_str(trimmed, roc_host))
         }
-        Err(error) => {
-            try_stdin_line_err(stdin_eof_or_err_io(stdin_io_err_from_io(&error, roc_host)))
-        }
+        Err(error) => try_stdin_line_err(stdin_line_eof_or_err_io(stdin_io_err_from_io(
+            &error, roc_host,
+        ))),
     }
 }
 
@@ -1073,14 +1352,14 @@ pub extern "C" fn hosted_stdin_bytes() -> StdinBytesResult {
     let roc_host = roc_host();
     let mut buffer = [0u8; 16_384];
     match io::stdin().lock().read(&mut buffer) {
-        Ok(0) => try_stdin_bytes_err(stdin_eof_or_err_eof()),
+        Ok(0) => try_stdin_bytes_err(stdin_bytes_eof_or_err_eof()),
         Ok(bytes_read) => try_stdin_bytes_ok(RocListWith::<u8, false>::from_slice(
             &buffer[..bytes_read],
             roc_host,
         )),
-        Err(error) => {
-            try_stdin_bytes_err(stdin_eof_or_err_io(stdin_io_err_from_io(&error, roc_host)))
-        }
+        Err(error) => try_stdin_bytes_err(stdin_bytes_eof_or_err_io(stdin_io_err_from_io(
+            &error, roc_host,
+        ))),
     }
 }
 
@@ -1125,7 +1404,7 @@ pub extern "C" fn hosted_stdout_write(message: RocStr) -> StdoutUnitResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_stdout_write_bytes(bytes: RocListWith<u8, false>) -> StdoutUnitResult {
+pub extern "C" fn hosted_stdout_write_bytes(bytes: RocListWith<u8, false>) -> StdoutBytesResult {
     let roc_host = roc_host();
     let result = {
         let mut stdout = io::stdout().lock();
@@ -1136,8 +1415,8 @@ pub extern "C" fn hosted_stdout_write_bytes(bytes: RocListWith<u8, false>) -> St
     bytes.decref(roc_host);
 
     match result {
-        Ok(()) => try_stdout_unit_ok(),
-        Err(error) => try_stdout_unit_err(stdout_io_err_from_io(&error, roc_host)),
+        Ok(()) => try_stdout_bytes_ok(),
+        Err(error) => try_stdout_bytes_err(stdout_io_err_from_io(&error, roc_host)),
     }
 }
 
@@ -1216,6 +1495,7 @@ fn build_args_list(argc: i32, argv: *const *const c_char, roc_host: &RocHost) ->
     list
 }
 
+#[cfg(not(test))]
 #[no_mangle]
 pub extern "C" fn main(argc: i32, argv: *const *const c_char) -> i32 {
     rust_main(argc, argv)

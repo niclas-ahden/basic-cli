@@ -7,6 +7,11 @@ These are examples of how to make basic CLI (command-line interface) programs us
 
 Every checked-in example should pass `roc check` and `roc build` with the pinned compiler. The CI script enforces this with `./ci/all_tests.sh`.
 
+Examples that are intentionally kept out of CI while an API or compiler blocker
+is tracked use the `.todoroc` extension and must include a TODO comment with a
+GitHub issue link. Rename them back to `.roc` only after they check and build
+with the pinned compiler.
+
 Feel free to ask [on Zulip](https://roc.zulipchat.com) in the `#beginners` channel if you have questions about making
 CLI programs, or if there are functions you'd like to see added to this platform (for
 an application you'd like to build in Roc).

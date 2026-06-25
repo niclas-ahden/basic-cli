@@ -47,7 +47,7 @@ Path :: [
     ##
     ## This function will traverse symbolic links to query information about the
     ## destination file. In case of broken symbolic links this will return `Bool.False`.
-    is_file! : Path => Try(Bool, [PathErr(IOErr)])
+    is_file! : Path => Try(Bool, [PathErr(IOErr), ..])
     is_file! = |path|
         match type!(path) {
             Ok(IsFile) => Ok(Bool.True)
@@ -59,7 +59,7 @@ Path :: [
     ##
     ## This function will traverse symbolic links to query information about the
     ## destination file. In case of broken symbolic links this will return `Bool.False`.
-    is_dir! : Path => Try(Bool, [PathErr(IOErr)])
+    is_dir! : Path => Try(Bool, [PathErr(IOErr), ..])
     is_dir! = |path|
         match type!(path) {
             Ok(IsDir) => Ok(Bool.True)
@@ -71,7 +71,7 @@ Path :: [
     ##
     ## This function will not traverse symbolic links - it checks whether the path
     ## itself is a symlink.
-    is_sym_link! : Path => Try(Bool, [PathErr(IOErr)])
+    is_sym_link! : Path => Try(Bool, [PathErr(IOErr), ..])
     is_sym_link! = |path|
         match type!(path) {
             Ok(IsSymLink) => Ok(Bool.True)
@@ -142,7 +142,7 @@ Path :: [
     ## Return the type of the path if the path exists on disk.
     ##
     ## > [`File.type`](File#type!) does the same thing, except it takes a [Str] instead of a [Path].
-    type! : Path => Try([IsFile, IsDir, IsSymLink], [PathErr(IOErr)])
+    type! : Path => Try([IsFile, IsDir, IsSymLink], [PathErr(IOErr), ..])
     type! = |path| {
         Path.host_path_type!(to_bytes(path))
             .map_err(|err| PathErr(err))
