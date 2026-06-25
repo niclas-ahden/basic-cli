@@ -37,6 +37,7 @@ vgcore.*
 #editors
 .idea/
 .vscode/
+.claude/
 .ignore
 .exrc
 .vimrc

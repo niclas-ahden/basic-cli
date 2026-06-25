@@ -37,51 +37,65 @@ cleanup() {
 # Set up trap to ensure cleanup runs on exit
 trap cleanup EXIT
 
-# Get nightly version info from Cargo.toml
-source ci/get_roc_nightly_url.sh
-NEED_DOWNLOAD=false
+# Get the roc commit pinned in .roc-version
+ROC_COMMIT=$(python3 ci/get_roc_commit.py)
+ROC_COMMIT_SHORT="${ROC_COMMIT:0:8}"
+NEED_BUILD=true
+USE_ROC_SRC=false
 
 echo "=== basic-cli CI ==="
 echo ""
 
-# Check if cached roc exists and matches pinned version
-ROC_DIR="roc_nightly-${ROC_NIGHTLY_DATE}-${ROC_NIGHTLY_COMMIT}"
-if [ -d "$ROC_DIR" ] && [ -f "$ROC_DIR/roc" ]; then
-    CACHED_VERSION=$("./$ROC_DIR/roc" version 2>/dev/null || echo "unknown")
-    if echo "$CACHED_VERSION" | grep -q "$ROC_NIGHTLY_COMMIT"; then
-        echo "roc already at correct version: $CACHED_VERSION"
+# Check if roc is already on PATH and matches pinned commit
+if command -v roc &>/dev/null; then
+    SYSTEM_VERSION=$(roc version 2>/dev/null || echo "unknown")
+    if echo "$SYSTEM_VERSION" | grep -q "$ROC_COMMIT_SHORT"; then
+        echo "roc on PATH matches pinned commit: $SYSTEM_VERSION"
+        NEED_BUILD=false
     else
-        echo "Cached roc ($CACHED_VERSION) doesn't match nightly ($ROC_NIGHTLY_COMMIT)"
-        echo "Removing stale roc directory..."
-        rm -rf "$ROC_DIR"
-        NEED_DOWNLOAD=true
+        echo "roc on PATH ($SYSTEM_VERSION) doesn't match pinned commit ($ROC_COMMIT_SHORT)"
     fi
-else
-    NEED_DOWNLOAD=true
 fi
 
-if [ "$NEED_DOWNLOAD" = true ]; then
-    echo "Downloading Roc nightly $ROC_NIGHTLY_COMMIT..."
-    echo "URL: $ROC_NIGHTLY_URL"
+# Check cached build in roc-src/
+if [ "$NEED_BUILD" = true ] && [ -d "roc-src" ] && [ -f "roc-src/zig-out/bin/roc" ]; then
+    CACHED_VERSION=$(./roc-src/zig-out/bin/roc version 2>/dev/null || echo "unknown")
+    if echo "$CACHED_VERSION" | grep -q "$ROC_COMMIT_SHORT"; then
+        echo "roc in roc-src/ matches pinned commit: $CACHED_VERSION"
+        NEED_BUILD=false
+        USE_ROC_SRC=true
+    else
+        echo "Cached roc ($CACHED_VERSION) doesn't match pinned commit ($ROC_COMMIT_SHORT)"
+        echo "Removing stale roc-src..."
+        rm -rf roc-src
+    fi
+fi
 
-    # Clean up any old nightly directories
-    rm -rf roc_nightly-*
+if [ "$NEED_BUILD" = true ]; then
+    echo "Building roc from pinned commit $ROC_COMMIT..."
 
-    curl -fOL "$ROC_NIGHTLY_URL"
-    tar -xzf "$ROC_NIGHTLY_ARCHIVE"
-    rm -f "$ROC_NIGHTLY_ARCHIVE"
+    rm -rf roc-src
+    git init roc-src
+    cd roc-src
+    git remote add origin https://github.com/roc-lang/roc
+    git fetch --depth 1 origin "$ROC_COMMIT"
+    git checkout --detach "$ROC_COMMIT"
 
-    # Find the extracted directory
-    ROC_DIR=$(ls -d roc_nightly-*/ 2>/dev/null | head -1 | sed 's|/$||')
+    zig build roc
 
     # Add to GITHUB_PATH if running in CI
     if [ -n "${GITHUB_PATH:-}" ]; then
-        echo "$(pwd)/$ROC_DIR" >> "$GITHUB_PATH"
+        echo "$(pwd)/zig-out/bin" >> "$GITHUB_PATH"
     fi
+
+    cd ..
+    USE_ROC_SRC=true
 fi
 
-# Ensure roc is in PATH
-export PATH="$(pwd)/$ROC_DIR:$PATH"
+# Prefer the cached/source-built roc if it exists; otherwise keep the matching PATH roc.
+if [ "$USE_ROC_SRC" = true ]; then
+    export PATH="$(pwd)/roc-src/zig-out/bin:$PATH"
+fi
 
 echo ""
 echo "Using roc version: $(roc version)"
@@ -93,6 +107,10 @@ if [ "$(uname -s)" = "Darwin" ] && [ -z "${SDKROOT:-}" ]; then
         echo "Using SDKROOT: $SDKROOT"
     fi
 fi
+
+echo ""
+echo "=== Checking generated Rust glue ==="
+./ci/regenerate_glue.sh --check
 
 # Build the platform
 if [ "${NO_BUILD:-}" != "1" ]; then
@@ -111,6 +129,7 @@ MIGRATED_EXAMPLES=(
     "stdin-basic"
     "path"
     "command"
+    "file-read-write"
     "time"
     "random"
     "locale"
@@ -134,7 +153,10 @@ BUNDLE_FILE=""
 HTTP_SERVER_PID=""
 USE_BUNDLE=false
 
-if [ "$ALL_TARGETS_EXIST" = true ]; then
+if [ "${NO_BUNDLE:-}" = "1" ]; then
+    echo ""
+    echo "=== Skipping bundle (NO_BUNDLE=1) ==="
+elif [ "$ALL_TARGETS_EXIST" = true ]; then
     echo ""
     echo "=== Bundling platform ==="
     BUNDLE_OUTPUT=$(./bundle.sh 2>&1)

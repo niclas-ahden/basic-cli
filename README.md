@@ -15,21 +15,24 @@ A Roc [platform](https://github.com/roc-lang/roc/wiki/Roc-concepts-explained#pla
 
 ## Running Locally
 
-**⚠️ IMPORTANT**: This branch (`migrate-zig-compiler`) requires the new Roc compiler and `roc_std_new` to be at matching versions to avoid ABI layout mismatches.
+This branch requires a Roc compiler matching the commit in `.roc-version`.
 
-### Roc Nightly Version
+### Version Requirements
 
-This project uses pre-built Roc nightly releases from [roc-lang/nightlies](https://github.com/roc-lang/nightlies). The pinned nightly version is specified in `Cargo.toml` via the `# roc-nightly:` comment and `roc_std_new` rev.
+`ci/all_tests.sh` reads `.roc-version`, reuses `roc` on `PATH` when it matches, and otherwise builds the pinned Roc compiler into `roc-src/`.
 
-The CI scripts automatically download the correct nightly based on this configuration. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to update the Roc version.
+```sh
+cat .roc-version
+roc version
+```
 
-### Migration Status
+### Rust Glue
 
-This branch migrates basic-cli to the new Zig-based Roc compiler and RocOps ABI.
+The Rust host ABI is generated from `platform/main.roc` using Roc's `RustGlue.roc` generator:
 
-**✅ Completed:**
-- All core modules (Cmd, File, Dir, Path, Env, Random, Sleep, Utc, Stdin/Stdout/Stderr)
-- Single-variant tag union layout fix (RocSingleTagWrapper now correctly includes discriminant)
-- Comprehensive testing and verification
+```sh
+./ci/regenerate_glue.sh
+./ci/regenerate_glue.sh --check
+```
 
-**Note:** Single-variant tag unions (e.g., `[PathErr(IOErr)]`) are represented in the Roc ABI with a discriminant byte (always 0) even though there's only one variant. The `RocSingleTagWrapper<T>` type implements this standard Roc ABI layout. This type could potentially be upstreamed to `roc_std_new` for reuse across platforms.
+Commit `src/roc_platform_abi.rs` with any platform API change and the matching Rust host updates.

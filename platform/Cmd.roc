@@ -122,7 +122,7 @@ Cmd :: {
     exec! : Str, List(Str) => Try({}, [CmdErr(IOErr), ExecFailed({ command : Str, exit_code : I32 })])
     exec! = |program, arguments| {
         cmd = new(program).args(arguments)
-        result = exec_exit_code!(cmd)
+        result = Cmd.exec_exit_code!(cmd)
         match result {
             Ok(0) => Ok({}),
             Ok(exit_code) => Err(ExecFailed({ command: program, exit_code })),
@@ -139,7 +139,7 @@ Cmd :: {
     ## ```
     exec_cmd! : Cmd => Try({}, [CmdErr(IOErr), ExecFailed({ exit_code : I32 })])
     exec_cmd! = |cmd| {
-        result = exec_exit_code!(cmd)
+        result = Cmd.exec_exit_code!(cmd)
         match result {
             Ok(0) => Ok({}),
             Ok(code) => Err(ExecFailed({ exit_code: code })),

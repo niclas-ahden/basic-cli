@@ -14,12 +14,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Do not add permissions here! Configure them at the job level!
+# Limit permissions of the GITHUB_TOKEN (override at job level as needed)
 permissions:
   contents: read
-
-env:
-  ZIG_VERSION: 0.15.2
 
 jobs:
   build-and-bundle:
@@ -36,25 +33,29 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Zig
-        uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # ratchet:mlugg/setup-zig@v2.0.5
+        uses: mlugg/setup-zig@v2
         with:
-          version: ${{ env.ZIG_VERSION }}
+          version: 0.15.2
 
-      - name: Install Rust cross-compilation targets
-        run: |
-          rustup target add x86_64-apple-darwin
-          rustup target add aarch64-apple-darwin
-          rustup target add x86_64-unknown-linux-musl
-          rustup target add aarch64-unknown-linux-musl
+      - name: Install Rust with cross-compilation targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin,x86_64-unknown-linux-musl,aarch64-unknown-linux-musl
 
-      - name: Download Roc nightly
+      - name: Build Roc from pinned commit
         run: |
-          source ci/get_roc_nightly_url.sh
-          echo "Downloading $ROC_NIGHTLY_URL"
-          curl -fOL "$ROC_NIGHTLY_URL"
-          tar -xzf "$ROC_NIGHTLY_ARCHIVE"
-          ROC_DIR=$(ls -d roc_nightly-*/ | head -1)
-          echo "$(pwd)/${ROC_DIR}" >> "$GITHUB_PATH"
+          echo "Building roc from pinned commit..."
+          ROC_COMMIT=$(python3 ci/get_roc_commit.py)
+
+          git init roc-src
+          cd roc-src
+          git remote add origin https://github.com/roc-lang/roc
+          git fetch --depth 1 origin "$ROC_COMMIT"
+          git checkout --detach "$ROC_COMMIT"
+
+          zig build roc
+
+          echo "$(pwd)/zig-out/bin" >> "$GITHUB_PATH"
 
       - name: Build platform for all targets
         run: ./build.sh --all
@@ -62,16 +63,9 @@ jobs:
       - name: Bundle platform
         id: bundle
         run: |
-          # Run bundle.sh and capture output (disable set -e to ensure output is printed)
-          set +e
+          # Run bundle.sh and capture output
           BUNDLE_OUTPUT=$(./bundle.sh 2>&1)
-          EXIT_CODE=$?
-          set -e
           echo "$BUNDLE_OUTPUT"
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "bundle.sh failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
 
           # Extract the tar.zst filename from "Created: /path/to/HASH.tar.zst" line
           BUNDLE_PATH=$(echo "$BUNDLE_OUTPUT" | grep "^Created:" | awk '{print $2}')
@@ -115,9 +109,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Zig
-        uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # ratchet:mlugg/setup-zig@v2.0.5
+        uses: mlugg/setup-zig@v2
         with:
-          version: ${{ env.ZIG_VERSION }}
+          version: 0.15.2
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install expect (Ubuntu)
         if: startsWith(matrix.os, 'ubuntu-')
@@ -127,14 +124,20 @@ jobs:
         if: startsWith(matrix.os, 'macos-')
         run: brew install expect
 
-      - name: Download Roc nightly
+      - name: Build Roc from pinned commit
         run: |
-          source ci/get_roc_nightly_url.sh
-          echo "Downloading $ROC_NIGHTLY_URL"
-          curl -fOL "$ROC_NIGHTLY_URL"
-          tar -xzf "$ROC_NIGHTLY_ARCHIVE"
-          ROC_DIR=$(ls -d roc_nightly-*/ | head -1)
-          echo "$(pwd)/${ROC_DIR}" >> "$GITHUB_PATH"
+          echo "Building roc from pinned commit..."
+          ROC_COMMIT=$(python3 ci/get_roc_commit.py)
+
+          git init roc-src
+          cd roc-src
+          git remote add origin https://github.com/roc-lang/roc
+          git fetch --depth 1 origin "$ROC_COMMIT"
+          git checkout --detach "$ROC_COMMIT"
+
+          zig build roc
+
+          echo "$(pwd)/zig-out/bin" >> "$GITHUB_PATH"
 
       - name: Download bundle artifact
         uses: actions/download-artifact@v4
@@ -172,16 +175,16 @@ jobs:
           echo "Modified examples:"
           git diff examples/ | head -50 || true
 
-      # Skip native build since we're using the bundle
-      # The test script will detect all targets exist and use bundle testing
-      # Run all tests against the bundled platform
       - name: Run tests with bundled platform
         uses: roc-lang/roc/.github/actions/flaky-retry@main
         with:
           command: bash ci/all_tests.sh
           error_string_contains: "error: unable"
         env:
+          # Skip native build and rebundling since examples already point at the
+          # downloaded bundle served by the previous step.
           NO_BUILD: "1"
+          NO_BUNDLE: "1"
 
   create-release:
     name: Create GitHub Release
@@ -212,8 +215,7 @@ jobs:
             exit 1
           fi
 
-          source ci/get_roc_nightly_url.sh
-          ROC_COMMIT="$ROC_NIGHTLY_COMMIT"
+          ROC_COMMIT=$(python3 ci/get_roc_commit.py | cut -c1-8)
 
           # Create release with auto-generated notes
           gh release create "${{ github.event.inputs.release_tag }}" \

@@ -1,672 +1,598 @@
-//! Roc platform host implementation for basic-cli using the new RocOps-based ABI.
+//! Roc platform host implementation for Roc's direct-symbol host ABI.
 
-use std::ffi::{c_char, c_void};
+#![allow(improper_ctypes_definitions)]
+
+use core::mem::ManuallyDrop;
+use std::ffi::{c_char, c_void, CStr};
 use std::fs;
 use std::io::{self, BufRead, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use roc_std_new::{
-    HostedFn, HostedFunctions, RocAlloc, RocCrashed, RocDbg, RocDealloc, RocExpectFailed, RocList,
-    RocOps, RocRealloc, RocStr, RocTry,
-};
 
-/// Wrapper for single-variant tag unions like [PathErr(IOErr)].
-///
-/// Example: `[PathErr(IOErr)]` in Roc = `RocSingleTagWrapper<IOErr>` in Rust
-///
-/// Even though there's only one variant, Roc still includes a discriminant byte.
-/// Layout: payload (T) followed by discriminant (u8) + padding to alignment.
-#[repr(C)]
-pub struct RocSingleTagWrapper<T> {
-    pub payload: T,
-    pub discriminant: u8, // Always 0 for single-variant tag unions
-}
+mod roc_platform_abi;
 
-impl<T> RocSingleTagWrapper<T> {
-    pub fn new(payload: T) -> Self {
-        Self {
-            payload,
-            discriminant: 0, // Single variant always has discriminant 0
-        }
-    }
-}
+use crate::roc_platform_abi::*;
 
-/// Global flag to track if dbg or expect_failed was called.
-/// If set, program exits with non-zero code to prevent accidental commits.
-static DEBUG_OR_EXPECT_CALLED: AtomicBool = AtomicBool::new(false);
-
-// External symbol provided by the compiled Roc application
 extern "C" {
-    fn roc__main_for_host(ops: *const RocOps, ret_ptr: *mut c_void, args_ptr: *mut c_void);
+    fn roc_main(args: RocList<RocStr>) -> i32;
 }
 
-/// Roc allocation function with size-tracking metadata.
-///
-/// We store the allocation size before the user data so we can properly
-/// deallocate later (since RocDealloc doesn't provide the size).
-extern "C" fn roc_alloc_fn(roc_alloc: *mut RocAlloc, _env: *mut c_void) {
-    unsafe {
-        let args = &mut *roc_alloc;
+static DEBUG_OR_EXPECT_CALLED: AtomicBool = AtomicBool::new(false);
+static mut ROC_HOST: *mut RocHost = core::ptr::null_mut();
 
-        // Sanity check - if length is absurdly large, something is wrong
-        if args.length > 1024 * 1024 * 1024 {
-            eprintln!("\x1b[31mHost error:\x1b[0m allocation failed - length too large");
-            eprintln!("  alignment={}, length={}", args.alignment, args.length);
+fn set_roc_host(roc_host: *mut RocHost) {
+    unsafe {
+        ROC_HOST = roc_host;
+    }
+}
+
+fn roc_host_ptr() -> *mut RocHost {
+    unsafe {
+        if ROC_HOST.is_null() {
+            eprintln!("roc host error: RocHost not initialized");
             std::process::exit(1);
         }
+        ROC_HOST
+    }
+}
 
-        // Ensure alignment is at least 1 and a power of 2
-        let alignment = args.alignment.max(1);
-        let min_alignment = alignment.max(std::mem::align_of::<usize>());
+fn roc_host() -> &'static RocHost {
+    unsafe { &*roc_host_ptr() }
+}
 
-        // Ensure min_alignment is a power of 2
-        let min_alignment = min_alignment.next_power_of_two();
-
-        // Calculate additional bytes needed to store the size
-        let size_storage_bytes = min_alignment;
-        let total_size = args.length.saturating_add(size_storage_bytes);
-
-        // Ensure total_size is at least 1
-        let total_size = total_size.max(1);
-
-        // Use libc malloc directly for more reliable allocation
-        let base_ptr = libc::malloc(total_size) as *mut u8;
-
-        if base_ptr.is_null() {
-            eprintln!("\x1b[31mHost error:\x1b[0m allocation failed, out of memory");
-            eprintln!(
-                "  requested: alignment={}, length={}",
-                args.alignment, args.length
-            );
-            eprintln!(
-                "  computed: min_alignment={}, size_storage_bytes={}, total_size={}",
-                min_alignment, size_storage_bytes, total_size
-            );
-            std::process::exit(1);
+macro_rules! define_common_io_err {
+    ($from_io:ident, $other:ident, $ty:ident, $tag:ident, $payload:ident) => {
+        fn $other(message: &str, roc_host: &RocHost) -> $ty {
+            $ty {
+                payload: $payload {
+                    other: ManuallyDrop::new(RocStr::from_str(message, roc_host)),
+                },
+                tag: $tag::Other,
+            }
         }
 
-        // Store the total size right before the user data
-        let size_ptr =
-            base_ptr.add(size_storage_bytes - std::mem::size_of::<usize>()) as *mut usize;
-        *size_ptr = total_size;
-
-        // Also store the alignment for deallocation
-        // We use the first usize slot for alignment, second for total_size
-        if size_storage_bytes >= 2 * std::mem::size_of::<usize>() {
-            let align_ptr = base_ptr as *mut usize;
-            *align_ptr = min_alignment;
+        fn $from_io(error: &io::Error, roc_host: &RocHost) -> $ty {
+            match error.kind() {
+                io::ErrorKind::AlreadyExists => $ty {
+                    payload: $payload { already_exists: [] },
+                    tag: $tag::AlreadyExists,
+                },
+                io::ErrorKind::BrokenPipe => $ty {
+                    payload: $payload { broken_pipe: [] },
+                    tag: $tag::BrokenPipe,
+                },
+                io::ErrorKind::Interrupted => $ty {
+                    payload: $payload { interrupted: [] },
+                    tag: $tag::Interrupted,
+                },
+                io::ErrorKind::NotFound => $ty {
+                    payload: $payload { not_found: [] },
+                    tag: $tag::NotFound,
+                },
+                io::ErrorKind::OutOfMemory => $ty {
+                    payload: $payload { out_of_memory: [] },
+                    tag: $tag::OutOfMemory,
+                },
+                io::ErrorKind::PermissionDenied => $ty {
+                    payload: $payload {
+                        permission_denied: [],
+                    },
+                    tag: $tag::PermissionDenied,
+                },
+                io::ErrorKind::Unsupported => $ty {
+                    payload: $payload { unsupported: [] },
+                    tag: $tag::Unsupported,
+                },
+                _ => $other(&error.to_string(), roc_host),
+            }
         }
+    };
+}
 
-        // Return pointer to the user data (after the size metadata)
-        args.answer = base_ptr.add(size_storage_bytes) as *mut c_void;
+define_common_io_err!(
+    cmd_io_err_from_io,
+    cmd_io_err_other,
+    CmdIOErr,
+    CmdIOErrTag,
+    CmdIOErrPayload
+);
+define_common_io_err!(
+    file_io_err_from_io,
+    file_io_err_other,
+    FileIOErr,
+    FileIOErrTag,
+    FileIOErrPayload
+);
+define_common_io_err!(
+    path_io_err_from_io,
+    path_io_err_other,
+    PathIOErr,
+    PathIOErrTag,
+    PathIOErrPayload
+);
+define_common_io_err!(
+    random_io_err_from_io,
+    random_io_err_other,
+    RandomIOErr,
+    RandomIOErrTag,
+    RandomIOErrPayload
+);
+
+fn dir_io_err_other(message: &str, roc_host: &RocHost) -> DirIOErr {
+    DirIOErr {
+        payload: DirIOErrPayload {
+            other: ManuallyDrop::new(RocStr::from_str(message, roc_host)),
+        },
+        tag: DirIOErrTag::Other,
     }
 }
 
-/// Roc deallocation function with size-tracking metadata.
-extern "C" fn roc_dealloc_fn(roc_dealloc: *mut RocDealloc, _env: *mut c_void) {
-    unsafe {
-        let args = &*roc_dealloc;
-
-        // Use the same alignment calculation as alloc
-        let alignment = args.alignment.max(1);
-        let min_alignment = alignment
-            .max(std::mem::align_of::<usize>())
-            .next_power_of_two();
-        let size_storage_bytes = min_alignment;
-
-        // Calculate the base pointer (start of actual allocation)
-        let base_ptr = (args.ptr as *mut u8).sub(size_storage_bytes);
-
-        // Free the memory using libc
-        libc::free(base_ptr as *mut c_void);
-    }
-}
-
-/// Roc reallocation function with size-tracking metadata.
-extern "C" fn roc_realloc_fn(roc_realloc: *mut RocRealloc, _env: *mut c_void) {
-    unsafe {
-        let args = &mut *roc_realloc;
-
-        // Use the same alignment calculation as alloc
-        let alignment = args.alignment.max(1);
-        let min_alignment = alignment
-            .max(std::mem::align_of::<usize>())
-            .next_power_of_two();
-        let size_storage_bytes = min_alignment;
-
-        // Get old allocation info
-        let old_base_ptr = (args.answer as *mut u8).sub(size_storage_bytes);
-
-        // Calculate new total size
-        let new_total_size = args.new_length.saturating_add(size_storage_bytes).max(1);
-
-        // Use libc realloc
-        let new_base_ptr = libc::realloc(old_base_ptr as *mut c_void, new_total_size) as *mut u8;
-
-        if new_base_ptr.is_null() {
-            eprintln!("\x1b[31mHost error:\x1b[0m reallocation failed, out of memory");
-            std::process::exit(1);
+fn dir_io_err_from_io(error: &io::Error, roc_host: &RocHost) -> DirIOErr {
+    if let Some(errno) = error.raw_os_error() {
+        if errno == libc::ENOTDIR {
+            return DirIOErr {
+                payload: DirIOErrPayload { not_adirectory: [] },
+                tag: DirIOErrTag::NotADirectory,
+            };
         }
-
-        // Store the new total size in metadata
-        let new_size_ptr =
-            new_base_ptr.add(size_storage_bytes - std::mem::size_of::<usize>()) as *mut usize;
-        *new_size_ptr = new_total_size;
-
-        // Return pointer to the user data
-        args.answer = new_base_ptr.add(size_storage_bytes) as *mut c_void;
+        if errno == libc::ENOTEMPTY {
+            return DirIOErr {
+                payload: DirIOErrPayload { not_empty: [] },
+                tag: DirIOErrTag::NotEmpty,
+            };
+        }
     }
-}
 
-/// Roc debug function - called when Roc code uses `dbg`.
-extern "C" fn roc_dbg_fn(roc_dbg: *const RocDbg, _env: *mut c_void) {
-    DEBUG_OR_EXPECT_CALLED.store(true, Ordering::Release);
-    unsafe {
-        let args = &*roc_dbg;
-        let message = std::slice::from_raw_parts(args.utf8_bytes, args.len);
-        let message = std::str::from_utf8_unchecked(message);
-        eprintln!("\x1b[33mdbg:\x1b[0m {}", message);
-    }
-}
-
-/// Roc expect failed function - called when an `expect` statement fails.
-extern "C" fn roc_expect_failed_fn(roc_expect: *const RocExpectFailed, _env: *mut c_void) {
-    DEBUG_OR_EXPECT_CALLED.store(true, Ordering::Release);
-    unsafe {
-        let args = &*roc_expect;
-        let message = std::slice::from_raw_parts(args.utf8_bytes, args.len);
-        let message = std::str::from_utf8_unchecked(message).trim();
-        eprintln!("\x1b[33mexpect failed:\x1b[0m {}", message);
-    }
-}
-
-/// Roc crashed function - called when the Roc program crashes.
-extern "C" fn roc_crashed_fn(roc_crashed: *const RocCrashed, _env: *mut c_void) {
-    unsafe {
-        let args = &*roc_crashed;
-        let message = std::slice::from_raw_parts(args.utf8_bytes, args.len);
-        let message = std::str::from_utf8_unchecked(message);
-        eprintln!("\n\x1b[31mRoc crashed:\x1b[0m {}", message);
-        std::process::exit(1);
-    }
-}
-
-// ============================================================================
-// Cmd Module Types and Functions
-// ============================================================================
-
-/// Type alias for the Cmd error type: [CmdErr(IOErr)] in Roc
-type CmdErr = RocSingleTagWrapper<roc_io_error::IOErr>;
-
-/// Type alias for Try(I32, [CmdErr(IOErr)]) - using official RocTry
-type TryI32CmdErr = RocTry<i32, CmdErr>;
-
-/// Output record: { stderr_utf8_lossy : Str, stdout_utf8 : Str }
-/// Memory layout: Both RocStr are 24 bytes, alphabetical: stderr_utf8_lossy, stdout_utf8
-#[repr(C)]
-pub struct CmdOutputSuccess {
-    pub stderr_utf8_lossy: RocStr, // offset 0 (24 bytes)
-    pub stdout_utf8: RocStr,       // offset 24 (24 bytes)
-}
-
-/// NonZeroExit error payload: { exit_code : I32, stderr_utf8_lossy : Str, stdout_utf8_lossy : Str }
-/// Memory layout: RocStr (24 bytes) > I32 (4 bytes), so: stderr_utf8_lossy, stdout_utf8_lossy, exit_code
-#[repr(C)]
-pub struct NonZeroExitPayload {
-    pub stderr_utf8_lossy: RocStr, // offset 0 (24 bytes)
-    pub stdout_utf8_lossy: RocStr, // offset 24 (24 bytes)
-    pub exit_code: i32,            // offset 48 (4 bytes + padding)
-}
-
-/// Error type for exec_output!: [CmdErr(IOErr), NonZeroExit({ exit_code, stderr, stdout })]
-/// Alphabetically: CmdErr=0, NonZeroExit=1
-#[repr(C)]
-pub union CmdOutputErrPayload {
-    cmd_err: core::mem::ManuallyDrop<roc_io_error::IOErr>,
-    non_zero_exit: core::mem::ManuallyDrop<NonZeroExitPayload>,
-}
-
-#[repr(C)]
-pub struct CmdOutputErr {
-    payload: CmdOutputErrPayload,
-    discriminant: u8, // CmdErr=0, NonZeroExit=1
-}
-
-impl CmdOutputErr {
-    pub fn cmd_err(io_err: roc_io_error::IOErr) -> Self {
-        Self {
-            payload: CmdOutputErrPayload {
-                cmd_err: core::mem::ManuallyDrop::new(io_err),
+    match error.kind() {
+        io::ErrorKind::AlreadyExists => DirIOErr {
+            payload: DirIOErrPayload { already_exists: [] },
+            tag: DirIOErrTag::AlreadyExists,
+        },
+        io::ErrorKind::NotFound => DirIOErr {
+            payload: DirIOErrPayload { not_found: [] },
+            tag: DirIOErrTag::NotFound,
+        },
+        io::ErrorKind::PermissionDenied => DirIOErr {
+            payload: DirIOErrPayload {
+                permission_denied: [],
             },
-            discriminant: 0,
+            tag: DirIOErrTag::PermissionDenied,
+        },
+        _ => dir_io_err_other(&error.to_string(), roc_host),
+    }
+}
+
+fn decref_roc_str_list(list: &RocList<RocStr>, roc_host: &RocHost) {
+    for item in list.as_slice() {
+        item.decref(roc_host);
+    }
+    list.decref(roc_host);
+}
+
+fn decref_cmd(cmd: &Cmd, roc_host: &RocHost) {
+    decref_roc_str_list(&cmd.args, roc_host);
+    decref_roc_str_list(&cmd.envs, roc_host);
+    cmd.program.decref(roc_host);
+}
+
+fn cmd_to_std(cmd: &Cmd) -> std::process::Command {
+    let mut std_cmd = std::process::Command::new(cmd.program.as_str());
+
+    for arg in cmd.args.as_slice() {
+        std_cmd.arg(arg.as_str());
+    }
+
+    if cmd.clear_envs {
+        std_cmd.env_clear();
+    }
+
+    for chunk in cmd.envs.as_slice().chunks(2) {
+        if let [key, value] = chunk {
+            std_cmd.env(key.as_str(), value.as_str());
         }
     }
 
-    pub fn non_zero_exit(
-        stderr_utf8_lossy: RocStr,
-        stdout_utf8_lossy: RocStr,
-        exit_code: i32,
-    ) -> Self {
-        Self {
-            payload: CmdOutputErrPayload {
-                non_zero_exit: core::mem::ManuallyDrop::new(NonZeroExitPayload {
-                    stderr_utf8_lossy,
-                    stdout_utf8_lossy,
-                    exit_code,
+    std_cmd
+}
+
+fn roc_str_lossy(bytes: &[u8], roc_host: &RocHost) -> RocStr {
+    RocStr::from_str(String::from_utf8_lossy(bytes).as_ref(), roc_host)
+}
+
+fn try_cmd_exit_ok(value: i32) -> TryType0 {
+    TryType0 {
+        payload: TryType0Payload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: TryType0Tag::Ok,
+    }
+}
+
+fn try_cmd_exit_err(error: CmdIOErr) -> TryType0 {
+    TryType0 {
+        payload: TryType0Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType0Tag::Err,
+    }
+}
+
+fn try_cmd_output_ok(value: AnonStruct11) -> TryType8 {
+    TryType8 {
+        payload: TryType8Payload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: TryType8Tag::Ok,
+    }
+}
+
+fn try_cmd_output_err(error: CmdErrOrNonZeroExit) -> TryType8 {
+    TryType8 {
+        payload: TryType8Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType8Tag::Err,
+    }
+}
+
+fn try_dir_unit_ok() -> TryType12 {
+    TryType12 {
+        payload: TryType12Payload {
+            ok: ManuallyDrop::new(()),
+        },
+        tag: TryType12Tag::Ok,
+    }
+}
+
+fn try_dir_unit_err(error: DirIOErr) -> TryType12 {
+    TryType12 {
+        payload: TryType12Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType12Tag::Err,
+    }
+}
+
+fn try_dir_list_ok(value: RocList<RocStr>) -> TryType17 {
+    TryType17 {
+        payload: TryType17Payload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: TryType17Tag::Ok,
+    }
+}
+
+fn try_dir_list_err(error: DirIOErr) -> TryType17 {
+    TryType17 {
+        payload: TryType17Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType17Tag::Err,
+    }
+}
+
+fn try_file_bytes_ok(value: RocListWith<u8, false>) -> TryType21 {
+    TryType21 {
+        payload: TryType21Payload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: TryType21Tag::Ok,
+    }
+}
+
+fn try_file_bytes_err(error: FileIOErr) -> TryType21 {
+    TryType21 {
+        payload: TryType21Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType21Tag::Err,
+    }
+}
+
+fn try_file_unit_ok() -> TryType27 {
+    TryType27 {
+        payload: TryType27Payload {
+            ok: ManuallyDrop::new(()),
+        },
+        tag: TryType27Tag::Ok,
+    }
+}
+
+fn try_file_unit_err(error: FileIOErr) -> TryType27 {
+    TryType27 {
+        payload: TryType27Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType27Tag::Err,
+    }
+}
+
+fn try_file_str_ok(value: RocStr) -> TryType29 {
+    TryType29 {
+        payload: TryType29Payload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: TryType29Tag::Ok,
+    }
+}
+
+fn try_file_str_err(error: FileIOErr) -> TryType29 {
+    TryType29 {
+        payload: TryType29Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType29Tag::Err,
+    }
+}
+
+fn try_path_bool_ok(value: bool) -> TryType32 {
+    TryType32 {
+        payload: TryType32Payload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: TryType32Tag::Ok,
+    }
+}
+
+fn try_path_bool_err(error: PathIOErr) -> TryType32 {
+    TryType32 {
+        payload: TryType32Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType32Tag::Err,
+    }
+}
+
+fn try_random_u64_ok(value: u64) -> TryType37 {
+    TryType37 {
+        payload: TryType37Payload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: TryType37Tag::Ok,
+    }
+}
+
+fn try_random_u64_err(error: RandomIOErr) -> TryType37 {
+    TryType37 {
+        payload: TryType37Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType37Tag::Err,
+    }
+}
+
+fn try_random_u32_ok(value: u32) -> TryType43 {
+    TryType43 {
+        payload: TryType43Payload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: TryType43Tag::Ok,
+    }
+}
+
+fn try_random_u32_err(error: RandomIOErr) -> TryType43 {
+    TryType43 {
+        payload: TryType43Payload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: TryType43Tag::Err,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_cmd_exec_exit_code(cmd: Cmd) -> TryType0 {
+    let roc_host = roc_host();
+    let mut std_cmd = cmd_to_std(&cmd);
+    decref_cmd(&cmd, roc_host);
+
+    match std_cmd.status() {
+        Ok(status) => match status.code() {
+            Some(code) => try_cmd_exit_ok(code),
+            None => try_cmd_exit_err(cmd_io_err_other("Process was killed by signal", roc_host)),
+        },
+        Err(error) => try_cmd_exit_err(cmd_io_err_from_io(&error, roc_host)),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_cmd_exec_output(cmd: Cmd) -> TryType8 {
+    let roc_host = roc_host();
+    let mut std_cmd = cmd_to_std(&cmd);
+    decref_cmd(&cmd, roc_host);
+
+    match std_cmd.output() {
+        Ok(output) => {
+            let stdout = roc_str_lossy(&output.stdout, roc_host);
+            let stderr = roc_str_lossy(&output.stderr, roc_host);
+
+            match output.status.code() {
+                Some(0) => try_cmd_output_ok(AnonStruct11 {
+                    stderr_utf8_lossy: stderr,
+                    stdout_utf8: stdout,
                 }),
+                Some(exit_code) => try_cmd_output_err(CmdErrOrNonZeroExit {
+                    payload: CmdErrOrNonZeroExitPayload {
+                        non_zero_exit: ManuallyDrop::new(AnonStruct10 {
+                            stderr_utf8_lossy: stderr,
+                            stdout_utf8_lossy: stdout,
+                            exit_code,
+                        }),
+                    },
+                    tag: CmdErrOrNonZeroExitTag::NonZeroExit,
+                }),
+                None => {
+                    stdout.decref(roc_host);
+                    stderr.decref(roc_host);
+                    try_cmd_output_err(CmdErrOrNonZeroExit {
+                        payload: CmdErrOrNonZeroExitPayload {
+                            cmd_err: ManuallyDrop::new(cmd_io_err_other(
+                                "Process was killed by signal",
+                                roc_host,
+                            )),
+                        },
+                        tag: CmdErrOrNonZeroExitTag::CmdErr,
+                    })
+                }
+            }
+        }
+        Err(error) => try_cmd_output_err(CmdErrOrNonZeroExit {
+            payload: CmdErrOrNonZeroExitPayload {
+                cmd_err: ManuallyDrop::new(cmd_io_err_from_io(&error, roc_host)),
             },
-            discriminant: 1,
-        }
-    }
-}
-
-/// Type alias for Try({ stderr, stdout }, [CmdErr(IOErr), NonZeroExit(...)]) - using official RocTry
-type TryCmdOutputResult = RocTry<CmdOutputSuccess, CmdOutputErr>;
-
-// ============================================================================
-// Hosted Functions (sorted alphabetically by fully-qualified name)
-// ============================================================================
-
-/// Hosted function: Cmd.exec_exit_code! (index 0)
-/// Takes Command, returns Try(I32, [CmdErr(IOErr)])
-extern "C" fn hosted_cmd_exec_exit_code(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let cmd = unsafe { &*(args_ptr as *const roc_command::Command) };
-
-    let result = roc_command::command_exec_exit_code(cmd, roc_ops);
-
-    let try_result: TryI32CmdErr = match result {
-        Ok(exit_code) => RocTry::ok(exit_code),
-        Err(io_err) => RocTry::err(RocSingleTagWrapper::new(io_err)),
-    };
-
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryI32CmdErr, try_result);
-    }
-}
-
-/// Hosted function: Cmd.exec_output! (index 1)
-/// Takes Command, returns Try({ stderr_utf8_lossy, stdout_utf8 }, [CmdErr(IOErr), NonZeroExit(...)])
-extern "C" fn hosted_cmd_exec_output(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let cmd = unsafe { &*(args_ptr as *const roc_command::Command) };
-
-    let result = roc_command::command_exec_output(cmd, roc_ops);
-    let try_result: TryCmdOutputResult = match result {
-        roc_command::CommandOutputResult::Success(output) => RocTry::ok(CmdOutputSuccess {
-            stderr_utf8_lossy: output.stderr_utf8_lossy,
-            stdout_utf8: output.stdout_utf8,
+            tag: CmdErrOrNonZeroExitTag::CmdErr,
         }),
-        roc_command::CommandOutputResult::NonZeroExit(failure) => {
-            RocTry::err(CmdOutputErr::non_zero_exit(
-                failure.stderr_utf8_lossy,
-                failure.stdout_utf8_lossy,
-                failure.exit_code,
-            ))
-        }
-        roc_command::CommandOutputResult::Error(io_err) => {
-            RocTry::err(CmdOutputErr::cmd_err(io_err))
-        }
-    };
-
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryCmdOutputResult, try_result);
     }
 }
 
-/// Hosted function: Dir.create! (index 2)
-/// Takes Str, returns Try({}, [DirErr(IOErr)])
-extern "C" fn hosted_dir_create(ops: *const RocOps, ret_ptr: *mut c_void, args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
-    let result = unsafe {
-        let path = args_ptr as *const RocStr;
-        fs::create_dir((*path).as_str())
-    };
-    let try_result: TryUnitDirErr = match result {
-        Ok(()) => RocTry::ok(()),
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryUnitDirErr, try_result);
+fn path_from_roc_str(path: RocStr, roc_host: &RocHost) -> String {
+    let path_string = path.as_str().to_owned();
+    path.decref(roc_host);
+    path_string
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_dir_create(path: RocStr) -> TryType12 {
+    let roc_host = roc_host();
+    match fs::create_dir(path_from_roc_str(path, roc_host)) {
+        Ok(()) => try_dir_unit_ok(),
+        Err(error) => try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: Dir.create_all! (index 1)
-/// Takes Str, returns Try({}, [DirErr(IOErr)])
-extern "C" fn hosted_dir_create_all(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let result = unsafe {
-        let path = args_ptr as *const RocStr;
-        fs::create_dir_all((*path).as_str())
-    };
-    let try_result: TryUnitDirErr = match result {
-        Ok(()) => RocTry::ok(()),
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryUnitDirErr, try_result);
+#[no_mangle]
+pub extern "C" fn hosted_dir_create_all(path: RocStr) -> TryType12 {
+    let roc_host = roc_host();
+    match fs::create_dir_all(path_from_roc_str(path, roc_host)) {
+        Ok(()) => try_dir_unit_ok(),
+        Err(error) => try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: Dir.delete_all! (index 2)
-/// Takes Str, returns Try({}, [DirErr(IOErr)])
-extern "C" fn hosted_dir_delete_all(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let result = unsafe {
-        let path = args_ptr as *const RocStr;
-        fs::remove_dir_all((*path).as_str())
-    };
-    let try_result: TryUnitDirErr = match result {
-        Ok(()) => RocTry::ok(()),
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryUnitDirErr, try_result);
+#[no_mangle]
+pub extern "C" fn hosted_dir_delete_all(path: RocStr) -> TryType12 {
+    let roc_host = roc_host();
+    match fs::remove_dir_all(path_from_roc_str(path, roc_host)) {
+        Ok(()) => try_dir_unit_ok(),
+        Err(error) => try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: Dir.delete_empty! (index 3)
-/// Takes Str, returns Try({}, [DirErr(IOErr)])
-extern "C" fn hosted_dir_delete_empty(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let result = unsafe {
-        let path = args_ptr as *const RocStr;
-        fs::remove_dir((*path).as_str())
-    };
-    let try_result: TryUnitDirErr = match result {
-        Ok(()) => RocTry::ok(()),
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryUnitDirErr, try_result);
+#[no_mangle]
+pub extern "C" fn hosted_dir_delete_empty(path: RocStr) -> TryType12 {
+    let roc_host = roc_host();
+    match fs::remove_dir(path_from_roc_str(path, roc_host)) {
+        Ok(()) => try_dir_unit_ok(),
+        Err(error) => try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: Dir.list! (index 4)
-/// Takes Str, returns Try(List(Str), [DirErr(IOErr)])
-extern "C" fn hosted_dir_list(ops: *const RocOps, ret_ptr: *mut c_void, args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
-    let path = unsafe {
-        let args = args_ptr as *const RocStr;
-        (*args).as_str().to_string()
-    };
-
-    let result = fs::read_dir(&path);
-    let try_result: TryListStrDirErr = match result {
-        Ok(rd) => {
-            let entries: Vec<String> = rd
-                .filter_map(|entry| entry.ok().map(|e| e.path().to_string_lossy().into_owned()))
+#[no_mangle]
+pub extern "C" fn hosted_dir_list(path: RocStr) -> TryType17 {
+    let roc_host = roc_host();
+    match fs::read_dir(path_from_roc_str(path, roc_host)) {
+        Ok(read_dir) => {
+            let entries: Vec<String> = read_dir
+                .filter_map(|entry| {
+                    entry
+                        .ok()
+                        .map(|entry| entry.path().to_string_lossy().into_owned())
+                })
                 .collect();
-            let mut list = RocList::with_capacity(entries.len(), roc_ops);
-            for entry in entries {
-                let roc_str = RocStr::from_str(&entry, roc_ops);
-                list.push(roc_str, roc_ops);
+            let list = RocList::<RocStr>::allocate(entries.len(), roc_host);
+            for (index, entry) in entries.iter().enumerate() {
+                unsafe {
+                    list.elements
+                        .add(index)
+                        .write(RocStr::from_str(entry, roc_host));
+                }
             }
-            RocTry::ok(list)
+            try_dir_list_ok(list)
         }
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryListStrDirErr, try_result);
+        Err(error) => try_dir_list_err(dir_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: Env.cwd! (index 5)
-/// Takes {}, returns Str
-extern "C" fn hosted_env_cwd(ops: *const RocOps, ret_ptr: *mut c_void, _args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
+#[no_mangle]
+pub extern "C" fn hosted_env_cwd() -> RocStr {
+    let roc_host = roc_host();
     let cwd = std::env::current_dir()
-        .map(|p| p.to_string_lossy().into_owned())
+        .map(|path| path.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let roc_str = RocStr::from_str(&cwd, roc_ops);
-    unsafe {
-        *(ret_ptr as *mut RocStr) = roc_str;
-    }
+    RocStr::from_str(&cwd, roc_host)
 }
 
-/// Hosted function: Env.exe_path! (index 6)
-/// Takes {}, returns Str
-extern "C" fn hosted_env_exe_path(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    _args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
+#[no_mangle]
+pub extern "C" fn hosted_env_exe_path() -> RocStr {
+    let roc_host = roc_host();
     let exe_path = std::env::current_exe()
-        .map(|p| p.to_string_lossy().into_owned())
+        .map(|path| path.to_string_lossy().into_owned())
         .unwrap_or_default();
-    let roc_str = RocStr::from_str(&exe_path, roc_ops);
-    unsafe {
-        *(ret_ptr as *mut RocStr) = roc_str;
+    RocStr::from_str(&exe_path, roc_host)
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_env_var(name: RocStr) -> RocStr {
+    let roc_host = roc_host();
+    let value = std::env::var(name.as_str()).unwrap_or_default();
+    name.decref(roc_host);
+    RocStr::from_str(&value, roc_host)
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_delete(path: RocStr) -> TryType27 {
+    let roc_host = roc_host();
+    match fs::remove_file(path_from_roc_str(path, roc_host)) {
+        Ok(()) => try_file_unit_ok(),
+        Err(error) => try_file_unit_err(file_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: Env.var! (index 7)
-/// Takes Str, returns Str
-extern "C" fn hosted_env_var(ops: *const RocOps, ret_ptr: *mut c_void, args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
-    let name = unsafe {
-        let args = args_ptr as *const RocStr;
-        (*args).as_str()
-    };
-    let value = std::env::var(name).unwrap_or_default();
-    let roc_str = RocStr::from_str(&value, roc_ops);
-    unsafe {
-        *(ret_ptr as *mut RocStr) = roc_str;
+#[no_mangle]
+pub extern "C" fn hosted_file_read_bytes(path: RocStr) -> TryType21 {
+    let roc_host = roc_host();
+    match fs::read(path_from_roc_str(path, roc_host)) {
+        Ok(bytes) => try_file_bytes_ok(RocListWith::<u8, false>::from_slice(&bytes, roc_host)),
+        Err(error) => try_file_bytes_err(file_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: File.delete! (index 8)
-/// Takes Str (path), returns Try({}, [FileErr(IOErr)])
-extern "C" fn hosted_file_delete(ops: *const RocOps, ret_ptr: *mut c_void, args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
-    let path = unsafe {
-        let args = args_ptr as *const RocStr;
-        (*args).as_str()
-    };
-    let result = fs::remove_file(path);
-    let try_result: TryUnitFileErr = match result {
-        Ok(()) => RocTry::ok(()),
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryUnitFileErr, try_result);
+#[no_mangle]
+pub extern "C" fn hosted_file_read_utf8(path: RocStr) -> TryType29 {
+    let roc_host = roc_host();
+    match fs::read_to_string(path_from_roc_str(path, roc_host)) {
+        Ok(content) => try_file_str_ok(RocStr::from_str(&content, roc_host)),
+        Err(error) => try_file_str_err(file_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: File.read_bytes! (index 9)
-/// Takes Str (path), returns Try(List(U8), [FileErr(IOErr)])
-extern "C" fn hosted_file_read_bytes(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let path = unsafe {
-        let args = args_ptr as *const RocStr;
-        (*args).as_str()
-    };
-    let result = fs::read(path);
-    let try_result: TryBytesFileErr = match result {
-        Ok(bytes) => {
-            let mut list = RocList::with_capacity(bytes.len(), roc_ops);
-            for byte in bytes {
-                list.push(byte, roc_ops);
-            }
-            RocTry::ok(list)
-        }
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryBytesFileErr, try_result);
+#[no_mangle]
+pub extern "C" fn hosted_file_write_bytes(
+    path: RocStr,
+    bytes: RocListWith<u8, false>,
+) -> TryType27 {
+    let roc_host = roc_host();
+    let path_string = path_from_roc_str(path, roc_host);
+    let result = fs::write(path_string, bytes.as_slice());
+    bytes.decref(roc_host);
+
+    match result {
+        Ok(()) => try_file_unit_ok(),
+        Err(error) => try_file_unit_err(file_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: File.read_utf8! (index 10)
-/// Takes Str (path), returns Try(Str, [FileErr(IOErr)])
-extern "C" fn hosted_file_read_utf8(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let path = unsafe {
-        let args = args_ptr as *const RocStr;
-        (*args).as_str()
-    };
-    let result = fs::read_to_string(path);
-    let try_result: TryStrFileErr = match result {
-        Ok(content) => {
-            let roc_str = RocStr::from_str(&content, roc_ops);
-            RocTry::ok(roc_str)
-        }
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryStrFileErr, try_result);
+#[no_mangle]
+pub extern "C" fn hosted_file_write_utf8(path: RocStr, content: RocStr) -> TryType27 {
+    let roc_host = roc_host();
+    let path_string = path_from_roc_str(path, roc_host);
+    let content_string = content.as_str().to_owned();
+    content.decref(roc_host);
+
+    match fs::write(path_string, content_string) {
+        Ok(()) => try_file_unit_ok(),
+        Err(error) => try_file_unit_err(file_io_err_from_io(&error, roc_host)),
     }
-}
-
-/// Hosted function: File.write_bytes! (index 11)
-/// Takes (Str, List(U8)), returns Try({}, [FileErr(IOErr)])
-extern "C" fn hosted_file_write_bytes(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let result = unsafe {
-        // Args are (Str, List(U8)) - a tuple/record
-        let args = args_ptr as *const (RocStr, RocList<u8>);
-        let (path, bytes) = &*args;
-        fs::write(path.as_str(), bytes.as_slice())
-    };
-    let try_result: TryUnitFileErr = match result {
-        Ok(()) => RocTry::ok(()),
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryUnitFileErr, try_result);
-    }
-}
-
-/// Hosted function: File.write_utf8! (index 12)
-/// Takes (Str, Str), returns Try({}, [FileErr(IOErr)])
-extern "C" fn hosted_file_write_utf8(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let result = unsafe {
-        // Args are (Str, Str) - a tuple
-        let args = args_ptr as *const (RocStr, RocStr);
-        let (path, content) = &*args;
-        fs::write(path.as_str(), content.as_str())
-    };
-    let try_result: TryUnitFileErr = match result {
-        Ok(()) => RocTry::ok(()),
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryUnitFileErr, try_result);
-    }
-}
-
-/// Type alias for the Path error type: [PathErr(IOErr)] in Roc
-type PathErr = RocSingleTagWrapper<roc_io_error::IOErr>;
-
-/// Type alias for Try(Bool, [PathErr(IOErr)]) - used by Path.is_file!, etc.
-type TryBoolPathErr = RocTry<bool, PathErr>;
-
-/// Type alias for the File error type: [FileErr(IOErr)] in Roc
-type FileErr = RocSingleTagWrapper<roc_io_error::IOErr>;
-
-/// Type alias for Try({}, [FileErr(IOErr)]) - used by File.write_*, File.delete!
-type TryUnitFileErr = RocTry<(), FileErr>;
-
-/// Type alias for Try(Str, [FileErr(IOErr)]) - used by File.read_utf8!
-type TryStrFileErr = RocTry<RocStr, FileErr>;
-
-/// Type alias for Try(List(U8), [FileErr(IOErr)]) - used by File.read_bytes!
-type TryBytesFileErr = RocTry<RocList<u8>, FileErr>;
-
-/// Type alias for the Dir error type: [DirErr(IOErr)] in Roc
-type DirErr = RocSingleTagWrapper<roc_io_error::IOErr>;
-
-/// Type alias for Try({}, [DirErr(IOErr)]) - used by Dir.create!, etc.
-type TryUnitDirErr = RocTry<(), DirErr>;
-
-/// Type alias for Try(List(Str), [DirErr(IOErr)]) - used by Dir.list!
-type TryListStrDirErr = RocTry<RocList<RocStr>, DirErr>;
-
-/// Write a Try(Bool, [PathErr(IOErr)]) result to ret_ptr using RocTry
-unsafe fn write_try_bool_result(
-    ret_ptr: *mut c_void,
-    result: std::io::Result<bool>,
-    roc_ops: &RocOps,
-) {
-    let try_result: TryBoolPathErr = match result {
-        Ok(value) => RocTry::ok(value),
-        Err(e) => {
-            let io_err = roc_io_error::IOErr::from_io_error(&e, roc_ops);
-            RocTry::err(RocSingleTagWrapper::new(io_err))
-        }
-    };
-
-    std::ptr::write(ret_ptr as *mut TryBoolPathErr, try_result);
 }
 
 #[cfg(target_os = "macos")]
@@ -677,6 +603,7 @@ fn locale_from_env() -> Option<String> {
             if trimmed.is_empty() {
                 continue;
             }
+
             let locale = trimmed
                 .split('.')
                 .next()
@@ -685,6 +612,7 @@ fn locale_from_env() -> Option<String> {
                 .next()
                 .unwrap_or(trimmed)
                 .trim();
+
             if !locale.is_empty() {
                 return Some(locale.to_string());
             }
@@ -694,402 +622,249 @@ fn locale_from_env() -> Option<String> {
     None
 }
 
-/// Hosted function: Locale.all!
-/// Takes {}, returns List(Str)
 #[cfg(target_os = "macos")]
-extern "C" fn hosted_locale_all(ops: *const RocOps, ret_ptr: *mut c_void, _args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
-    let locales = locale_from_env().unwrap_or_else(|| "en-US".to_string());
-    let mut list = RocList::with_capacity(1, roc_ops);
-    list.push(RocStr::from_str(&locales, roc_ops), roc_ops);
-    unsafe {
-        *(ret_ptr as *mut RocList<RocStr>) = list;
-    }
+fn locale_get_string() -> String {
+    locale_from_env().unwrap_or_else(|| "en-US".to_string())
 }
 
-/// Hosted function: Locale.all!
-/// Takes {}, returns List(Str)
 #[cfg(not(target_os = "macos"))]
-extern "C" fn hosted_locale_all(ops: *const RocOps, ret_ptr: *mut c_void, _args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
+fn locale_get_string() -> String {
+    sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string())
+}
+
+#[cfg(target_os = "macos")]
+fn locale_all_strings() -> Vec<String> {
+    vec![locale_get_string()]
+}
+
+#[cfg(not(target_os = "macos"))]
+fn locale_all_strings() -> Vec<String> {
     let locales = sys_locale::get_locales().collect::<Vec<_>>();
-    let mut list = RocList::with_capacity(locales.len(), roc_ops);
-    for locale in locales {
-        let roc_str = RocStr::from_str(&locale, roc_ops);
-        list.push(roc_str, roc_ops);
-    }
-    unsafe {
-        *(ret_ptr as *mut RocList<RocStr>) = list;
+    if locales.is_empty() {
+        vec![locale_get_string()]
+    } else {
+        locales
     }
 }
 
-/// Hosted function: Locale.get!
-/// Takes {}, returns Str
-#[cfg(target_os = "macos")]
-extern "C" fn hosted_locale_get(ops: *const RocOps, ret_ptr: *mut c_void, _args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
-    let locale = locale_from_env().unwrap_or_else(|| "en-US".to_string());
-    let roc_str = RocStr::from_str(&locale, roc_ops);
-    unsafe {
-        *(ret_ptr as *mut RocStr) = roc_str;
+#[no_mangle]
+pub extern "C" fn hosted_locale_all() -> RocList<RocStr> {
+    let roc_host = roc_host();
+    let locales = locale_all_strings();
+    let list = RocList::<RocStr>::allocate(locales.len(), roc_host);
+
+    for (index, locale) in locales.iter().enumerate() {
+        unsafe {
+            list.elements
+                .add(index)
+                .write(RocStr::from_str(locale, roc_host));
+        }
+    }
+
+    list
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_locale_get() -> RocStr {
+    let roc_host = roc_host();
+    RocStr::from_str(&locale_get_string(), roc_host)
+}
+
+fn path_bool_result(
+    path: RocStr,
+    check: impl FnOnce(&std::path::Path) -> io::Result<bool>,
+) -> TryType32 {
+    let roc_host = roc_host();
+    let path_string = path_from_roc_str(path, roc_host);
+    match check(std::path::Path::new(&path_string)) {
+        Ok(value) => try_path_bool_ok(value),
+        Err(error) => try_path_bool_err(path_io_err_from_io(&error, roc_host)),
     }
 }
 
-/// Hosted function: Locale.get!
-/// Takes {}, returns Str
-#[cfg(not(target_os = "macos"))]
-extern "C" fn hosted_locale_get(ops: *const RocOps, ret_ptr: *mut c_void, _args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
-    let locale = sys_locale::get_locale().unwrap_or_else(|| "en-US".to_string());
-    let roc_str = RocStr::from_str(&locale, roc_ops);
-    unsafe {
-        *(ret_ptr as *mut RocStr) = roc_str;
+#[no_mangle]
+pub extern "C" fn hosted_path_is_dir(path: RocStr) -> TryType32 {
+    path_bool_result(path, |path| {
+        path.symlink_metadata().map(|metadata| metadata.is_dir())
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_path_is_file(path: RocStr) -> TryType32 {
+    path_bool_result(path, |path| {
+        path.symlink_metadata().map(|metadata| metadata.is_file())
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_path_is_sym_link(path: RocStr) -> TryType32 {
+    path_bool_result(path, |path| {
+        path.symlink_metadata()
+            .map(|metadata| metadata.file_type().is_symlink())
+    })
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_random_seed_u32() -> TryType43 {
+    let roc_host = roc_host();
+    let mut bytes = [0u8; 4];
+    match getrandom::getrandom(&mut bytes) {
+        Ok(()) => try_random_u32_ok(u32::from_ne_bytes(bytes)),
+        Err(error) => {
+            let io_error = io::Error::new(io::ErrorKind::Other, error.to_string());
+            try_random_u32_err(random_io_err_from_io(&io_error, roc_host))
+        }
     }
 }
 
-/// Hosted function: Path.is_dir! (index 13)
-/// Takes Str, returns Try(Bool, [PathErr(IOErr)])
-extern "C" fn hosted_path_is_dir(ops: *const RocOps, ret_ptr: *mut c_void, args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
-    let result = unsafe {
-        let path = args_ptr as *const RocStr;
-        let path_str = (*path).as_str();
-        std::path::Path::new(path_str)
-            .symlink_metadata()
-            .map(|m| m.is_dir())
-    };
-
-    unsafe {
-        write_try_bool_result(ret_ptr, result, roc_ops);
+#[no_mangle]
+pub extern "C" fn hosted_random_seed_u64() -> TryType37 {
+    let roc_host = roc_host();
+    let mut bytes = [0u8; 8];
+    match getrandom::getrandom(&mut bytes) {
+        Ok(()) => try_random_u64_ok(u64::from_ne_bytes(bytes)),
+        Err(error) => {
+            let io_error = io::Error::new(io::ErrorKind::Other, error.to_string());
+            try_random_u64_err(random_io_err_from_io(&io_error, roc_host))
+        }
     }
 }
 
-/// Hosted function: Path.is_file! (index 14)
-/// Takes Str, returns Try(Bool, [PathErr(IOErr)])
-extern "C" fn hosted_path_is_file(ops: *const RocOps, ret_ptr: *mut c_void, args_ptr: *mut c_void) {
-    let roc_ops = unsafe { &*ops };
-    let result = unsafe {
-        let path = args_ptr as *const RocStr;
-        let path_str = (*path).as_str();
-        std::path::Path::new(path_str)
-            .symlink_metadata()
-            .map(|m| m.is_file())
-    };
-
-    unsafe {
-        write_try_bool_result(ret_ptr, result, roc_ops);
-    }
-}
-
-/// Hosted function: Path.is_sym_link! (index 15)
-/// Takes Str, returns Try(Bool, [PathErr(IOErr)])
-extern "C" fn hosted_path_is_sym_link(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let result = unsafe {
-        let path = args_ptr as *const RocStr;
-        let path_str = (*path).as_str();
-        std::path::Path::new(path_str)
-            .symlink_metadata()
-            .map(|m| m.is_symlink())
-    };
-
-    unsafe {
-        write_try_bool_result(ret_ptr, result, roc_ops);
-    }
-}
-
-// ============================================================================
-// Random Module Types and Functions
-// ============================================================================
-
-/// Type alias for the Random error type: [RandomErr(IOErr)] in Roc
-type RandomErr = RocSingleTagWrapper<roc_io_error::IOErr>;
-
-/// Type alias for Try(U32, [RandomErr(IOErr)]) - using official RocTry
-type TryU32RandomErr = RocTry<u32, RandomErr>;
-
-/// Type alias for Try(U64, [RandomErr(IOErr)]) - using official RocTry
-type TryU64RandomErr = RocTry<u64, RandomErr>;
-
-/// Hosted function: Random.seed_u32!
-/// Takes {}, returns Try(U32, [RandomErr(IOErr)])
-extern "C" fn hosted_random_seed_u32(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    _args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let result = roc_random::random_u32(roc_ops);
-
-    let try_result: TryU32RandomErr = match result {
-        Ok(value) => RocTry::ok(value),
-        Err(io_err) => RocTry::err(RocSingleTagWrapper::new(io_err)),
-    };
-
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryU32RandomErr, try_result);
-    }
-}
-
-/// Hosted function: Random.seed_u64!
-/// Takes {}, returns Try(U64, [RandomErr(IOErr)])
-extern "C" fn hosted_random_seed_u64(
-    ops: *const RocOps,
-    ret_ptr: *mut c_void,
-    _args_ptr: *mut c_void,
-) {
-    let roc_ops = unsafe { &*ops };
-    let result = roc_random::random_u64(roc_ops);
-
-    let try_result: TryU64RandomErr = match result {
-        Ok(value) => RocTry::ok(value),
-        Err(io_err) => RocTry::err(RocSingleTagWrapper::new(io_err)),
-    };
-
-    unsafe {
-        std::ptr::write(ret_ptr as *mut TryU64RandomErr, try_result);
-    }
-}
-
-/// Hosted function: Sleep.millis!
-/// Takes U64, returns {}
-extern "C" fn hosted_sleep_millis(
-    _ops: *const RocOps,
-    _ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    let millis = unsafe { *(args_ptr as *const u64) };
+#[no_mangle]
+pub extern "C" fn hosted_sleep_millis(millis: u64) {
     std::thread::sleep(std::time::Duration::from_millis(millis));
 }
 
-/// Hosted function: Stderr.line!
-/// Takes Str, returns {}
-extern "C" fn hosted_stderr_line(
-    _ops: *const RocOps,
-    _ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    unsafe {
-        // RocStr passed from Roc - Roc manages its memory, we just read it
-        let args = args_ptr as *const RocStr;
-        let message = (*args).as_str();
-        let _ = writeln!(io::stderr(), "{}", message);
-        // DO NOT call decref - Roc owns this memory
-        // ret_ptr is for unit type {}, so we don't need to write anything
-    }
+#[no_mangle]
+pub extern "C" fn hosted_stderr_line(message: RocStr) {
+    let roc_host = roc_host();
+    let _ = writeln!(io::stderr(), "{}", message.as_str());
+    message.decref(roc_host);
 }
 
-/// Hosted function: Stderr.write! (index 17)
-/// Takes Str, returns {}
-extern "C" fn hosted_stderr_write(
-    _ops: *const RocOps,
-    _ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    unsafe {
-        // RocStr passed from Roc - Roc manages its memory, we just read it
-        let args = args_ptr as *const RocStr;
-        let message = (*args).as_str();
-        let _ = write!(io::stderr(), "{}", message);
-        let _ = io::stderr().flush();
-        // DO NOT call decref - Roc owns this memory
-    }
+#[no_mangle]
+pub extern "C" fn hosted_stderr_write(message: RocStr) {
+    let roc_host = roc_host();
+    let _ = write!(io::stderr(), "{}", message.as_str());
+    let _ = io::stderr().flush();
+    message.decref(roc_host);
 }
 
-/// Hosted function: Stdin.line! (index 18)
-/// Takes {}, returns Str
-extern "C" fn hosted_stdin_line(ops: *const RocOps, ret_ptr: *mut c_void, _args_ptr: *mut c_void) {
+#[no_mangle]
+pub extern "C" fn hosted_stdin_line() -> RocStr {
+    let roc_host = roc_host();
     let mut line = String::new();
     let _ = io::stdin().lock().read_line(&mut line);
-
-    // Create RocStr - ownership transfers to Roc
-    let roc_ops = unsafe { &*ops };
-    // Trim the trailing newline
-    let roc_str = RocStr::from_str(line.trim_end_matches('\n'), roc_ops);
-
-    unsafe {
-        *(ret_ptr as *mut RocStr) = roc_str;
-        // DO NOT call decref - ownership transferred to Roc
-    }
+    let trimmed = line.trim_end_matches('\n').trim_end_matches('\r');
+    RocStr::from_str(trimmed, roc_host)
 }
 
-/// Hosted function: Stdout.line! (index 19)
-/// Takes Str, returns {}
-extern "C" fn hosted_stdout_line(
-    _ops: *const RocOps,
-    _ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    unsafe {
-        // RocStr passed from Roc - Roc manages its memory, we just read it
-        let args = args_ptr as *const RocStr;
-        let message = (*args).as_str();
-        let _ = writeln!(io::stdout(), "{}", message);
-        // DO NOT call decref - Roc owns this memory
-        // ret_ptr is for unit type {}, so we don't need to write anything
-    }
+#[no_mangle]
+pub extern "C" fn hosted_stdout_line(message: RocStr) {
+    let roc_host = roc_host();
+    let _ = writeln!(io::stdout(), "{}", message.as_str());
+    message.decref(roc_host);
 }
 
-/// Hosted function: Stdout.write!
-/// Takes Str, returns {}
-extern "C" fn hosted_stdout_write(
-    _ops: *const RocOps,
-    _ret_ptr: *mut c_void,
-    args_ptr: *mut c_void,
-) {
-    unsafe {
-        // RocStr passed from Roc - Roc manages its memory, we just read it
-        let args = args_ptr as *const RocStr;
-        let message = (*args).as_str();
-        let _ = write!(io::stdout(), "{}", message);
-        let _ = io::stdout().flush();
-        // DO NOT call decref - Roc owns this memory
-    }
+#[no_mangle]
+pub extern "C" fn hosted_stdout_write(message: RocStr) {
+    let roc_host = roc_host();
+    let _ = write!(io::stdout(), "{}", message.as_str());
+    let _ = io::stdout().flush();
+    message.decref(roc_host);
 }
 
-/// Hosted function: Tty.disable_raw_mode!
-/// Takes {}, returns {}
-extern "C" fn hosted_tty_disable_raw_mode(
-    _ops: *const RocOps,
-    _ret_ptr: *mut c_void,
-    _args_ptr: *mut c_void,
-) {
+#[no_mangle]
+pub extern "C" fn hosted_tty_disable_raw_mode() {
     let _ = disable_raw_mode();
 }
 
-/// Hosted function: Tty.enable_raw_mode!
-/// Takes {}, returns {}
-extern "C" fn hosted_tty_enable_raw_mode(
-    _ops: *const RocOps,
-    _ret_ptr: *mut c_void,
-    _args_ptr: *mut c_void,
-) {
+#[no_mangle]
+pub extern "C" fn hosted_tty_enable_raw_mode() {
     let _ = enable_raw_mode();
 }
 
-/// Hosted function: Utc.now!
-/// Takes {}, returns U128 (nanoseconds since Unix epoch)
-extern "C" fn hosted_utc_now(_ops: *const RocOps, ret_ptr: *mut c_void, _args_ptr: *mut c_void) {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    let since_epoch = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("time went backwards");
-    let nanos: u128 = since_epoch.as_nanos();
-
-    unsafe {
-        *(ret_ptr as *mut u128) = nanos;
-    }
+#[no_mangle]
+pub extern "C" fn hosted_utc_now() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("time went backwards")
+        .as_nanos()
 }
 
-/// Array of hosted function pointers, sorted alphabetically by fully-qualified name.
-/// IMPORTANT: Order must match the order Roc expects based on alphabetical sorting.
-static HOSTED_FNS: [HostedFn; 31] = [
-    hosted_cmd_exec_exit_code,   // 0:  Cmd.exec_exit_code!
-    hosted_cmd_exec_output,      // 1:  Cmd.exec_output!
-    hosted_dir_create,           // 2:  Dir.create!
-    hosted_dir_create_all,       // 3:  Dir.create_all!
-    hosted_dir_delete_all,       // 4:  Dir.delete_all!
-    hosted_dir_delete_empty,     // 5:  Dir.delete_empty!
-    hosted_dir_list,             // 6:  Dir.list!
-    hosted_env_cwd,              // 7:  Env.cwd!
-    hosted_env_exe_path,         // 8:  Env.exe_path!
-    hosted_env_var,              // 9:  Env.var!
-    hosted_file_delete,          // 10: File.delete!
-    hosted_file_read_bytes,      // 11: File.read_bytes!
-    hosted_file_read_utf8,       // 12: File.read_utf8!
-    hosted_file_write_bytes,     // 13: File.write_bytes!
-    hosted_file_write_utf8,      // 14: File.write_utf8!
-    hosted_locale_all,           // 15: Locale.all!
-    hosted_locale_get,           // 16: Locale.get!
-    hosted_path_is_dir,          // 17: Path.is_dir!
-    hosted_path_is_file,         // 18: Path.is_file!
-    hosted_path_is_sym_link,     // 19: Path.is_sym_link!
-    hosted_random_seed_u32,      // 20: Random.seed_u32!
-    hosted_random_seed_u64,      // 21: Random.seed_u64!
-    hosted_sleep_millis,         // 22: Sleep.millis!
-    hosted_stderr_line,          // 23: Stderr.line!
-    hosted_stderr_write,         // 24: Stderr.write!
-    hosted_stdin_line,           // 25: Stdin.line!
-    hosted_stdout_line,          // 26: Stdout.line!
-    hosted_stdout_write,         // 27: Stdout.write!
-    hosted_tty_disable_raw_mode, // 28: Tty.disable_raw_mode!
-    hosted_tty_enable_raw_mode,  // 29: Tty.enable_raw_mode!
-    hosted_utc_now,              // 30: Utc.now!
-];
+#[no_mangle]
+pub extern "C" fn roc_alloc(length: usize, alignment: usize) -> *mut c_void {
+    DefaultAllocators::roc_alloc(roc_host_ptr(), length, alignment)
+}
 
-/// Build a RocList<RocStr> from command-line arguments.
-///
-/// Uses argc/argv directly instead of std::env::args() because when built
-/// as a static library, the Rust runtime isn't properly initialized.
-fn build_args_list(argc: i32, argv: *const *const c_char, roc_ops: &RocOps) -> RocList<RocStr> {
+#[no_mangle]
+pub extern "C" fn roc_dealloc(ptr: *mut c_void, alignment: usize) {
+    DefaultAllocators::roc_dealloc(roc_host_ptr(), ptr, alignment);
+}
+
+#[no_mangle]
+pub extern "C" fn roc_realloc(
+    ptr: *mut c_void,
+    new_length: usize,
+    alignment: usize,
+) -> *mut c_void {
+    DefaultAllocators::roc_realloc(roc_host_ptr(), ptr, new_length, alignment)
+}
+
+#[no_mangle]
+pub extern "C" fn roc_dbg(bytes: *const u8, len: usize) {
+    DEBUG_OR_EXPECT_CALLED.store(true, Ordering::Release);
+    DefaultHandlers::roc_dbg(roc_host_ptr(), bytes, len);
+}
+
+#[no_mangle]
+pub extern "C" fn roc_expect_failed(bytes: *const u8, len: usize) {
+    DEBUG_OR_EXPECT_CALLED.store(true, Ordering::Release);
+    DefaultHandlers::roc_expect_failed(roc_host_ptr(), bytes, len);
+}
+
+#[no_mangle]
+pub extern "C" fn roc_crashed(bytes: *const u8, len: usize) {
+    DefaultHandlers::roc_crashed(roc_host_ptr(), bytes, len);
+}
+
+fn build_args_list(argc: i32, argv: *const *const c_char, roc_host: &RocHost) -> RocList<RocStr> {
     if argc <= 0 || argv.is_null() {
         return RocList::empty();
     }
 
-    let mut list = RocList::with_capacity(argc as usize, roc_ops);
-
-    for i in 0..argc as isize {
+    let list = RocList::<RocStr>::allocate(argc as usize, roc_host);
+    for index in 0..argc as isize {
         unsafe {
-            let arg_ptr = *argv.offset(i);
+            let arg_ptr = *argv.offset(index);
             if arg_ptr.is_null() {
                 break;
             }
-            let c_str = std::ffi::CStr::from_ptr(arg_ptr);
-            let arg = c_str.to_string_lossy();
-            let roc_str = RocStr::from_str(&arg, roc_ops);
-            list.push(roc_str, roc_ops);
+            let arg = CStr::from_ptr(arg_ptr).to_string_lossy();
+            list.elements
+                .offset(index)
+                .write(RocStr::from_str(&arg, roc_host));
         }
     }
     list
 }
 
-/// C-compatible main entry point for the Roc program.
-/// This is exported so the linker can find it.
 #[no_mangle]
 pub extern "C" fn main(argc: i32, argv: *const *const c_char) -> i32 {
     rust_main(argc, argv)
 }
 
-/// Main entry point for the Roc program.
 pub fn rust_main(argc: i32, argv: *const *const c_char) -> i32 {
-    // Create the RocOps struct with all callbacks
-    // We Box it to ensure stable memory address
-    let roc_ops = Box::new(RocOps {
-        env: std::ptr::null_mut(),
-        roc_alloc: roc_alloc_fn,
-        roc_dealloc: roc_dealloc_fn,
-        roc_realloc: roc_realloc_fn,
-        roc_dbg: roc_dbg_fn,
-        roc_expect_failed: roc_expect_failed_fn,
-        roc_crashed: roc_crashed_fn,
-        hosted_fns: HostedFunctions {
-            count: HOSTED_FNS.len() as u32,
-            fns: HOSTED_FNS.as_ptr(),
-        },
-    });
+    let mut roc_host = make_roc_host(core::ptr::null_mut());
+    set_roc_host(&mut roc_host);
 
-    // Build List(Str) from command-line arguments (using argc/argv directly)
-    let args_list = build_args_list(argc, argv, &roc_ops);
+    let args_list = build_args_list(argc, argv, &roc_host);
+    let mut exit_code = unsafe { roc_main(args_list) };
 
-    // Call the Roc main function
-    let mut exit_code: i32 = -99;
-    unsafe {
-        roc__main_for_host(
-            &*roc_ops,
-            &mut exit_code as *mut i32 as *mut c_void,
-            &args_list as *const RocList<RocStr> as *mut c_void,
-        );
-    }
-
-    // If dbg or expect_failed was called, ensure non-zero exit code
     if DEBUG_OR_EXPECT_CALLED.load(Ordering::Acquire) && exit_code == 0 {
-        return 1;
+        exit_code = 1;
     }
 
+    set_roc_host(core::ptr::null_mut());
     exit_code
 }

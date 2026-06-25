@@ -2,15 +2,46 @@ platform ""
     requires {} { main! : List(Str) => Try({}, [Exit(I32), ..]) }
     exposes [Cmd, Dir, Env, File, Locale, Path, Random, Sleep, Stdin, Stdout, Stderr, Tty, Utc]
     packages {}
-    provides { main_for_host! : "main_for_host" }
+    provides { "roc_main": main_for_host! }
+    hosted {
+        "hosted_cmd_exec_exit_code": Cmd.exec_exit_code!,
+        "hosted_cmd_exec_output": Cmd.exec_output!,
+        "hosted_dir_create": Dir.create!,
+        "hosted_dir_create_all": Dir.create_all!,
+        "hosted_dir_delete_all": Dir.delete_all!,
+        "hosted_dir_delete_empty": Dir.delete_empty!,
+        "hosted_dir_list": Dir.list!,
+        "hosted_env_cwd": Env.cwd!,
+        "hosted_env_exe_path": Env.exe_path!,
+        "hosted_env_var": Env.var!,
+        "hosted_file_delete": File.delete!,
+        "hosted_file_read_bytes": File.read_bytes!,
+        "hosted_file_read_utf8": File.read_utf8!,
+        "hosted_file_write_bytes": File.write_bytes!,
+        "hosted_file_write_utf8": File.write_utf8!,
+        "hosted_locale_all": Locale.all!,
+        "hosted_locale_get": Locale.get!,
+        "hosted_path_is_dir": Path.is_dir!,
+        "hosted_path_is_file": Path.is_file!,
+        "hosted_path_is_sym_link": Path.is_sym_link!,
+        "hosted_random_seed_u32": Random.seed_u32!,
+        "hosted_random_seed_u64": Random.seed_u64!,
+        "hosted_sleep_millis": Sleep.millis!,
+        "hosted_stderr_line": Stderr.line!,
+        "hosted_stderr_write": Stderr.write!,
+        "hosted_stdin_line": Stdin.line!,
+        "hosted_stdout_line": Stdout.line!,
+        "hosted_stdout_write": Stdout.write!,
+        "hosted_tty_disable_raw_mode": Tty.disable_raw_mode!,
+        "hosted_tty_enable_raw_mode": Tty.enable_raw_mode!,
+        "hosted_utc_now": Utc.now!,
+    }
     targets: {
-        files: "targets/",
-        exe: {
-            x64mac: ["libhost.a", app],
-            arm64mac: ["libhost.a", app],
-            x64musl: ["crt1.o", "libhost.a", "libunwind.a", app, "libc.a"],
-            arm64musl: ["crt1.o", "libhost.a", "libunwind.a", app, "libc.a"],
-        }
+        inputs_dir: "targets/",
+        x64mac: { inputs: ["libhost.a", app] },
+        arm64mac: { inputs: ["libhost.a", app] },
+        x64musl: { inputs: ["crt1.o", "libhost.a", "libunwind.a", app, "libc.a"] },
+        arm64musl: { inputs: ["crt1.o", "libhost.a", "libunwind.a", app, "libc.a"] },
     }
 
 import Cmd
