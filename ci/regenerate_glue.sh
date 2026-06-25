@@ -2,9 +2,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
 ROC_BIN="${ROC:-roc}"
-PLATFORM_FILE="${PLATFORM_FILE:-$ROOT_DIR/platform/main.roc}"
-GLUE_OUT_DIR="${GLUE_OUT_DIR:-$ROOT_DIR/src}"
+PLATFORM_FILE="${PLATFORM_FILE:-platform/main.roc}"
+GLUE_OUT_DIR="${GLUE_OUT_DIR:-src}"
 MODE="write"
 
 usage() {
@@ -66,8 +68,8 @@ find_glue_spec() {
     fi
 
     candidates+=(
-        "$ROOT_DIR/../roc/src/glue/src/RustGlue.roc"
-        "$ROOT_DIR/../../roc/src/glue/src/RustGlue.roc"
+        "../roc/src/glue/src/RustGlue.roc"
+        "../../roc/src/glue/src/RustGlue.roc"
     )
 
     for candidate in "${candidates[@]}"; do

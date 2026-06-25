@@ -72,23 +72,7 @@ if [ "$NEED_BUILD" = true ] && [ -d "roc-src" ] && [ -f "roc-src/zig-out/bin/roc
 fi
 
 if [ "$NEED_BUILD" = true ]; then
-    echo "Building roc from pinned commit $ROC_COMMIT..."
-
-    rm -rf roc-src
-    git init roc-src
-    cd roc-src
-    git remote add origin https://github.com/roc-lang/roc
-    git fetch --depth 1 origin "$ROC_COMMIT"
-    git checkout --detach "$ROC_COMMIT"
-
-    zig build roc
-
-    # Add to GITHUB_PATH if running in CI
-    if [ -n "${GITHUB_PATH:-}" ]; then
-        echo "$(pwd)/zig-out/bin" >> "$GITHUB_PATH"
-    fi
-
-    cd ..
+    ROC_COMMIT="$ROC_COMMIT" ./ci/build_pinned_roc.sh
     USE_ROC_SRC=true
 fi
 
@@ -134,10 +118,15 @@ MIGRATED_EXAMPLES=(
     "random"
     "locale"
     "tty"
+    "dir"
+    "env-var"
 )
 
 EXAMPLES_DIR="${ROOT_DIR}/examples/"
 export EXAMPLES_DIR
+
+TESTS_DIR="${ROOT_DIR}/tests/"
+export TESTS_DIR
 
 # Check if all target libraries exist for bundling
 ALL_TARGETS_EXIST=true
@@ -205,6 +194,18 @@ echo "=== Checking examples ==="
 for example in "${MIGRATED_EXAMPLES[@]}"; do
     echo "Checking: ${example}.roc"
     roc check "examples/${example}.roc"
+done
+
+TESTS_FILES=()
+for roc_file in "${TESTS_DIR}"*.roc; do
+    [ -f "$roc_file" ] && TESTS_FILES+=("$(basename "${roc_file%.roc}")")
+done
+
+echo ""
+echo "=== Checking tests ==="
+for test in "${TESTS_FILES[@]}"; do
+    echo "Checking: ${test}.roc"
+    roc check "tests/${test}.roc"
 done
 
 # roc build migrated examples
