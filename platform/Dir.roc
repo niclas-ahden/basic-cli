@@ -26,5 +26,8 @@ Dir := [].{
     ## Lists the contents of a directory.
     ##
     ## Returns the paths of all files and directories within the specified directory.
+    ##
+    ## TODO: This temporarily returns lossy Str paths. When the vendored Path
+    ## subset is replaced by roc-lang/path, return byte-preserving Path values.
     list! : Str => Try(List(Str), [DirErr(IOErr), ..])
 }

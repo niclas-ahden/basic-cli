@@ -26,7 +26,7 @@ cleanup() {
     fi
 
     # Remove built binaries
-    for example in "${EXAMPLE_NAMES[@]:-}"; do
+    for example in "${EXAMPLE_NAMES[@]}"; do
         rm -f "examples/${example}"
     done
 

@@ -1,5 +1,10 @@
 import IOErr exposing [IOErr]
 
+# TODO: This is a temporary vendored subset of roc-lang/path until packages can
+# be used here. The long-term API should preserve OS paths as raw Unix bytes or
+# Windows U16s end-to-end; some current Env and Dir helpers still expose lossy
+# Str paths during the migration.
+
 PathType : {
     is_file : Bool,
     is_sym_link : Bool,
