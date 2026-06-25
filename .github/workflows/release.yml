@@ -35,7 +35,7 @@ jobs:
       - name: Install Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.2
+          version: 0.16.0
 
       - name: Install Rust with cross-compilation targets
         uses: dtolnay/rust-toolchain@stable
@@ -43,19 +43,7 @@ jobs:
           targets: x86_64-apple-darwin,aarch64-apple-darwin,x86_64-unknown-linux-musl,aarch64-unknown-linux-musl
 
       - name: Build Roc from pinned commit
-        run: |
-          echo "Building roc from pinned commit..."
-          ROC_COMMIT=$(python3 ci/get_roc_commit.py)
-
-          git init roc-src
-          cd roc-src
-          git remote add origin https://github.com/roc-lang/roc
-          git fetch --depth 1 origin "$ROC_COMMIT"
-          git checkout --detach "$ROC_COMMIT"
-
-          zig build roc
-
-          echo "$(pwd)/zig-out/bin" >> "$GITHUB_PATH"
+        run: ./ci/build_pinned_roc.sh
 
       - name: Build platform for all targets
         run: ./build.sh --all
@@ -111,7 +99,7 @@ jobs:
       - name: Install Zig
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.2
+          version: 0.16.0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -125,19 +113,7 @@ jobs:
         run: brew install expect
 
       - name: Build Roc from pinned commit
-        run: |
-          echo "Building roc from pinned commit..."
-          ROC_COMMIT=$(python3 ci/get_roc_commit.py)
-
-          git init roc-src
-          cd roc-src
-          git remote add origin https://github.com/roc-lang/roc
-          git fetch --depth 1 origin "$ROC_COMMIT"
-          git checkout --detach "$ROC_COMMIT"
-
-          zig build roc
-
-          echo "$(pwd)/zig-out/bin" >> "$GITHUB_PATH"
+        run: ./ci/build_pinned_roc.sh
 
       - name: Download bundle artifact
         uses: actions/download-artifact@v4
@@ -179,7 +155,7 @@ jobs:
         uses: roc-lang/roc/.github/actions/flaky-retry@main
         with:
           command: bash ci/all_tests.sh
-          error_string_contains: "error: unable"
+          error_string_contains: "error: (unable|invalid HTTP response)|HttpConnectionClosing"
         env:
           # Skip native build and rebundling since examples already point at the
           # downloaded bundle served by the previous step.

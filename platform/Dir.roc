@@ -1,24 +1,6 @@
-Dir := [].{
-    ## **NotFound** - An entity was not found, often a file.
-    ##
-    ## **PermissionDenied** - The operation lacked the necessary privileges to complete.
-    ##
-    ## **AlreadyExists** - An entity already exists, often a file.
-    ##
-    ## **NotADirectory** - The path was not a directory when a directory was expected.
-    ##
-    ## **NotEmpty** - The directory is not empty.
-    ##
-    ## **Other** - A custom error that does not fall under any other I/O error kind.
-    IOErr := [
-        NotFound,
-        PermissionDenied,
-        AlreadyExists,
-        NotADirectory,
-        NotEmpty,
-        Other(Str),
-    ]
+import IOErr exposing [IOErr]
 
+Dir := [].{
     ## Creates a new, empty directory at the provided path.
     ##
     ## If the parent directories do not exist, they will not be created.

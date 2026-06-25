@@ -1,11 +1,11 @@
 platform ""
     requires {} { main! : List(Str) => Try({}, [Exit(I32), ..]) }
-    exposes [Cmd, Dir, Env, File, Locale, Path, Random, Sleep, Stdin, Stdout, Stderr, Tty, Utc]
+    exposes [Cmd, Dir, Env, File, IOErr, Locale, Path, Random, Sleep, Stdin, Stdout, Stderr, Tty, Utc]
     packages {}
     provides { "roc_main": main_for_host! }
     hosted {
-        "hosted_cmd_exec_exit_code": Cmd.exec_exit_code!,
-        "hosted_cmd_exec_output": Cmd.exec_output!,
+        "hosted_cmd_host_exec_exit_code": Cmd.host_exec_exit_code!,
+        "hosted_cmd_host_exec_output": Cmd.host_exec_output!,
         "hosted_dir_create": Dir.create!,
         "hosted_dir_create_all": Dir.create_all!,
         "hosted_dir_delete_all": Dir.delete_all!,
@@ -21,17 +21,19 @@ platform ""
         "hosted_file_write_utf8": File.write_utf8!,
         "hosted_locale_all": Locale.all!,
         "hosted_locale_get": Locale.get!,
-        "hosted_path_is_dir": Path.is_dir!,
-        "hosted_path_is_file": Path.is_file!,
-        "hosted_path_is_sym_link": Path.is_sym_link!,
+        "hosted_path_type": Path.host_path_type!,
         "hosted_random_seed_u32": Random.seed_u32!,
         "hosted_random_seed_u64": Random.seed_u64!,
         "hosted_sleep_millis": Sleep.millis!,
         "hosted_stderr_line": Stderr.line!,
         "hosted_stderr_write": Stderr.write!,
+        "hosted_stderr_write_bytes": Stderr.write_bytes!,
+        "hosted_stdin_bytes": Stdin.bytes!,
         "hosted_stdin_line": Stdin.line!,
+        "hosted_stdin_read_to_end": Stdin.read_to_end!,
         "hosted_stdout_line": Stdout.line!,
         "hosted_stdout_write": Stdout.write!,
+        "hosted_stdout_write_bytes": Stdout.write_bytes!,
         "hosted_tty_disable_raw_mode": Tty.disable_raw_mode!,
         "hosted_tty_enable_raw_mode": Tty.enable_raw_mode!,
         "hosted_utc_now": Utc.now!,
@@ -48,6 +50,7 @@ import Cmd
 import Dir
 import Env
 import File
+import IOErr
 import Locale
 import Path
 import Random
@@ -63,8 +66,8 @@ main_for_host! = |args|
     match main!(args) {
         Ok({}) => 0
         Err(Exit(code)) => code
-        Err(other) => {
-            Stderr.line!("Program exited with error: ${Str.inspect(other)}")
-            1
-        }
+        Err(other) =>
+            match Stderr.line!("Program exited with error: ${Str.inspect(other)}") {
+                _ => 1
+            }
     }

@@ -5,18 +5,14 @@ import pf.Path
 
 # Demo of basic-cli Path functions
 
-main! : List(Str) => Try({}, [Exit(I32)])
 main! = |_args| {
-    path = "path.roc"
+    path = Path.from_str("path.roc")
 
-    a = Path.is_file!(path)
-    b = Path.is_dir!(path)
-    c = Path.is_sym_link!(path)
-
-    Stdout.line!(
-        \\is_file: ${Str.inspect(a)}
-        \\is_dir: ${Str.inspect(b)}
-        \\is_sym_link: ${Str.inspect(c)}
+    _ = Stdout.line!(
+        \\is_file: ${Str.inspect(Path.is_file!(path))}
+        \\is_dir: ${Str.inspect(Path.is_dir!(path))}
+        \\is_sym_link: ${Str.inspect(Path.is_sym_link!(path))}
+        \\display: ${Path.display(path)}
     )
 
     Ok({})
