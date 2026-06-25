@@ -6,6 +6,8 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
 cd "$ROOT_DIR"
 
+EXAMPLE_NAMES=()
+
 # Cleanup function to restore examples and stop HTTP server
 cleanup() {
     echo ""
@@ -24,7 +26,7 @@ cleanup() {
     fi
 
     # Remove built binaries
-    for example in "${MIGRATED_EXAMPLES[@]}"; do
+    for example in "${EXAMPLE_NAMES[@]:-}"; do
         rm -f "examples/${example}"
     done
 
@@ -106,8 +108,15 @@ else
     echo "=== Skipping platform build (NO_BUILD=1) ==="
 fi
 
-# List of migrated examples that have expect tests
-MIGRATED_EXAMPLES=(
+EXAMPLES_DIR="${ROOT_DIR}/examples/"
+export EXAMPLES_DIR
+
+TESTS_DIR="${ROOT_DIR}/tests/"
+export TESTS_DIR
+
+# Examples with maintained expect tests. All examples are checked and built
+# below; this list only controls which built binaries are executed.
+EXPECT_EXAMPLES=(
     "command-line-args"
     "hello-world"
     "stdin-basic"
@@ -122,11 +131,9 @@ MIGRATED_EXAMPLES=(
     "env-var"
 )
 
-EXAMPLES_DIR="${ROOT_DIR}/examples/"
-export EXAMPLES_DIR
-
-TESTS_DIR="${ROOT_DIR}/tests/"
-export TESTS_DIR
+for roc_file in "${EXAMPLES_DIR}"*.roc; do
+    [ -f "$roc_file" ] && EXAMPLE_NAMES+=("$(basename "${roc_file%.roc}")")
+done
 
 # Check if all target libraries exist for bundling
 ALL_TARGETS_EXIST=true
@@ -188,10 +195,9 @@ else
     echo "Run './build.sh --all' first to test with bundled platform"
 fi
 
-# roc check migrated examples
 echo ""
 echo "=== Checking examples ==="
-for example in "${MIGRATED_EXAMPLES[@]}"; do
+for example in "${EXAMPLE_NAMES[@]}"; do
     echo "Checking: ${example}.roc"
     roc check "examples/${example}.roc"
 done
@@ -208,14 +214,13 @@ for test in "${TESTS_FILES[@]}"; do
     roc check "tests/${test}.roc"
 done
 
-# roc build migrated examples
 echo ""
 if [ "$USE_BUNDLE" = true ]; then
     echo "=== Building examples (using bundle) ==="
 else
     echo "=== Building examples (using local platform) ==="
 fi
-for example in "${MIGRATED_EXAMPLES[@]}"; do
+for example in "${EXAMPLE_NAMES[@]}"; do
     echo "Building: ${example}.roc"
     roc build "examples/${example}.roc"
     mv "./${example}" "examples/"
@@ -225,9 +230,14 @@ done
 echo ""
 echo "=== Running expect tests ==="
 FAILED=0
-for example in "${MIGRATED_EXAMPLES[@]}"; do
+for example in "${EXPECT_EXAMPLES[@]}"; do
     echo ""
     echo "--- Testing: $example ---"
+    if [ ! -f "ci/expect_scripts/${example}.exp" ]; then
+        echo "FAIL: missing expect script for $example"
+        FAILED=1
+        continue
+    fi
     set +e
     expect "ci/expect_scripts/${example}.exp"
     EXIT_CODE=$?

@@ -12,9 +12,9 @@ The pinned Roc compiler commit lives in `.roc-version`. To update it:
 2. Run `./ci/regenerate_glue.sh` to refresh `src/roc_platform_abi.rs`.
 3. Run `cargo check` and `./ci/all_tests.sh` to verify the new compiler works.
 
-## How to generate docs?
+## Documentation
 
-TODO describe how to generate docs once `roc docs` is implemented in the new compiler
+Generated Roc docs are currently disabled for this migration branch because `roc docs` is not implemented in the new compiler backend yet. Update this section and restore docs CI when that command is available again.
 
 ## Regenerating Rust Glue
 

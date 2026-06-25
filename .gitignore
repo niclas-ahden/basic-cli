@@ -57,13 +57,7 @@ bench-folder*
 *.roc-format-failed-ast-after
 *.roc-format-failed-ast-before
 
-# Tests
-file-test
-example-stdin
-http-get-json
-file-read-buffered
-temp-dir
-env-var
+# Test artifacts
 out.txt
 
 # Downloaded Roc nightly
@@ -82,9 +76,6 @@ all_tests_output.log
 
 # Old build artifacts (platform/*.a was pre-migration location)
 platform/*.a
-
-ci/check_all_exposed_funs_tested
-ci/check_cargo_versions_match
 
 # build script artifacts
 build
