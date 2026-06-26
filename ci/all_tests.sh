@@ -129,6 +129,7 @@ EXPECT_EXAMPLES=(
     "tty"
     "dir"
     "env-var"
+    "sqlite-basic"
 )
 
 for roc_file in "${EXAMPLES_DIR}"*.roc; do

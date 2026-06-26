@@ -1,6 +1,6 @@
 platform ""
     requires {} { main! : List(Str) => Try({}, [Exit(I32), ..]) }
-    exposes [Cmd, Dir, Env, File, IOErr, Locale, Path, Random, Sleep, Stdin, Stdout, Stderr, Tty, Utc]
+    exposes [Cmd, Dir, Env, File, IOErr, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tty, Utc]
     packages {}
     provides { "roc_main": main_for_host! }
     hosted {
@@ -45,6 +45,14 @@ platform ""
         "hosted_tty_disable_raw_mode": Tty.disable_raw_mode!,
         "hosted_tty_enable_raw_mode": Tty.enable_raw_mode!,
         "hosted_utc_now": Utc.now!,
+        # SQLite hosted functions are kept at the end so adding them does not
+        # renumber the generated glue types for the modules declared above.
+        "hosted_sqlite_prepare": Sqlite.host_prepare!,
+        "hosted_sqlite_bind": Sqlite.host_bind!,
+        "hosted_sqlite_columns": Sqlite.host_columns!,
+        "hosted_sqlite_column_value": Sqlite.host_column_value!,
+        "hosted_sqlite_step": Sqlite.host_step!,
+        "hosted_sqlite_reset": Sqlite.host_reset!,
     }
     targets: {
         inputs_dir: "targets/",
@@ -59,10 +67,12 @@ import Dir
 import Env
 import File
 import IOErr
+import InternalSqlite
 import Locale
 import Path
 import Random
 import Sleep
+import Sqlite
 import Stdin
 import Stdout
 import Stderr
