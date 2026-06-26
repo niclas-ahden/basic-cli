@@ -76,7 +76,7 @@ Http := [].{
     ## ```
     get_utf8! : Str => Try(Str, [BadBody(Str), HttpErr([Timeout, NetworkError, BadBody, Other(List(U8))])])
     get_utf8! = |uri|
-        match send!({ method: GET, headers: [], uri: uri, body: [], timeout_ms: NoTimeout }) {
+        match send!({ ..default_request, uri: uri }) {
             Err(HttpErr(err)) => Err(HttpErr(err))
             Ok(response) =>
                 match Str.from_utf8(response.body) {

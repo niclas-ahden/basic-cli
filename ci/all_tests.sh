@@ -131,6 +131,7 @@ EXPECT_EXAMPLES=(
     "env-var"
     "sqlite-basic"
     "tcp-client"
+    "http-client"
 )
 
 for roc_file in "${EXAMPLES_DIR}"*.roc; do
@@ -227,6 +228,13 @@ for example in "${EXAMPLE_NAMES[@]}"; do
     roc build "examples/${example}.roc"
     mv "./${example}" "examples/"
 done
+
+# The http-client expect test drives a local HTTP server; build it up front.
+if printf '%s\n' "${EXPECT_EXAMPLES[@]}" | grep -qx "http-client"; then
+    echo ""
+    echo "=== Building HTTP test server ==="
+    (cd ci/rust_http_server && cargo build --release)
+fi
 
 # Run expect tests
 echo ""
