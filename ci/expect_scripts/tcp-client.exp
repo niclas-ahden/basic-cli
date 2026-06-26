@@ -1,0 +1,31 @@
+#!/usr/bin/expect
+
+# uncomment line below for debugging
+# exp_internal 1
+
+set timeout 7
+
+# Resolve the directory this script lives in so we can find the echo server.
+set script_dir [file dirname [info script]]
+
+# Start a self-contained echo server (avoids depending on ncat/nc being present).
+spawn python3 "$script_dir/tcp_echo_server.py"
+set server_id $spawn_id
+sleep 1
+
+spawn $env(EXAMPLES_DIR)tcp-client
+set client_id $spawn_id
+
+expect {
+    -i $client_id "Connected!\r\n" {
+        expect -i $client_id "> " {
+            send -i $client_id -- "Hi\r"
+            expect -i $client_id "< Hi\r\n" {
+                exit 0
+            }
+        }
+    }
+}
+
+puts stderr "\nExpect script failed: output was different from expected value. uncomment `exp_internal 1` to debug."
+exit 1

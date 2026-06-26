@@ -1981,7 +1981,7 @@ const _: () = assert!(core::mem::align_of::<TryType118>() == 8, "TryType118 alig
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TryType128Tag {
+pub enum TryType122Tag {
     Err = 0,
     Ok = 1,
 }
@@ -1989,20 +1989,98 @@ pub enum TryType128Tag {
 /// Tag union: Try
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct TryType128 {
-    pub payload: TryType128Payload,
-    pub tag: TryType128Tag,
+pub struct TryType122 {
+    pub payload: TryType122Payload,
+    pub tag: TryType122Tag,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub union TryType128Payload {
+pub union TryType122Payload {
+    pub err: core::mem::ManuallyDrop<RocStr>,
+    pub ok: core::mem::ManuallyDrop<*mut u64>,
+}
+
+const _: () = assert!(core::mem::size_of::<TryType122>() == 32, "TryType122 size mismatch");
+const _: () = assert!(core::mem::align_of::<TryType122>() == 8, "TryType122 alignment mismatch");
+
+/// Tag discriminant for Try.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TryType127Tag {
+    Err = 0,
+    Ok = 1,
+}
+
+/// Tag union: Try
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TryType127 {
+    pub payload: TryType127Payload,
+    pub tag: TryType127Tag,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union TryType127Payload {
+    pub err: core::mem::ManuallyDrop<RocStr>,
+    pub ok: core::mem::ManuallyDrop<RocListWith<u8, false>>,
+}
+
+const _: () = assert!(core::mem::size_of::<TryType127>() == 32, "TryType127 size mismatch");
+const _: () = assert!(core::mem::align_of::<TryType127>() == 8, "TryType127 alignment mismatch");
+
+/// Tag discriminant for Try.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TryType130Tag {
+    Err = 0,
+    Ok = 1,
+}
+
+/// Tag union: Try
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TryType130 {
+    pub payload: TryType130Payload,
+    pub tag: TryType130Tag,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union TryType130Payload {
+    pub err: core::mem::ManuallyDrop<RocStr>,
+    pub ok: core::mem::ManuallyDrop<()>,
+}
+
+const _: () = assert!(core::mem::size_of::<TryType130>() == 32, "TryType130 size mismatch");
+const _: () = assert!(core::mem::align_of::<TryType130>() == 8, "TryType130 alignment mismatch");
+
+/// Tag discriminant for Try.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TryType138Tag {
+    Err = 0,
+    Ok = 1,
+}
+
+/// Tag union: Try
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TryType138 {
+    pub payload: TryType138Payload,
+    pub tag: TryType138Tag,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union TryType138Payload {
     pub err: core::mem::ManuallyDrop<i32>,
     pub ok: core::mem::ManuallyDrop<()>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType128>() == 8, "TryType128 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType128>() == 4, "TryType128 alignment mismatch");
+const _: () = assert!(core::mem::size_of::<TryType138>() == 8, "TryType138 size mismatch");
+const _: () = assert!(core::mem::align_of::<TryType138>() == 4, "TryType138 alignment mismatch");
 
 /// Arguments for Cmd.host_exec_exit_code!
 /// Roc signature: Cmd => Try(I32, IOErr)
@@ -2327,6 +2405,56 @@ pub struct StdoutWriteBytesArgs {
     pub arg0: RocListWith<u8, false>,
 }
 
+/// Arguments for Tcp.host_connect!
+/// Roc signature: Str, U16 => Try(Tcp.Stream, Str)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TcpHostConnectArgs {
+    pub arg0: RocStr,
+    pub arg1: u16,
+}
+
+/// Arguments for Tcp.host_read_exactly!
+/// Roc signature: Tcp.Stream, U64 => Try(List(U8), Str)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TcpHostReadExactlyArgs {
+    pub arg0: *mut u64,
+    pub arg1: u64,
+}
+
+/// Arguments for Tcp.host_read_until!
+/// Roc signature: Tcp.Stream, U8 => Try(List(U8), Str)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TcpHostReadUntilArgs {
+    pub arg0: *mut u64,
+    pub arg1: u8,
+}
+
+/// Arguments for Tcp.host_read_up_to!
+/// Roc signature: Tcp.Stream, U64 => Try(List(U8), Str)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TcpHostReadUpToArgs {
+    pub arg0: *mut u64,
+    pub arg1: u64,
+}
+
+/// Arguments for Tcp.host_write!
+/// Roc signature: Tcp.Stream, List(U8) => Try({}, Str)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct TcpHostWriteArgs {
+    pub arg0: *mut u64,
+    pub arg1: RocListWith<u8, false>,
+}
+
 // =============================================================================
 // Semantic Type Aliases
 // =============================================================================
@@ -2486,6 +2614,21 @@ pub type StdoutWriteResultTag = TryType113Tag;
 pub type StdoutWriteBytesResult = TryType118;
 pub type StdoutWriteBytesResultPayload = TryType118Payload;
 pub type StdoutWriteBytesResultTag = TryType118Tag;
+pub type TcpHostConnectResult = TryType122;
+pub type TcpHostConnectResultPayload = TryType122Payload;
+pub type TcpHostConnectResultTag = TryType122Tag;
+pub type TcpHostReadExactlyResult = TryType127;
+pub type TcpHostReadExactlyResultPayload = TryType127Payload;
+pub type TcpHostReadExactlyResultTag = TryType127Tag;
+pub type TcpHostReadUntilResult = TryType127;
+pub type TcpHostReadUntilResultPayload = TryType127Payload;
+pub type TcpHostReadUntilResultTag = TryType127Tag;
+pub type TcpHostReadUpToResult = TryType127;
+pub type TcpHostReadUpToResultPayload = TryType127Payload;
+pub type TcpHostReadUpToResultTag = TryType127Tag;
+pub type TcpHostWriteResult = TryType130;
+pub type TcpHostWriteResultPayload = TryType130Payload;
+pub type TcpHostWriteResultTag = TryType130Tag;
 
 // =============================================================================
 // Generated Refcount Helpers
@@ -3778,21 +3921,105 @@ pub fn incref_try_type118(value: TryType118, amount: isize) {
     }
 }
 
-/// Recursively decrement Roc-owned payloads in TryType128.
-pub fn decref_try_type128(value: TryType128, roc_host: &RocHost) {
+/// Recursively decrement Roc-owned payloads in TryType122.
+pub fn decref_try_type122(value: TryType122, roc_host: &RocHost) {
     let _ = roc_host;
     match value.tag {
-        TryType128Tag::Err => {},
-        TryType128Tag::Ok => {},
+        TryType122Tag::Err => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
+            payload.decref(roc_host);
+        },
+        TryType122Tag::Ok => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
+            decref_box_with(payload as RocBox, core::mem::align_of::<u64>(), false, None, roc_host);
+        },
     }
 }
 
-/// Increment Roc-owned payloads in TryType128.
-pub fn incref_try_type128(value: TryType128, amount: isize) {
+/// Increment Roc-owned payloads in TryType122.
+pub fn incref_try_type122(value: TryType122, amount: isize) {
     let _ = amount;
     match value.tag {
-        TryType128Tag::Err => {},
-        TryType128Tag::Ok => {},
+        TryType122Tag::Err => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
+            payload.incref(amount);
+        },
+        TryType122Tag::Ok => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
+            incref_box(payload as RocBox, amount);
+        },
+    }
+}
+
+/// Recursively decrement Roc-owned payloads in TryType127.
+pub fn decref_try_type127(value: TryType127, roc_host: &RocHost) {
+    let _ = roc_host;
+    match value.tag {
+        TryType127Tag::Err => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
+            payload.decref(roc_host);
+        },
+        TryType127Tag::Ok => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
+            payload.decref(roc_host);
+        },
+    }
+}
+
+/// Increment Roc-owned payloads in TryType127.
+pub fn incref_try_type127(value: TryType127, amount: isize) {
+    let _ = amount;
+    match value.tag {
+        TryType127Tag::Err => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
+            payload.incref(amount);
+        },
+        TryType127Tag::Ok => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
+            payload.incref(amount);
+        },
+    }
+}
+
+/// Recursively decrement Roc-owned payloads in TryType130.
+pub fn decref_try_type130(value: TryType130, roc_host: &RocHost) {
+    let _ = roc_host;
+    match value.tag {
+        TryType130Tag::Err => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
+            payload.decref(roc_host);
+        },
+        TryType130Tag::Ok => {},
+    }
+}
+
+/// Increment Roc-owned payloads in TryType130.
+pub fn incref_try_type130(value: TryType130, amount: isize) {
+    let _ = amount;
+    match value.tag {
+        TryType130Tag::Err => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
+            payload.incref(amount);
+        },
+        TryType130Tag::Ok => {},
+    }
+}
+
+/// Recursively decrement Roc-owned payloads in TryType138.
+pub fn decref_try_type138(value: TryType138, roc_host: &RocHost) {
+    let _ = roc_host;
+    match value.tag {
+        TryType138Tag::Err => {},
+        TryType138Tag::Ok => {},
+    }
+}
+
+/// Increment Roc-owned payloads in TryType138.
+pub fn incref_try_type138(value: TryType138, amount: isize) {
+    let _ = amount;
+    match value.tag {
+        TryType138Tag::Err => {},
+        TryType138Tag::Ok => {},
     }
 }
 
@@ -3997,6 +4224,26 @@ unsafe extern "C" {
     /// Hosted symbol for Stdout.write_bytes!
     /// Roc signature: List(U8) => Try({}, [StdoutErr(IOErr)])
     pub fn hosted_stdout_write_bytes(arg0: RocListWith<u8, false>) -> TryType118;
+
+    /// Hosted symbol for Tcp.host_connect!
+    /// Roc signature: Str, U16 => Try(Tcp.Stream, Str)
+    pub fn hosted_tcp_connect(arg0: RocStr, arg1: u16) -> TryType122;
+
+    /// Hosted symbol for Tcp.host_read_exactly!
+    /// Roc signature: Tcp.Stream, U64 => Try(List(U8), Str)
+    pub fn hosted_tcp_read_exactly(arg0: *mut u64, arg1: u64) -> TryType127;
+
+    /// Hosted symbol for Tcp.host_read_until!
+    /// Roc signature: Tcp.Stream, U8 => Try(List(U8), Str)
+    pub fn hosted_tcp_read_until(arg0: *mut u64, arg1: u8) -> TryType127;
+
+    /// Hosted symbol for Tcp.host_read_up_to!
+    /// Roc signature: Tcp.Stream, U64 => Try(List(U8), Str)
+    pub fn hosted_tcp_read_up_to(arg0: *mut u64, arg1: u64) -> TryType127;
+
+    /// Hosted symbol for Tcp.host_write!
+    /// Roc signature: Tcp.Stream, List(U8) => Try({}, Str)
+    pub fn hosted_tcp_write(arg0: *mut u64, arg1: RocListWith<u8, false>) -> TryType130;
 
     /// Hosted symbol for Tty.disable_raw_mode!
     /// Roc signature: {} => {}

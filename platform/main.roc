@@ -1,6 +1,6 @@
 platform ""
     requires {} { main! : List(Str) => Try({}, [Exit(I32), ..]) }
-    exposes [Cmd, Dir, Env, File, IOErr, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tty, Utc]
+    exposes [Cmd, Dir, Env, File, IOErr, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Utc]
     packages {}
     provides { "roc_main": main_for_host! }
     hosted {
@@ -53,6 +53,12 @@ platform ""
         "hosted_sqlite_column_value": Sqlite.host_column_value!,
         "hosted_sqlite_step": Sqlite.host_step!,
         "hosted_sqlite_reset": Sqlite.host_reset!,
+        # TCP hosted functions are likewise kept at the end to avoid renumbering.
+        "hosted_tcp_connect": Tcp.host_connect!,
+        "hosted_tcp_read_up_to": Tcp.host_read_up_to!,
+        "hosted_tcp_read_exactly": Tcp.host_read_exactly!,
+        "hosted_tcp_read_until": Tcp.host_read_until!,
+        "hosted_tcp_write": Tcp.host_write!,
     }
     targets: {
         inputs_dir: "targets/",
@@ -76,6 +82,7 @@ import Sqlite
 import Stdin
 import Stdout
 import Stderr
+import Tcp
 import Tty
 import Utc
 
