@@ -1,6 +1,6 @@
 platform ""
     requires {} { main! : List(Str) => Try({}, [Exit(I32), ..]) }
-    exposes [Cmd, Dir, Env, File, IOErr, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Utc]
+    exposes [Cmd, Dir, Env, File, Http, IOErr, InternalHttp, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Utc]
     packages {}
     provides { "roc_main": main_for_host! }
     hosted {
@@ -59,6 +59,8 @@ platform ""
         "hosted_tcp_read_exactly": Tcp.host_read_exactly!,
         "hosted_tcp_read_until": Tcp.host_read_until!,
         "hosted_tcp_write": Tcp.host_write!,
+        # HTTP is likewise kept at the end to avoid renumbering glue types.
+        "hosted_http_send_request": Http.host_send_request!,
     }
     targets: {
         inputs_dir: "targets/",
@@ -72,7 +74,9 @@ import Cmd
 import Dir
 import Env
 import File
+import Http
 import IOErr
+import InternalHttp
 import InternalSqlite
 import Locale
 import Path
