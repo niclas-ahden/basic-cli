@@ -161,10 +161,6 @@ fn release_sqlite_stmt(handle: *mut u64, roc_host: &RocHost) {
     decref_box_with(
         handle as RocBox,
         SQLITE_STMT_BOX_ALIGN,
-        // The boxed payload is a raw `u64` (a pointer to our SqliteStatement),
-        // not a Roc-refcounted value — must match the `false` passed to
-        // `allocate_box` in `box_sqlite_stmt`.
-        false,
         Some(drop_sqlite_stmt),
         roc_host,
     );
@@ -654,9 +650,6 @@ fn release_tcp_stream(handle: *mut u64, roc_host: &RocHost) {
     decref_box_with(
         handle as RocBox,
         TCP_STREAM_BOX_ALIGN,
-        // The boxed payload is a raw `u64` (a pointer to our BufReader), not a
-        // Roc-refcounted value — must match the `false` passed to `allocate_box`.
-        false,
         Some(drop_tcp_stream),
         roc_host,
     );

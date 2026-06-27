@@ -42,10 +42,10 @@ trap cleanup EXIT
 echo "=== basic-cli CI ==="
 echo ""
 
-# Roc is provided on PATH by roc-lang/setup-roc in CI (latest nightly of the new
-# zig-based compiler), so the platform is no longer tied to a specific commit.
-# For local runs any `roc` on PATH is used; otherwise we fall back to a source
-# build in roc-src/ (see ci/build_pinned_roc.sh) if one is present.
+# Roc is provided on PATH by ci/install_roc.sh in CI (a specific pinned nightly
+# from roc-lang/nightlies, recorded in .roc-version). For local runs any `roc` on
+# PATH is used; otherwise we fall back to a source build in roc-src/ (see
+# ci/build_pinned_roc.sh) if one is present.
 if ! command -v roc &>/dev/null; then
     if [ -x "roc-src/zig-out/bin/roc" ]; then
         export PATH="$(pwd)/roc-src/zig-out/bin:$PATH"
@@ -67,13 +67,13 @@ if [ "$(uname -s)" = "Darwin" ] && [ -z "${SDKROOT:-}" ]; then
     fi
 fi
 
-# NOTE: the committed src/roc_platform_abi.rs (generated glue) is treated as the
-# source of truth for the host ABI and is intentionally NOT re-checked here.
-# Because CI tracks the moving nightly compiler, a `regenerate_glue.sh --check`
-# would flap on every benign codegen change. Correctness is instead enforced by
-# the host compiling against the committed glue and the end-to-end expect tests
-# below exercising the real ABI. When the nightly's ABI drifts, refresh the glue
-# locally with ci/regenerate_glue.sh and commit the result.
+# NOTE: the committed src/roc_platform_abi.rs (generated glue) is the source of
+# truth for the host ABI and is intentionally NOT re-checked here: CI installs
+# only the roc binary (no glue spec to regenerate from). The glue is generated
+# locally against the pinned compiler in .roc-version; correctness is enforced by
+# the host compiling against it and the end-to-end expect tests below exercising
+# the real ABI. To adopt a newer compiler: bump .roc-version, regenerate glue
+# with ci/regenerate_glue.sh, reconcile src/lib.rs, and commit together.
 
 # Build the platform
 if [ "${NO_BUILD:-}" != "1" ]; then

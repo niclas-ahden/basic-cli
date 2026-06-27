@@ -185,7 +185,7 @@ pub fn allocate_box(
 
 /// Decrement a pointer-aligned boxed payload with no Roc refcounted values.
 pub fn decref_box(data_ptr: RocBox, roc_host: &RocHost) {
-    decref_box_with(data_ptr, core::mem::align_of::<usize>(), false, None, roc_host);
+    decref_box_with(data_ptr, core::mem::align_of::<usize>(), None, roc_host);
 }
 
 /// Increment a boxed function closure.
@@ -198,7 +198,6 @@ pub fn decref_erased_callable(callable: RocErasedCallable, roc_host: &RocHost) {
     decref_box_with(
         callable as RocBox,
         ROC_ERASED_CALLABLE_PAYLOAD_ALIGNMENT,
-        false,
         Some(drop_erased_callable_payload),
         roc_host,
     );
@@ -218,16 +217,9 @@ extern "C" fn drop_erased_callable_payload(data_ptr: *mut c_void, roc_host: *mut
 }
 
 /// Decrement a boxed payload and run payload teardown when this is the final ref.
-///
-/// `payload_contains_refcounted` must match the value passed to `allocate_box`:
-/// it determines the box header size, and is independent of whether a
-/// `payload_decref` teardown callback is supplied. A host resource handle such
-/// as `Box(U64)` holding a raw pointer has `payload_contains_refcounted: false`
-/// even when it provides a teardown callback to free the underlying resource.
 pub fn decref_box_with(
     data_ptr: RocBox,
     payload_alignment: usize,
-    payload_contains_refcounted: bool,
     payload_decref: Option<RocBoxPayloadDecref>,
     roc_host: &RocHost,
 ) {
@@ -245,18 +237,15 @@ pub fn decref_box_with(
             if let Some(callback) = payload_decref {
                 callback(data_ptr, roc_host as *const RocHost as *mut RocHost);
             }
-            free_box_allocation(data, payload_alignment, payload_contains_refcounted, roc_host);
+            free_box_allocation(data, payload_alignment, payload_decref.is_some(), roc_host);
         }
     }
 }
 
 /// Free a boxed payload allocation immediately after running payload teardown.
-///
-/// See `decref_box_with` for the meaning of `payload_contains_refcounted`.
 pub fn free_box_with(
     data_ptr: RocBox,
     payload_alignment: usize,
-    payload_contains_refcounted: bool,
     payload_decref: Option<RocBoxPayloadDecref>,
     roc_host: &RocHost,
 ) {
@@ -267,7 +256,7 @@ pub fn free_box_with(
     if let Some(callback) = payload_decref {
         callback(data_ptr, roc_host as *const RocHost as *mut RocHost);
     }
-    free_box_allocation(data, payload_alignment, payload_contains_refcounted, roc_host);
+    free_box_allocation(data, payload_alignment, payload_decref.is_some(), roc_host);
 }
 
 /// Return true when a boxed payload data pointer has exactly one live ref.
@@ -777,10 +766,10 @@ const _: () = assert!(core::mem::align_of::<AnonStruct57>() == 8, "AnonStruct57 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct60 {
-    pub timeout_ms: u64,
     pub body: RocListWith<u8, false>,
     pub headers: RocList<AnonStruct57>,
     pub method_ext: RocStr,
+    pub timeout_ms: u64,
     pub uri: RocStr,
     pub method: u8,
 }
@@ -815,8 +804,8 @@ const _: () = assert!(core::mem::align_of::<AnonStruct85>() == 8, "AnonStruct85 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct93 {
-    pub value: BytesOrIntegerOrNullOrRealOrString,
     pub name: RocStr,
+    pub value: BytesOrIntegerOrNullOrRealOrString,
 }
 
 const _: () = assert!(core::mem::size_of::<AnonStruct93>() == 56, "AnonStruct93 size mismatch");
@@ -2333,10 +2322,10 @@ pub struct FileWriteUtf8Args {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HttpHostSendRequestArgs {
-    pub timeout_ms: u64,
     pub body: RocListWith<u8, false>,
     pub headers: RocList<AnonStruct57>,
     pub method_ext: RocStr,
+    pub timeout_ms: u64,
     pub uri: RocStr,
     pub method: u8,
 }
@@ -2768,9 +2757,8 @@ pub fn decref_cmd(value: Cmd, roc_host: &RocHost) {
     {
         let list = value.args;
         if list.has_one_ref() {
-            for item_ref in list.allocation_items() {
-                let item = *item_ref;
-                    item.decref(roc_host);
+            for item in list.allocation_items() {
+                    (*item).decref(roc_host);
             }
         }
         list.decref(roc_host);
@@ -2778,9 +2766,8 @@ pub fn decref_cmd(value: Cmd, roc_host: &RocHost) {
     {
         let list = value.envs;
         if list.has_one_ref() {
-            for item_ref in list.allocation_items() {
-                let item = *item_ref;
-                    item.decref(roc_host);
+            for item in list.allocation_items() {
+                    (*item).decref(roc_host);
             }
         }
         list.decref(roc_host);
@@ -2857,8 +2844,14 @@ pub fn incref_try_type8(value: TryType8, amount: isize) {
 
 /// Recursively decrement Roc-owned fields in AnonStruct9.
 pub fn decref_anon_struct9(value: AnonStruct9, roc_host: &RocHost) {
-    value.stderr_bytes.decref(roc_host);
-    value.stdout_bytes.decref(roc_host);
+    {
+        let list = value.stderr_bytes;
+        list.decref(roc_host);
+    }
+    {
+        let list = value.stdout_bytes;
+        list.decref(roc_host);
+    }
 }
 
 /// Increment Roc-owned fields in AnonStruct9.
@@ -2869,8 +2862,14 @@ pub fn incref_anon_struct9(value: AnonStruct9, amount: isize) {
 
 /// Recursively decrement Roc-owned fields in AnonStruct12.
 pub fn decref_anon_struct12(value: AnonStruct12, roc_host: &RocHost) {
-    value.stderr_bytes.decref(roc_host);
-    value.stdout_bytes.decref(roc_host);
+    {
+        let list = value.stderr_bytes;
+        list.decref(roc_host);
+    }
+    {
+        let list = value.stdout_bytes;
+        list.decref(roc_host);
+    }
 }
 
 /// Increment Roc-owned fields in AnonStruct12.
@@ -2952,9 +2951,8 @@ pub fn decref_try_type18(value: TryType18, roc_host: &RocHost) {
             {
                 let list = payload;
                 if list.has_one_ref() {
-                    for item_ref in list.allocation_items() {
-                        let item = *item_ref;
-                            item.decref(roc_host);
+                    for item in list.allocation_items() {
+                            (*item).decref(roc_host);
                     }
                 }
                 list.decref(roc_host);
@@ -3066,7 +3064,10 @@ pub fn decref_try_type29(value: TryType29, roc_host: &RocHost) {
         },
         TryType29Tag::Ok => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
-            payload.decref(roc_host);
+            {
+                let list = payload;
+                list.decref(roc_host);
+            }
         },
     }
 }
@@ -3298,13 +3299,15 @@ pub fn incref_try_type50(value: TryType50, amount: isize) {
 
 /// Recursively decrement Roc-owned fields in AnonStruct53.
 pub fn decref_anon_struct53(value: AnonStruct53, roc_host: &RocHost) {
-    value.body.decref(roc_host);
+    {
+        let list = value.body;
+        list.decref(roc_host);
+    }
     {
         let list = value.headers;
         if list.has_one_ref() {
-            for item_ref in list.allocation_items() {
-                let item = *item_ref;
-                    decref_anon_struct57(item, roc_host);
+            for item in list.allocation_items() {
+                    decref_anon_struct57((*item), roc_host);
             }
         }
         list.decref(roc_host);
@@ -3331,13 +3334,15 @@ pub fn incref_anon_struct57(value: AnonStruct57, amount: isize) {
 
 /// Recursively decrement Roc-owned fields in AnonStruct60.
 pub fn decref_anon_struct60(value: AnonStruct60, roc_host: &RocHost) {
-    value.body.decref(roc_host);
+    {
+        let list = value.body;
+        list.decref(roc_host);
+    }
     {
         let list = value.headers;
         if list.has_one_ref() {
-            for item_ref in list.allocation_items() {
-                let item = *item_ref;
-                    decref_anon_struct57(item, roc_host);
+            for item in list.allocation_items() {
+                    decref_anon_struct57((*item), roc_host);
             }
         }
         list.decref(roc_host);
@@ -3550,7 +3555,7 @@ pub fn decref_try_type84(value: TryType84, roc_host: &RocHost) {
         },
         TryType84Tag::Ok => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
-            decref_box_with(payload as RocBox, core::mem::align_of::<u64>(), false, None, roc_host);
+            decref_box_with(payload as RocBox, core::mem::align_of::<u64>(), None, roc_host);
         },
     }
 }
@@ -3606,14 +3611,14 @@ pub fn incref_try_type90(value: TryType90, amount: isize) {
 
 /// Recursively decrement Roc-owned fields in AnonStruct93.
 pub fn decref_anon_struct93(value: AnonStruct93, roc_host: &RocHost) {
-    decref_bytes_or_integer_or_null_or_real_or_string(value.value, roc_host);
     value.name.decref(roc_host);
+    decref_bytes_or_integer_or_null_or_real_or_string(value.value, roc_host);
 }
 
 /// Increment Roc-owned fields in AnonStruct93.
 pub fn incref_anon_struct93(value: AnonStruct93, amount: isize) {
-    incref_bytes_or_integer_or_null_or_real_or_string(value.value, amount);
     value.name.incref(amount);
+    incref_bytes_or_integer_or_null_or_real_or_string(value.value, amount);
 }
 
 /// Recursively decrement Roc-owned payloads in BytesOrIntegerOrNullOrRealOrString.
@@ -3622,7 +3627,10 @@ pub fn decref_bytes_or_integer_or_null_or_real_or_string(value: BytesOrIntegerOr
     match value.tag {
         BytesOrIntegerOrNullOrRealOrStringTag::Bytes => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.bytes);
-            payload.decref(roc_host);
+            {
+                let list = payload;
+                list.decref(roc_host);
+            }
         },
         BytesOrIntegerOrNullOrRealOrStringTag::Integer => {},
         BytesOrIntegerOrNullOrRealOrStringTag::Null => {},
@@ -3890,7 +3898,10 @@ pub fn decref_try_type116(value: TryType116, roc_host: &RocHost) {
         },
         TryType116Tag::Ok => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
-            payload.decref(roc_host);
+            {
+                let list = payload;
+                list.decref(roc_host);
+            }
         },
     }
 }
@@ -3944,7 +3955,10 @@ pub fn decref_try_type120(value: TryType120, roc_host: &RocHost) {
         },
         TryType120Tag::Ok => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
-            payload.decref(roc_host);
+            {
+                let list = payload;
+                list.decref(roc_host);
+            }
         },
     }
 }
@@ -4058,7 +4072,7 @@ pub fn decref_try_type131(value: TryType131, roc_host: &RocHost) {
         },
         TryType131Tag::Ok => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
-            decref_box_with(payload as RocBox, core::mem::align_of::<u64>(), false, None, roc_host);
+            decref_box_with(payload as RocBox, core::mem::align_of::<u64>(), None, roc_host);
         },
     }
 }
@@ -4088,7 +4102,10 @@ pub fn decref_try_type136(value: TryType136, roc_host: &RocHost) {
         },
         TryType136Tag::Ok => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
-            payload.decref(roc_host);
+            {
+                let list = payload;
+                list.decref(roc_host);
+            }
         },
     }
 }
