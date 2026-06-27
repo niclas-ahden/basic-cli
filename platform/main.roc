@@ -1,7 +1,12 @@
 platform ""
     requires {} { main! : List(Str) => Try({}, [Exit(I32), ..]) }
-    exposes [Cmd, Dir, Env, File, Http, IOErr, InternalHttp, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Utc]
-    packages {}
+    exposes [Cmd, Dir, Env, File, Http, IOErr, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Utc]
+    packages {
+        # HTTP data types (Method, Request, Response) come from the shared
+        # roc-lang/http package so apps and other packages using it see the same
+        # nominal types. The platform supplies only the effectful `Http.send!`.
+        http: "https://github.com/roc-lang/http/releases/download/0.1/6LcdNq2r7xTBwj972ecYWUkMWobJr94yL2NyJpHRAXap.tar.zst",
+    }
     provides { "roc_main": main_for_host! }
     hosted {
         "hosted_cmd_host_exec_exit_code": Cmd.host_exec_exit_code!,
@@ -76,7 +81,6 @@ import Env
 import File
 import Http
 import IOErr
-import InternalHttp
 import InternalSqlite
 import Locale
 import Path

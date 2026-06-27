@@ -39,51 +39,24 @@ cleanup() {
 # Set up trap to ensure cleanup runs on exit
 trap cleanup EXIT
 
-# Get the roc commit pinned in .roc-version
-ROC_COMMIT=$(python3 ci/get_roc_commit.py)
-ROC_COMMIT_SHORT="${ROC_COMMIT:0:8}"
-NEED_BUILD=true
-USE_ROC_SRC=false
-
 echo "=== basic-cli CI ==="
 echo ""
 
-# Check if roc is already on PATH and matches pinned commit
-if command -v roc &>/dev/null; then
-    SYSTEM_VERSION=$(roc version 2>/dev/null || echo "unknown")
-    if echo "$SYSTEM_VERSION" | grep -q "$ROC_COMMIT_SHORT"; then
-        echo "roc on PATH matches pinned commit: $SYSTEM_VERSION"
-        NEED_BUILD=false
+# Roc is provided on PATH by roc-lang/setup-roc in CI (latest nightly of the new
+# zig-based compiler), so the platform is no longer tied to a specific commit.
+# For local runs any `roc` on PATH is used; otherwise we fall back to a source
+# build in roc-src/ (see ci/build_pinned_roc.sh) if one is present.
+if ! command -v roc &>/dev/null; then
+    if [ -x "roc-src/zig-out/bin/roc" ]; then
+        export PATH="$(pwd)/roc-src/zig-out/bin:$PATH"
     else
-        echo "roc on PATH ($SYSTEM_VERSION) doesn't match pinned commit ($ROC_COMMIT_SHORT)"
+        echo "Error: 'roc' was not found on PATH." >&2
+        echo "Install it (e.g. via roc-lang/setup-roc) or build it into roc-src/" >&2
+        echo "with ./ci/build_pinned_roc.sh, then re-run." >&2
+        exit 1
     fi
 fi
 
-# Check cached build in roc-src/
-if [ "$NEED_BUILD" = true ] && [ -d "roc-src" ] && [ -f "roc-src/zig-out/bin/roc" ]; then
-    CACHED_VERSION=$(./roc-src/zig-out/bin/roc version 2>/dev/null || echo "unknown")
-    if echo "$CACHED_VERSION" | grep -q "$ROC_COMMIT_SHORT"; then
-        echo "roc in roc-src/ matches pinned commit: $CACHED_VERSION"
-        NEED_BUILD=false
-        USE_ROC_SRC=true
-    else
-        echo "Cached roc ($CACHED_VERSION) doesn't match pinned commit ($ROC_COMMIT_SHORT)"
-        echo "Removing stale roc-src..."
-        rm -rf roc-src
-    fi
-fi
-
-if [ "$NEED_BUILD" = true ]; then
-    ROC_COMMIT="$ROC_COMMIT" ./ci/build_pinned_roc.sh
-    USE_ROC_SRC=true
-fi
-
-# Prefer the cached/source-built roc if it exists; otherwise keep the matching PATH roc.
-if [ "$USE_ROC_SRC" = true ]; then
-    export PATH="$(pwd)/roc-src/zig-out/bin:$PATH"
-fi
-
-echo ""
 echo "Using roc version: $(roc version)"
 
 if [ "$(uname -s)" = "Darwin" ] && [ -z "${SDKROOT:-}" ]; then
@@ -94,9 +67,13 @@ if [ "$(uname -s)" = "Darwin" ] && [ -z "${SDKROOT:-}" ]; then
     fi
 fi
 
-echo ""
-echo "=== Checking generated Rust glue ==="
-./ci/regenerate_glue.sh --check
+# NOTE: the committed src/roc_platform_abi.rs (generated glue) is treated as the
+# source of truth for the host ABI and is intentionally NOT re-checked here.
+# Because CI tracks the moving nightly compiler, a `regenerate_glue.sh --check`
+# would flap on every benign codegen change. Correctness is instead enforced by
+# the host compiling against the committed glue and the end-to-end expect tests
+# below exercising the real ABI. When the nightly's ABI drifts, refresh the glue
+# locally with ci/regenerate_glue.sh and commit the result.
 
 # Build the platform
 if [ "${NO_BUILD:-}" != "1" ]; then

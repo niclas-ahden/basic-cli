@@ -1,7 +1,12 @@
-app [main!] { pf: platform "../platform/main.roc" }
+app [main!] {
+    pf: platform "../platform/main.roc",
+    http: "https://github.com/roc-lang/http/releases/download/0.1/6LcdNq2r7xTBwj972ecYWUkMWobJr94yL2NyJpHRAXap.tar.zst",
+}
 
 import pf.Http
 import pf.Stdout
+import http.Request
+import http.Response
 
 # Demo of the basic-cli HTTP client against a local server.
 #
@@ -27,15 +32,13 @@ main! = |_args|
                 Ok(json) => {
                     _ = Stdout.line!("The json I received was: ${json}")
 
-                    # Use send! with a custom header and inspect the Response record.
-                    request = {
-                        ..Http.default_request,
-                        uri: "http://localhost:9000/utf8test",
-                        headers: [Http.header(("Accept", "text/plain"))],
-                    }
+                    # Use send! with a custom header and inspect the Response.
+                    request0 = Request.from_method(GET)
+                    request1 = Request.with_uri(request0, "http://localhost:9000/utf8test")
+                    request = Request.add_header(request1, "Accept", "text/plain")
                     match Http.send!(request) {
                         Ok(response) => {
-                            _ = Stdout.line!("send! returned status ${U16.to_str(response.status)}.")
+                            _ = Stdout.line!("send! returned status ${U16.to_str(Response.status(response))}.")
                             Ok({})
                         }
                         Err(HttpErr(_)) => report_failure!("send! failed")

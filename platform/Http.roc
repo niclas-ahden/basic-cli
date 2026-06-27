@@ -1,71 +1,59 @@
-import InternalHttp
+import http.Request
+import http.Response
 
 Http := [].{
-    ## Represents an HTTP method.
-    Method : InternalHttp.Method
+    # The host-facing shapes flatten the request/response into a record of
+    # primitives/lists/tuples so the generated glue stays simple. The HTTP method
+    # is flattened into a compact `U8` tag (a known method costs one byte at the
+    # boundary rather than a string), with `method_ext` carrying the method name
+    # only for the `Unknown` case (empty otherwise). `timeout_ms` is a plain `U64`
+    # with 0 meaning "no timeout". Headers are `(name, value)` tuples, matching
+    # the roc-lang/http package representation.
+    RequestToAndFromHost : {
+        method : U8,
+        method_ext : Str,
+        headers : List((Str, Str)),
+        uri : Str,
+        body : List(U8),
+        timeout_ms : U64,
+    }
 
-    ## Represents an HTTP header e.g. `Content-Type: application/json`, as a
-    ## `{ name : Str, value : Str }` record.
-    Header : InternalHttp.Header
-
-    ## Represents an HTTP request.
-    Request : InternalHttp.Request
-
-    ## Represents an HTTP response.
-    Response : InternalHttp.Response
+    ResponseToAndFromHost : {
+        status : U16,
+        headers : List((Str, Str)),
+        body : List(U8),
+    }
 
     # The single host effect: hand a fully-marshalled request to the host and get
     # back a marshalled response. Transport failures are encoded by the host as a
     # sentinel status+body pair (see `send!`), not as a separate error channel.
-    host_send_request! : InternalHttp.RequestToAndFromHost => InternalHttp.ResponseToAndFromHost
-
-    ## A default [Request]: `GET` with no headers, empty uri/body, and no timeout.
-    ##
-    ## ```roc
-    ## { Http.default_request & uri: "https://www.roc-lang.org" }
-    ## ```
-    default_request : Request
-    default_request = {
-        method: GET,
-        headers: [],
-        uri: "",
-        body: [],
-        timeout_ms: NoTimeout,
-    }
-
-    ## Build an HTTP [Header] from a `(name, value)` tuple.
-    ##
-    ## ```roc
-    ## Http.header(("Content-Type", "application/json"))
-    ## ```
-    header : (Str, Str) -> Header
-    header = |(name, value)| { name, value }
+    host_send_request! : RequestToAndFromHost => ResponseToAndFromHost
 
     ## Send an HTTP request, succeeding with a [Response] or failing with an
     ## `HttpErr`.
     ##
     ## ```roc
-    ## response = Http.send!({ Http.default_request & uri: "https://www.roc-lang.org" })?
+    ## request = Request.from_method(GET) |> Request.with_uri("https://www.roc-lang.org")
+    ## response = Http.send!(request)?
     ## ```
-    send! : Request => Try(Response, [HttpErr([Timeout, NetworkError, BadBody, Other(List(U8))])])
+    send! : Request.Request => Try(Response.Response, [HttpErr([Timeout, NetworkError, BadBody, Other(List(U8))])])
     send! = |request| {
-        host_request = to_host_request(request)
-        response = from_host_response(Http.host_send_request!(host_request))
+        host_response = Http.host_send_request!(to_host_request(request))
 
         # The host signals transport failures with these reserved status+body
         # sentinels (produced in src/lib.rs); everything else is a real response.
         other_error_prefix = Str.to_utf8("OTHER ERROR\n")
 
-        if response.status == 408 and response.body == Str.to_utf8("Timeout") {
+        if host_response.status == 408 and host_response.body == Str.to_utf8("Timeout") {
             Err(HttpErr(Timeout))
-        } else if response.status == 500 and response.body == Str.to_utf8("NetworkError") {
+        } else if host_response.status == 500 and host_response.body == Str.to_utf8("NetworkError") {
             Err(HttpErr(NetworkError))
-        } else if response.status == 500 and response.body == Str.to_utf8("BadBody") {
+        } else if host_response.status == 500 and host_response.body == Str.to_utf8("BadBody") {
             Err(HttpErr(BadBody))
-        } else if response.status == 500 and List.starts_with(response.body, other_error_prefix) {
-            Err(HttpErr(Other(List.drop_first(response.body, List.len(other_error_prefix)))))
+        } else if host_response.status == 500 and List.starts_with(host_response.body, other_error_prefix) {
+            Err(HttpErr(Other(List.drop_first(host_response.body, List.len(other_error_prefix)))))
         } else {
-            Ok(response)
+            Ok(from_host_response(host_response))
         }
     }
 
@@ -76,10 +64,10 @@ Http := [].{
     ## ```
     get_utf8! : Str => Try(Str, [BadBody(Str), HttpErr([Timeout, NetworkError, BadBody, Other(List(U8))])])
     get_utf8! = |uri|
-        match send!({ ..default_request, uri: uri }) {
+        match send!(Request.with_uri(Request.from_method(GET), uri)) {
             Err(HttpErr(err)) => Err(HttpErr(err))
             Ok(response) =>
-                match Str.from_utf8(response.body) {
+                match Str.from_utf8(Response.body(response)) {
                     Ok(str) => Ok(str)
                     Err(_) => Err(BadBody("get_utf8!: response body was not valid UTF-8"))
                 }
@@ -88,22 +76,22 @@ Http := [].{
 
 # ---- internal conversion helpers (module-private) ------------------------------
 
-# These numeric method tags must match `as_hyper_method` in src/lib.rs.
+# Read the package's opaque `Request` via its accessors and flatten it into the
+# host-facing record. The method is flattened to a numeric tag (+ extension
+# string for `Unknown`).
 to_host_request = |request| {
-    method: to_host_method(request.method),
-    method_ext: to_host_method_ext(request.method),
-    headers: request.headers,
-    uri: request.uri,
-    body: request.body,
-    timeout_ms: to_host_timeout(request.timeout_ms),
+    method = Request.method(request)
+    {
+        method: to_host_method(method),
+        method_ext: to_host_method_ext(method),
+        headers: Request.headers(request),
+        uri: Request.uri(request),
+        body: Request.body(request),
+        timeout_ms: to_host_timeout(Request.timeout(request)),
+    }
 }
 
-from_host_response = |response| {
-    status: response.status,
-    headers: response.headers,
-    body: response.body,
-}
-
+# These numeric method tags must match `as_hyper_method` in src/lib.rs.
 to_host_method = |method|
     match method {
         OPTIONS => 5
@@ -115,14 +103,22 @@ to_host_method = |method|
         TRACE => 9
         CONNECT => 0
         PATCH => 6
-        EXTENSION(_) => 2
+        Unknown(_) => 2
     }
 
 to_host_method_ext = |method|
     match method {
-        EXTENSION(ext) => ext
+        Unknown(ext) => ext
         _ => ""
     }
+
+# Rebuild the package's opaque `Response` from the host-facing record using its
+# constructors/builders (the fields are not directly accessible across packages).
+from_host_response = |response| {
+    r0 = Response.from_status(response.status)
+    r1 = Response.with_headers(r0, response.headers)
+    Response.with_body(r1, response.body)
+}
 
 to_host_timeout = |timeout|
     match timeout {

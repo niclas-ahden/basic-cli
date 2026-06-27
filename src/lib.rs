@@ -162,8 +162,8 @@ fn release_sqlite_stmt(handle: *mut u64, roc_host: &RocHost) {
         handle as RocBox,
         SQLITE_STMT_BOX_ALIGN,
         // The boxed payload is a raw `u64` (a pointer to our SqliteStatement),
-        // not a Roc-refcounted value — this must match the `false` passed to
-        // `allocate_box` in `box_sqlite_stmt`, independent of the teardown callback.
+        // not a Roc-refcounted value — must match the `false` passed to
+        // `allocate_box` in `box_sqlite_stmt`.
         false,
         Some(drop_sqlite_stmt),
         roc_host,
@@ -885,7 +885,9 @@ pub extern "C" fn hosted_tcp_write(
 
 // The generated glue names the request/response records by anonymous-struct
 // number; alias them to the stable semantic names (the response also has the
-// generator's stable `HttpHostSendRequest` alias).
+// generator's stable `HttpHostSendRequest` alias). Headers are `(Str, Str)`
+// tuples (matching the roc-lang/http package), rendered as a struct with `_0`
+// (name) and `_1` (value) fields.
 type HttpResponse = HttpHostSendRequest;
 type HttpHeader = AnonStruct57;
 
@@ -898,7 +900,7 @@ thread_local! {
 }
 
 // Numeric method tags must match `to_host_method` in platform/Http.roc.
-fn as_hyper_method(method: u64, method_ext: &str) -> Option<hyper::Method> {
+fn as_hyper_method(method: u8, method_ext: &str) -> Option<hyper::Method> {
     match method {
         0 => Some(hyper::Method::CONNECT),
         1 => Some(hyper::Method::DELETE),
@@ -934,8 +936,8 @@ fn build_hyper_request(
     // Default to text/plain unless the caller already set a Content-Type.
     let mut has_content_type = false;
     for header in args.headers.as_slice() {
-        builder = builder.header(header.name.as_str(), header.value.as_str());
-        if header.name.as_str().eq_ignore_ascii_case("Content-Type") {
+        builder = builder.header(header._0.as_str(), header._1.as_str());
+        if header._0.as_str().eq_ignore_ascii_case("Content-Type") {
             has_content_type = true;
         }
     }
@@ -951,8 +953,8 @@ fn build_roc_headers(pairs: &[(String, String)], roc_host: &RocHost) -> RocList<
     let list = RocList::<HttpHeader>::allocate(pairs.len(), roc_host);
     for (index, (name, value)) in pairs.iter().enumerate() {
         let header = HttpHeader {
-            name: RocStr::from_str(name, roc_host),
-            value: RocStr::from_str(value, roc_host),
+            _0: RocStr::from_str(name, roc_host),
+            _1: RocStr::from_str(value, roc_host),
         };
         unsafe {
             list.elements.add(index).write(header);

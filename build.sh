@@ -6,6 +6,31 @@ set -eo pipefail
 #   ./build.sh         - Build for native target only
 #   ./build.sh --all   - Build for all targets (cross-compilation)
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Configure cc-rs (used by the bundled libsqlite3-sys) to cross-compile C to musl
+# with `zig cc`, so neither CI nor local builds need a musl-gcc cross toolchain.
+# Only applied for *-linux-musl targets, and only when zig is available; if zig
+# is absent we leave the environment untouched so a real musl cross toolchain can
+# be used instead.
+configure_musl_cc() {
+    local rust_triple=$1
+    local zig_target
+    case "$rust_triple" in
+        x86_64-unknown-linux-musl)  zig_target="x86_64-linux-musl" ;;
+        aarch64-unknown-linux-musl) zig_target="aarch64-linux-musl" ;;
+        *) return 0 ;;
+    esac
+    command -v zig >/dev/null 2>&1 || return 0
+
+    local key="${rust_triple//-/_}"
+    export ZIG_CC_TARGET="$zig_target"
+    export "CC_${key}=${ROOT_DIR}/ci/zig-cc.sh"
+    export "AR_${key}=${ROOT_DIR}/ci/zig-ar.sh"
+    export "CFLAGS_${key}=-Wno-error"
+    echo "  (using zig cc for $rust_triple)"
+}
+
 # Get rust triple for a target name
 get_rust_triple() {
     case "$1" in
@@ -50,6 +75,7 @@ build_target_cross() {
     local rust_triple=$(get_rust_triple "$target_name")
 
     echo "Building for $target_name ($rust_triple)..."
+    configure_musl_cc "$rust_triple"
     cargo build --release --lib --target "$rust_triple"
 
     mkdir -p "platform/targets/$target_name"
@@ -71,6 +97,7 @@ build_target_native() {
     if [[ "$target_name" == *"musl"* ]]; then
         # Linux: need explicit musl target
         rustup target add "$rust_triple" 2>/dev/null || true
+        configure_musl_cc "$rust_triple"
         cargo build --release --lib --target "$rust_triple"
         mkdir -p "platform/targets/$target_name"
         cp "target/$rust_triple/release/libhost.a" "platform/targets/$target_name/"

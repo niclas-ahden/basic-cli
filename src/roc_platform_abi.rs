@@ -766,8 +766,8 @@ const _: () = assert!(core::mem::align_of::<AnonStruct53>() == 8, "AnonStruct53 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct57 {
-    pub name: RocStr,
-    pub value: RocStr,
+    pub _0: RocStr,
+    pub _1: RocStr,
 }
 
 const _: () = assert!(core::mem::size_of::<AnonStruct57>() == 48, "AnonStruct57 size mismatch");
@@ -777,12 +777,12 @@ const _: () = assert!(core::mem::align_of::<AnonStruct57>() == 8, "AnonStruct57 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct60 {
+    pub timeout_ms: u64,
     pub body: RocListWith<u8, false>,
     pub headers: RocList<AnonStruct57>,
-    pub method: u64,
     pub method_ext: RocStr,
-    pub timeout_ms: u64,
     pub uri: RocStr,
+    pub method: u8,
 }
 
 const _: () = assert!(core::mem::size_of::<AnonStruct60>() == 112, "AnonStruct60 size mismatch");
@@ -815,8 +815,8 @@ const _: () = assert!(core::mem::align_of::<AnonStruct85>() == 8, "AnonStruct85 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct93 {
-    pub name: RocStr,
     pub value: BytesOrIntegerOrNullOrRealOrString,
+    pub name: RocStr,
 }
 
 const _: () = assert!(core::mem::size_of::<AnonStruct93>() == 56, "AnonStruct93 size mismatch");
@@ -2328,17 +2328,17 @@ pub struct FileWriteUtf8Args {
 }
 
 /// Arguments for Http.host_send_request!
-/// Roc signature: { body : List(U8), headers : List({ name : Str, value : Str }), method : U64, method_ext : Str, timeout_ms : U64, uri : Str } => { body : List(U8), headers : List({ name : Str, value : Str }), status : U16 }
+/// Roc signature: { body : List(U8), headers : List((Str, Str)), method : U8, method_ext : Str, timeout_ms : U64, uri : Str } => { body : List(U8), headers : List((Str, Str)), status : U16 }
 /// Refcounted fields are owned by the hosted function.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HttpHostSendRequestArgs {
+    pub timeout_ms: u64,
     pub body: RocListWith<u8, false>,
     pub headers: RocList<AnonStruct57>,
-    pub method: u64,
     pub method_ext: RocStr,
-    pub timeout_ms: u64,
     pub uri: RocStr,
+    pub method: u8,
 }
 
 const _: () = assert!(core::mem::size_of::<HttpHostSendRequestArgs>() == 112, "HttpHostSendRequestArgs size mismatch");
@@ -3319,14 +3319,14 @@ pub fn incref_anon_struct53(value: AnonStruct53, amount: isize) {
 
 /// Recursively decrement Roc-owned fields in AnonStruct57.
 pub fn decref_anon_struct57(value: AnonStruct57, roc_host: &RocHost) {
-    value.name.decref(roc_host);
-    value.value.decref(roc_host);
+    value._0.decref(roc_host);
+    value._1.decref(roc_host);
 }
 
 /// Increment Roc-owned fields in AnonStruct57.
 pub fn incref_anon_struct57(value: AnonStruct57, amount: isize) {
-    value.name.incref(amount);
-    value.value.incref(amount);
+    value._0.incref(amount);
+    value._1.incref(amount);
 }
 
 /// Recursively decrement Roc-owned fields in AnonStruct60.
@@ -3606,14 +3606,14 @@ pub fn incref_try_type90(value: TryType90, amount: isize) {
 
 /// Recursively decrement Roc-owned fields in AnonStruct93.
 pub fn decref_anon_struct93(value: AnonStruct93, roc_host: &RocHost) {
-    value.name.decref(roc_host);
     decref_bytes_or_integer_or_null_or_real_or_string(value.value, roc_host);
+    value.name.decref(roc_host);
 }
 
 /// Increment Roc-owned fields in AnonStruct93.
 pub fn incref_anon_struct93(value: AnonStruct93, amount: isize) {
-    value.name.incref(amount);
     incref_bytes_or_integer_or_null_or_real_or_string(value.value, amount);
+    value.name.incref(amount);
 }
 
 /// Recursively decrement Roc-owned payloads in BytesOrIntegerOrNullOrRealOrString.
@@ -4269,7 +4269,7 @@ unsafe extern "C" {
     pub fn hosted_file_write_utf8(arg0: RocStr, arg1: RocStr) -> TryType40;
 
     /// Hosted symbol for Http.host_send_request!
-    /// Roc signature: { body : List(U8), headers : List({ name : Str, value : Str }), method : U64, method_ext : Str, timeout_ms : U64, uri : Str } => { body : List(U8), headers : List({ name : Str, value : Str }), status : U16 }
+    /// Roc signature: { body : List(U8), headers : List((Str, Str)), method : U8, method_ext : Str, timeout_ms : U64, uri : Str } => { body : List(U8), headers : List((Str, Str)), status : U16 }
     pub fn hosted_http_send_request(arg0: HttpHostSendRequestArgs) -> AnonStruct53;
 
     /// Hosted symbol for Locale.all!
