@@ -26,22 +26,24 @@ main! = |_args|
         Ok(utf8) => {
             _ = Stdout.line!("I received '${utf8}' from the server.")
 
-            # GET a JSON body (returned here as the raw response string).
-            match Http.get_utf8!("http://localhost:9000") {
-                Err(_) => report_failure!("GET / failed")
-                Ok(json) => {
-                    _ = Stdout.line!("The json I received was: ${json}")
+            # Use send! directly and inspect the Response.
+            request0 = Request.from_method(GET)
+            request = Request.with_uri(request0, "http://localhost:9000/utf8test")
+            match Http.send!(request) {
+                Err(HttpErr(_)) => report_failure!("send! failed")
+                Ok(response) => {
+                    status = U16.to_str(Response.status(response))
 
-                    # Use send! with a custom header and inspect the Response.
-                    request0 = Request.from_method(GET)
-                    request1 = Request.with_uri(request0, "http://localhost:9000/utf8test")
-                    request = Request.add_header(request1, "Accept", "text/plain")
-                    match Http.send!(request) {
-                        Ok(response) => {
-                            _ = Stdout.line!("send! returned status ${U16.to_str(Response.status(response))}.")
+                    # GET a JSON body and decode it into a Roc record.
+                    json_result : Try({ foo : Str }, _)
+                    json_result = Http.get!("http://localhost:9000")
+                    match json_result {
+                        Err(_) => report_failure!("GET / failed")
+                        Ok(decoded) => {
+                            _ = Stdout.line!("The json I received was: { foo: \"${decoded.foo}\" }")
+                            _ = Stdout.line!("send! returned status ${status}.")
                             Ok({})
                         }
-                        Err(HttpErr(_)) => report_failure!("send! failed")
                     }
                 }
             }

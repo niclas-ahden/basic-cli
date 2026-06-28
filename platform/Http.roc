@@ -72,6 +72,25 @@ Http := [].{
                     Err(_) => Err(BadBody("get_utf8!: response body was not valid UTF-8"))
                 }
         }
+
+    ## Perform an HTTP GET and decode the response body as JSON.
+    ##
+    ## JSON parser failures are returned as `JsonErr(Json)`.
+    ##
+    ## ```roc
+    ## payload : Try({ foo : Str }, _)
+    ## payload = Http.get!("http://localhost:8000")
+    ## ```
+    get! = |uri|
+        match get_utf8!(uri) {
+            Err(BadBody(err)) => Err(BadBody(err))
+            Err(HttpErr(err)) => Err(HttpErr(err))
+            Ok(body) =>
+                match Json.parse(body) {
+                    Ok(value) => Ok(value)
+                    Err(err) => Err(JsonErr(err))
+                }
+        }
 }
 
 # ---- internal conversion helpers (module-private) ------------------------------
