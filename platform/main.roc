@@ -26,6 +26,8 @@ platform ""
         "hosted_file_is_writable": File.is_writable!,
         "hosted_file_read_bytes": File.read_bytes!,
         "hosted_file_read_utf8": File.read_utf8!,
+        "hosted_file_open_reader": File.host_open_reader!,
+        "hosted_file_read_line": File.host_read_line!,
         "hosted_file_size_in_bytes": File.size_in_bytes!,
         "hosted_file_time_accessed": File.time_accessed!,
         "hosted_file_time_created": File.time_created!,

@@ -1,12 +1,7 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
-# TODO(roc-lang/basic-cli#427): skipped during the Roc compiler migration.
-# Restore buffered file reader APIs, then rename this file back to .roc once it
-# passes roc check/build with the pinned compiler. Related: #214, #215.
-
 import pf.Stdout
 import pf.File
-import pf.Arg exposing [Arg]
 
 # To run this example: check the README.md in this folder
 
@@ -23,13 +18,24 @@ import pf.Arg exposing [Arg]
 #
 # See examples/file-read-write.roc if you want to read the full contents at once.
 
-main! : List Arg => Result {} _
-main! = |_args|
-    reader = File.open_reader!("LICENSE")?
+main! = |_args| {
+    read_file = || {
+        reader = File.open_reader!("LICENSE")?
 
-    read_summary = process_line!(reader, { lines_read: 0, bytes_read: 0 })?
+        read_summary = process_line!(reader, { lines_read: 0, bytes_read: 0 })?
 
-    Stdout.line!("Done reading file: ${Inspect.to_str(read_summary)}")
+        _ = Stdout.line!("Done reading file: ${Str.inspect(read_summary)}")
+        Ok({})
+    }
+
+    match read_file() {
+        Ok({}) => Ok({})
+        Err(err) => {
+            _ = Stdout.line!("Error during buffered file read: ${Str.inspect(err)}")
+            Err(Exit(1))
+        }
+    }
+}
 
 ReadSummary : {
     lines_read : U64,
@@ -37,20 +43,20 @@ ReadSummary : {
 }
 
 ## Count the number of lines and the number of bytes read.
-process_line! : File.Reader, ReadSummary => Result ReadSummary _
+process_line! : File.Reader, ReadSummary => Try(ReadSummary, _)
 process_line! = |reader, { lines_read, bytes_read }|
-    when File.read_line!(reader) is
-        Ok(bytes) if List.len(bytes) == 0 ->
+    match File.read_line!(reader) {
+        Ok(bytes) if List.len(bytes) == 0 =>
             Ok({ lines_read, bytes_read })
 
-        Ok(bytes) ->
+        Ok(bytes) =>
             process_line!(
                 reader,
                 {
                     lines_read: lines_read + 1,
-                    bytes_read: bytes_read + (List.len(bytes) |> Num.int_cast),
+                    bytes_read: bytes_read + List.len(bytes),
                 },
             )
 
-        Err(err) ->
-            Err(ErrorReadingLine(Inspect.to_str(err)))
+        Err(err) => Err(err)
+    }

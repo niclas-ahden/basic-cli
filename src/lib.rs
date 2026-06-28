@@ -42,6 +42,12 @@ type DirUnitResultTag = DirCreateResultTag;
 type FileBytesResult = FileReadBytesResult;
 type FileBytesResultPayload = FileReadBytesResultPayload;
 type FileBytesResultTag = FileReadBytesResultTag;
+type FileReaderOpenResult = FileHostOpenReaderResult;
+type FileReaderOpenResultPayload = FileHostOpenReaderResultPayload;
+type FileReaderOpenResultTag = FileHostOpenReaderResultTag;
+type FileReaderLineResult = FileHostReadLineResult;
+type FileReaderLineResultPayload = FileHostReadLineResultPayload;
+type FileReaderLineResultTag = FileHostReadLineResultTag;
 type FileStrResult = FileReadUtf8Result;
 type FileStrResultPayload = FileReadUtf8ResultPayload;
 type FileStrResultTag = FileReadUtf8ResultTag;
@@ -76,12 +82,12 @@ type StderrBytesResultTag = StderrWriteBytesResultTag;
 
 // The stdin read-error tag unions have no semantic alias, so reference the
 // numbered glue types directly (update these if the glue renumbers them).
-type StdinLineReadErr = EndOfFileOrStdinErrType112;
-type StdinLineReadErrPayload = EndOfFileOrStdinErrType112Payload;
-type StdinLineReadErrTag = EndOfFileOrStdinErrType112Tag;
-type StdinBytesReadErr = EndOfFileOrStdinErrType117;
-type StdinBytesReadErrPayload = EndOfFileOrStdinErrType117Payload;
-type StdinBytesReadErrTag = EndOfFileOrStdinErrType117Tag;
+type StdinLineReadErr = EndOfFileOrStdinErrType117;
+type StdinLineReadErrPayload = EndOfFileOrStdinErrType117Payload;
+type StdinLineReadErrTag = EndOfFileOrStdinErrType117Tag;
+type StdinBytesReadErr = EndOfFileOrStdinErrType122;
+type StdinBytesReadErrPayload = EndOfFileOrStdinErrType122Payload;
+type StdinBytesReadErrTag = EndOfFileOrStdinErrType122Tag;
 
 type StdoutUnitResult = StdoutLineResult;
 type StdoutUnitResultPayload = StdoutLineResultPayload;
@@ -106,8 +112,8 @@ type StdoutBytesResultTag = StdoutWriteBytesResultTag;
 type SqliteValue = BytesOrIntegerOrNullOrRealOrString;
 type SqliteValueTag = BytesOrIntegerOrNullOrRealOrStringTag;
 type SqliteValuePayload = BytesOrIntegerOrNullOrRealOrStringPayload;
-type SqliteError = AnonStruct85;
-type SqliteBindings = AnonStruct93;
+type SqliteError = AnonStruct90;
+type SqliteBindings = AnonStruct98;
 
 const SQLITE_STMT_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
@@ -161,6 +167,7 @@ fn release_sqlite_stmt(handle: *mut u64, roc_host: &RocHost) {
     decref_box_with(
         handle as RocBox,
         SQLITE_STMT_BOX_ALIGN,
+        false,
         Some(drop_sqlite_stmt),
         roc_host,
     );
@@ -478,7 +485,7 @@ pub extern "C" fn hosted_sqlite_bind(
         sqlite_bind_all(stmt, bindings.as_slice(), roc_host)
     };
     for binding in bindings.as_slice() {
-        decref_anon_struct93(*binding, roc_host);
+        decref_anon_struct98(*binding, roc_host);
     }
     bindings.decref(roc_host);
     release_sqlite_stmt(handle, roc_host);
@@ -650,6 +657,7 @@ fn release_tcp_stream(handle: *mut u64, roc_host: &RocHost) {
     decref_box_with(
         handle as RocBox,
         TCP_STREAM_BOX_ALIGN,
+        false,
         Some(drop_tcp_stream),
         roc_host,
     );
@@ -882,7 +890,7 @@ pub extern "C" fn hosted_tcp_write(
 // tuples (matching the roc-lang/http package), rendered as a struct with `_0`
 // (name) and `_1` (value) fields.
 type HttpResponse = HttpHostSendRequest;
-type HttpHeader = AnonStruct57;
+type HttpHeader = AnonStruct62;
 
 thread_local! {
     static TOKIO_RUNTIME: tokio::runtime::Runtime = tokio::runtime::Builder::new_current_thread()
@@ -1016,7 +1024,7 @@ pub extern "C" fn hosted_http_send_request(args: HttpHostSendRequestArgs) -> Htt
     let request_result = build_hyper_request(&args);
     args.body.decref(roc_host);
     for header in args.headers.as_slice() {
-        decref_anon_struct57(*header, roc_host);
+        decref_anon_struct62(*header, roc_host);
     }
     args.headers.decref(roc_host);
     args.method_ext.decref(roc_host);
@@ -1377,6 +1385,42 @@ fn try_file_bytes_err(error: FileIOErr) -> FileBytesResult {
             err: ManuallyDrop::new(error),
         },
         tag: FileBytesResultTag::Err,
+    }
+}
+
+fn try_file_reader_ok(handle: *mut u64) -> FileReaderOpenResult {
+    FileReaderOpenResult {
+        payload: FileReaderOpenResultPayload {
+            ok: ManuallyDrop::new(handle),
+        },
+        tag: FileReaderOpenResultTag::Ok,
+    }
+}
+
+fn try_file_reader_err(error: FileIOErr) -> FileReaderOpenResult {
+    FileReaderOpenResult {
+        payload: FileReaderOpenResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: FileReaderOpenResultTag::Err,
+    }
+}
+
+fn try_file_reader_line_ok(value: RocListWith<u8, false>) -> FileReaderLineResult {
+    FileReaderLineResult {
+        payload: FileReaderLineResultPayload {
+            ok: ManuallyDrop::new(value),
+        },
+        tag: FileReaderLineResultTag::Ok,
+    }
+}
+
+fn try_file_reader_line_err(error: FileIOErr) -> FileReaderLineResult {
+    FileReaderLineResult {
+        payload: FileReaderLineResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: FileReaderLineResultTag::Err,
     }
 }
 
@@ -1913,6 +1957,87 @@ pub extern "C" fn hosted_file_read_utf8(path: RocStr) -> FileStrResult {
         Ok(content) => try_file_str_ok(RocStr::from_str(&content, roc_host)),
         Err(error) => try_file_str_err(file_io_err_from_io(&error, roc_host)),
     }
+}
+
+// ============================================================================
+// Buffered file readers
+//
+// `File.Reader` (a `Box(U64)`) is represented by the generated glue as `*mut u64`:
+// a boxed u64 holding a raw `*mut BufReader<fs::File>`. The box is refcounted
+// with `allocate_box`/`decref_box_with`; closing the file happens in
+// `drop_file_reader` when the last reference is released.
+// ----------------------------------------------------------------------------
+
+const FILE_READER_BOX_ALIGN: usize = core::mem::align_of::<u64>();
+
+fn box_file_reader(reader: BufReader<fs::File>, roc_host: &RocHost) -> *mut u64 {
+    let raw: *mut BufReader<fs::File> = Box::into_raw(Box::new(reader));
+    let boxed = allocate_box(
+        core::mem::size_of::<u64>(),
+        FILE_READER_BOX_ALIGN,
+        false,
+        roc_host,
+    );
+    unsafe {
+        *(boxed as *mut u64) = raw as u64;
+    }
+    boxed as *mut u64
+}
+
+unsafe fn file_reader_ref<'a>(handle: *mut u64) -> &'a mut BufReader<fs::File> {
+    &mut *(*handle as *mut BufReader<fs::File>)
+}
+
+extern "C" fn drop_file_reader(data_ptr: *mut c_void, _roc_host: *mut RocHost) {
+    unsafe {
+        let raw = *(data_ptr as *mut u64) as *mut BufReader<fs::File>;
+        if !raw.is_null() {
+            drop(Box::from_raw(raw));
+        }
+    }
+}
+
+fn release_file_reader(handle: *mut u64, roc_host: &RocHost) {
+    decref_box_with(
+        handle as RocBox,
+        FILE_READER_BOX_ALIGN,
+        false,
+        Some(drop_file_reader),
+        roc_host,
+    );
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_open_reader(path: RocStr, capacity: u64) -> FileReaderOpenResult {
+    let roc_host = roc_host();
+    match fs::File::open(path_from_roc_str(path, roc_host)) {
+        Ok(file) => {
+            let reader = if capacity == 0 {
+                BufReader::new(file)
+            } else {
+                BufReader::with_capacity(capacity as usize, file)
+            };
+            try_file_reader_ok(box_file_reader(reader, roc_host))
+        }
+        Err(error) => try_file_reader_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_read_line(handle: *mut u64) -> FileReaderLineResult {
+    let roc_host = roc_host();
+    let result = {
+        let reader = unsafe { file_reader_ref(handle) };
+        let mut buffer = Vec::new();
+        match reader.read_until(b'\n', &mut buffer) {
+            Ok(_) => try_file_reader_line_ok(RocListWith::<u8, false>::from_slice(
+                &buffer, roc_host,
+            )),
+            Err(error) => try_file_reader_line_err(file_io_err_from_io(&error, roc_host)),
+        }
+    };
+    release_file_reader(handle, roc_host);
+    result
 }
 
 fn file_metadata(path: RocStr, roc_host: &RocHost) -> io::Result<fs::Metadata> {

@@ -1,6 +1,17 @@
 import IOErr exposing [IOErr]
 
 File := [].{
+    ## Represents a buffered file reader.
+    ##
+    ## The file is automatically closed when the last reference to the reader is
+    ## dropped. This is an opaque `Box(U64)` handle into a host-side
+    ## `BufReader<File>`.
+    Reader :: Box(U64)
+
+    # ---- Host functions (the FFI boundary) -------------------------------------
+    host_open_reader! : Str, U64 => Try(Reader, [FileErr(IOErr), ..])
+    host_read_line! : Reader => Try(List(U8), [FileErr(IOErr), ..])
+
     ## Read all bytes from a file.
     read_bytes! : Str => Try(List(U8), [FileErr(IOErr), ..])
 
@@ -15,6 +26,25 @@ File := [].{
 
     ## Write a UTF-8 string to a file, replacing any existing contents.
     write_utf8! : Str, Str => Try({}, [FileErr(IOErr), ..])
+
+    ## Open a file for buffered reading using the default buffer capacity.
+    ##
+    ## ```roc
+    ## reader = File.open_reader!("LICENSE")?
+    ## line = File.read_line!(reader)?
+    ## ```
+    open_reader! = |path|
+        File.host_open_reader!(path, 0)
+
+    ## Open a file for buffered reading using a specific buffer capacity.
+    open_reader_with_capacity! = |path, capacity|
+        File.host_open_reader!(path, capacity)
+
+    ## Read bytes up to and including the next newline from a buffered reader.
+    ##
+    ## Returns an empty list at EOF.
+    read_line! = |reader|
+        File.host_read_line!(reader)
 
     ## Delete a file.
     delete! : Str => Try({}, [FileErr(IOErr), ..])

@@ -100,6 +100,7 @@ EXPECT_EXAMPLES=(
     "path"
     "command"
     "file-read-write"
+    "file-read-buffered"
     "time"
     "random"
     "locale"
