@@ -1,9 +1,5 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
-# TODO(roc-lang/roc#9749): skipped until the Roc postcheck crash is fixed.
-# This example checks successfully when renamed to .roc, but roc build panics
-# on List.contains over a list of record values in the renderer.
-
 import pf.Stdin
 import pf.Stdout
 import pf.Tty
@@ -52,11 +48,23 @@ init_snake_len : U64
 init_snake_len = snake_len(initial_state.snake)
 
 main! : List(Str) => Try({}, [Exit(I32)])
-main! = |_args| {
+main! = |args| {
     Tty.enable_raw_mode!()
-    game_loop!(initial_state)?
+    game_result = game_loop!(initial_state_from_args(args))
     Tty.disable_raw_mode!()
-    Stdout.line!("\n--- Game Over ---").map_err(|_| Exit(1))
+
+    match game_result {
+        Ok({}) => Stdout.line!("\n--- Game Over ---").map_err(|_| Exit(1))
+        Err(err) => Err(err)
+    }
+}
+
+initial_state_from_args : List(Str) -> GameState
+initial_state_from_args = |args| {
+    # Avoid specializing the renderer with a fully known initial state; the
+    # current compiler postcheck panics on that path.
+    has_args = List.len(args) > 0
+    { ..initial_state, game_over: has_args and Bool.not(has_args) }
 }
 
 game_loop! : GameState => Try({}, [Exit(I32)])
@@ -74,24 +82,28 @@ game_loop! = |state| {
 }
 
 apply_input : GameState, List(U8) -> GameState
-apply_input = |state, input_bytes|
-    match input_bytes.get(0) {
-        Ok(byte) =>
-            if byte == 119 {
-                { ..state, direction: up }
-            } else if byte == 115 {
-                { ..state, direction: down }
-            } else if byte == 97 {
-                { ..state, direction: left }
-            } else if byte == 100 {
-                { ..state, direction: right }
-            } else if byte == 113 {
-                { ..state, game_over: Bool.True }
-            } else {
-                state
-            }
+apply_input = |state, input_bytes| {
+    for byte in input_bytes {
+        return apply_input_byte(state, byte)
+    }
 
-        Err(_) => state
+    state
+}
+
+apply_input_byte : GameState, U8 -> GameState
+apply_input_byte = |state, byte|
+    if byte == 119 {
+        { ..state, direction: up }
+    } else if byte == 115 {
+        { ..state, direction: down }
+    } else if byte == 97 {
+        { ..state, direction: left }
+    } else if byte == 100 {
+        { ..state, direction: right }
+    } else if byte == 113 {
+        { ..state, game_over: Bool.True }
+    } else {
+        state
     }
 
 update_game : GameState -> GameState
@@ -162,7 +174,7 @@ draw_cells = |state, yy, xx, cells| {
         cell =
             if pos == state.snake.first {
                 "O"
-            } else if List.contains(state.snake.rest, pos) {
+            } else if positions_contains(state.snake.rest, pos) {
                 "o"
             } else if pos == state.food {
                 "*"
@@ -179,7 +191,18 @@ clear_screen! = |_| Stdout.write!("\u(001b)[2J\u(001b)[H").map_err(|_| Exit(1))
 
 snake_contains : Snake, Position -> Bool
 snake_contains = |snake, pos|
-    snake.first == pos or List.contains(snake.rest, pos)
+    snake.first == pos or positions_contains(snake.rest, pos)
+
+positions_contains : List(Position), Position -> Bool
+positions_contains = |positions, pos| {
+    for current in positions {
+        if current == pos {
+            return Bool.True
+        }
+    }
+
+    Bool.False
+}
 
 snake_prepend : Snake, Position -> Snake
 snake_prepend = |snake, pos|
