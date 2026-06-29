@@ -61,11 +61,6 @@ type FileTimeResult = FileTimeAccessedResult;
 type FileTimeResultPayload = FileTimeAccessedResultPayload;
 type FileTimeResultTag = FileTimeAccessedResultTag;
 
-type PathTypeResult = PathHostPathTypeResult;
-type PathTypeResultPayload = PathHostPathTypeResultPayload;
-type PathTypeResultTag = PathHostPathTypeResultTag;
-type PathInfo = PathHostPathTypeOk;
-
 type RandomU64Result = RandomSeedU64Result;
 type RandomU64ResultPayload = RandomSeedU64ResultPayload;
 type RandomU64ResultTag = RandomSeedU64ResultTag;
@@ -82,12 +77,12 @@ type StderrBytesResultTag = StderrWriteBytesResultTag;
 
 // The stdin read-error tag unions have no semantic alias, so reference the
 // numbered glue types directly (update these if the glue renumbers them).
-type StdinLineReadErr = EndOfFileOrStdinErrType117;
-type StdinLineReadErrPayload = EndOfFileOrStdinErrType117Payload;
-type StdinLineReadErrTag = EndOfFileOrStdinErrType117Tag;
-type StdinBytesReadErr = EndOfFileOrStdinErrType122;
-type StdinBytesReadErrPayload = EndOfFileOrStdinErrType122Payload;
-type StdinBytesReadErrTag = EndOfFileOrStdinErrType122Tag;
+type StdinLineReadErr = EndOfFileOrStdinErrType120;
+type StdinLineReadErrPayload = EndOfFileOrStdinErrType120Payload;
+type StdinLineReadErrTag = EndOfFileOrStdinErrType120Tag;
+type StdinBytesReadErr = EndOfFileOrStdinErrType125;
+type StdinBytesReadErrPayload = EndOfFileOrStdinErrType125Payload;
+type StdinBytesReadErrTag = EndOfFileOrStdinErrType125Tag;
 
 type StdoutUnitResult = StdoutLineResult;
 type StdoutUnitResultPayload = StdoutLineResultPayload;
@@ -112,8 +107,8 @@ type StdoutBytesResultTag = StdoutWriteBytesResultTag;
 type SqliteValue = BytesOrIntegerOrNullOrRealOrString;
 type SqliteValueTag = BytesOrIntegerOrNullOrRealOrStringTag;
 type SqliteValuePayload = BytesOrIntegerOrNullOrRealOrStringPayload;
-type SqliteError = AnonStruct90;
-type SqliteBindings = AnonStruct98;
+type SqliteError = SqliteHostPrepareErr;
+type SqliteBindings = AnonStruct101;
 
 const SQLITE_STMT_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
@@ -485,7 +480,7 @@ pub extern "C" fn hosted_sqlite_bind(
         sqlite_bind_all(stmt, bindings.as_slice(), roc_host)
     };
     for binding in bindings.as_slice() {
-        decref_anon_struct98(*binding, roc_host);
+        decref_anon_struct101(*binding, roc_host);
     }
     bindings.decref(roc_host);
     release_sqlite_stmt(handle, roc_host);
@@ -1559,21 +1554,21 @@ fn try_locale_get_ok(value: RocStr) -> LocaleGetResult {
     }
 }
 
-fn try_path_type_ok(value: PathInfo) -> PathTypeResult {
-    PathTypeResult {
-        payload: PathTypeResultPayload {
+fn try_path_type_ok(value: HostPathType) -> PathHostPathTypeResult {
+    PathHostPathTypeResult {
+        payload: PathHostPathTypeResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: PathTypeResultTag::Ok,
+        tag: PathHostPathTypeResultTag::Ok,
     }
 }
 
-fn try_path_type_err(error: PathIOErr) -> PathTypeResult {
-    PathTypeResult {
-        payload: PathTypeResultPayload {
+fn try_path_type_err(error: PathIOErr) -> PathHostPathTypeResult {
+    PathHostPathTypeResult {
+        payload: PathHostPathTypeResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: PathTypeResultTag::Err,
+        tag: PathHostPathTypeResultTag::Err,
     }
 }
 
@@ -2251,36 +2246,70 @@ pub extern "C" fn hosted_locale_get() -> LocaleGetResult {
     try_locale_get_ok(RocStr::from_str(&locale_get_string(), roc_host))
 }
 
-fn path_buf_from_roc_bytes(
-    bytes: RocListWith<u8, false>,
-    roc_host: &RocHost,
-) -> std::path::PathBuf {
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStrExt;
-
-        let path = std::ffi::OsStr::from_bytes(bytes.as_slice()).to_owned();
-        bytes.decref(roc_host);
-        std::path::PathBuf::from(path)
+fn path_io_err_unsupported() -> PathIOErr {
+    PathIOErr {
+        payload: PathIOErrPayload { unsupported: [] },
+        tag: PathIOErrTag::Unsupported,
     }
+}
 
-    #[cfg(not(unix))]
-    {
-        let path = String::from_utf8_lossy(bytes.as_slice()).into_owned();
-        bytes.decref(roc_host);
-        std::path::PathBuf::from(path)
+fn path_buf_from_raw_path(
+    raw_path: Path,
+    roc_host: &RocHost,
+) -> Result<std::path::PathBuf, PathIOErr> {
+    match raw_path.tag {
+        PathTag::Unix => unsafe {
+            let bytes = ManuallyDrop::into_inner(raw_path.payload.unix);
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::ffi::OsStrExt;
+
+                let path = std::ffi::OsStr::from_bytes(bytes.as_slice()).to_owned();
+                bytes.decref(roc_host);
+                Ok(std::path::PathBuf::from(path))
+            }
+
+            #[cfg(not(unix))]
+            {
+                bytes.decref(roc_host);
+                Err(path_io_err_unsupported())
+            }
+        },
+
+        PathTag::Windows => unsafe {
+            let u16s = ManuallyDrop::into_inner(raw_path.payload.windows);
+
+            #[cfg(windows)]
+            {
+                use std::os::windows::ffi::OsStringExt;
+
+                let path = std::ffi::OsString::from_wide(u16s.as_slice());
+                u16s.decref(roc_host);
+                Ok(std::path::PathBuf::from(path))
+            }
+
+            #[cfg(not(windows))]
+            {
+                u16s.decref(roc_host);
+                Err(path_io_err_unsupported())
+            }
+        },
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_path_type(path: RocListWith<u8, false>) -> PathTypeResult {
+pub extern "C" fn hosted_path_type(path: Path) -> PathHostPathTypeResult {
     let roc_host = roc_host();
-    let path = path_buf_from_roc_bytes(path, roc_host);
+    let path = match path_buf_from_raw_path(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_path_type_err(error),
+    };
 
     match path.symlink_metadata() {
         Ok(metadata) => {
             let file_type = metadata.file_type();
-            try_path_type_ok(PathInfo {
+            try_path_type_ok(HostPathType {
                 is_dir: metadata.is_dir(),
                 is_file: metadata.is_file(),
                 is_sym_link: file_type.is_symlink(),

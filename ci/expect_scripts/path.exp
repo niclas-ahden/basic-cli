@@ -14,6 +14,7 @@ set expected_output [normalize_output {
 is_file: Ok(True)
 is_dir: Ok(False)
 is_sym_link: Ok(False)
+display: path.roc
 }]
 
 expect $expected_output {

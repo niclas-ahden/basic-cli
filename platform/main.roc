@@ -6,6 +6,9 @@ platform ""
         # roc-lang/http package so apps and other packages using it see the same
         # nominal types. The platform supplies only the effectful `Http.send!`.
         http: "https://github.com/roc-lang/http/releases/download/0.1/6LcdNq2r7xTBwj972ecYWUkMWobJr94yL2NyJpHRAXap.tar.zst",
+        # Path data types and pure helpers come from the shared roc-lang/path
+        # package so path values have the same nominal type across packages.
+        path: "http://127.0.0.1:38095/8p8iryUUorAFTUDeqYcwc9bFYSwpbVqhYpuHvRAS5Cq4.tar.zst",
     }
     provides { "roc_main": main_for_host! }
     hosted {
