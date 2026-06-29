@@ -100,7 +100,7 @@ Path :: [
     ##
     ## This conversion is lossy because the path may contain invalid UTF-8 bytes. If that happens,
     ## any invalid bytes will be replaced with the [Unicode replacement character](https://unicode.org/glossary/#replacement_character)
-    ## instead of returning an error. As such, it's rarely a good idea to use the [Str] returned
+    ## instead of returning an error. As such, it's rarely a good idea to use the `Str` returned
     ## by this function for any purpose other than displaying it to a user.
     ##
     ## When you don't know for sure what a path's encoding is, UTF-8 is a popular guess because
@@ -146,7 +146,7 @@ Path :: [
 
     ## Return the type of the path if the path exists on disk.
     ##
-    ## > [`File.type`](File#type!) does the same thing, except it takes a [Str] instead of a [Path].
+    ## > [`File.type`](File#type!) does the same thing, except it takes a `Str` instead of a [Path].
     type! : Path => Try([IsFile, IsDir, IsSymLink], [PathErr(IOErr), ..])
     type! = |path| {
         Path.host_path_type!(to_bytes(path))

@@ -14,7 +14,17 @@ The pinned Roc compiler commit lives in `.roc-version`. To update it:
 
 ## Documentation
 
-Generated Roc docs are currently disabled for this migration branch because `roc docs` is not implemented in the new compiler backend yet. Update this section and restore docs CI when that command is available again.
+Generate docs from the docs entrypoint:
+
+```bash
+ROC_DOCS_URL_ROOT=/basic-cli/main roc docs --output=generated-docs docs/basic-cli.roc
+cd generated-docs
+simple-http-server --nocache --index
+```
+
+Open http://0.0.0.0:8000 in your browser.
+
+Release docs are generated in `.github/workflows/release.yml` with `ROC_DOCS_URL_ROOT=/basic-cli/<release-tag>` and uploaded as the `docs.tar.gz` release asset. `.github/workflows/deploy-docs.yml` downloads those release assets into versioned Pages folders, regenerates `main`, and makes `/basic-cli/` redirect to the latest release.
 
 ## Regenerating Rust Glue
 

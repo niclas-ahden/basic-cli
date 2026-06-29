@@ -13,7 +13,8 @@ This migration branch supports command execution, directories, environment varia
   - [latest main branch](https://github.com/roc-lang/basic-cli/tree/main/examples)
 
 :book: **documentation**:
-  - TBA -- `roc docs` not yet implemented in the new compiler
+  - [latest release](https://roc-lang.github.io/basic-cli/)
+  - [latest main branch](https://roc-lang.github.io/basic-cli/main/)
 
 ## Running Locally
 
@@ -48,3 +49,13 @@ Run the full local check before opening release or CI-facing changes:
 ```
 
 The script checks generated glue, builds the host, checks and builds every example, and runs expect tests for examples with maintained scripts. When all target host libraries are present, it also bundles the platform, serves it from localhost, and tests examples against that bundle.
+
+### Documentation
+
+Generate platform docs from the docs entrypoint:
+
+```sh
+ROC_DOCS_URL_ROOT=/basic-cli/main roc docs --output=generated-docs docs/basic-cli.roc
+```
+
+CI attaches `docs.tar.gz` to each GitHub Release and deploys release folders plus the current `main` docs to GitHub Pages.

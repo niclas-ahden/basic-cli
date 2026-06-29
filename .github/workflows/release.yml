@@ -166,9 +166,41 @@ jobs:
           NO_BUILD: "1"
           NO_BUNDLE: "1"
 
+  build-docs:
+    name: Build Docs
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Roc (pinned nightly from .roc-version)
+        run: ./ci/install_roc.sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Generate docs archive
+        env:
+          DOCS_URL_ROOT: ${{ github.event_name == 'workflow_dispatch' && format('/basic-cli/{0}', inputs.release_tag) || '/basic-cli/pull-request' }}
+        run: |
+          set -euo pipefail
+
+          ROC_DOCS_URL_ROOT="$DOCS_URL_ROOT" roc docs --output=generated-docs docs/basic-cli.roc
+          tar -czf docs.tar.gz generated-docs
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-docs
+          path: docs.tar.gz
+          retention-days: 30
+
   create-release:
     name: Create GitHub Release
-    needs: [build-and-bundle, test-bundle]
+    needs: [build-and-bundle, test-bundle, build-docs]
     runs-on: ubuntu-24.04
     # Only run on manual trigger
     if: github.event_name == 'workflow_dispatch'
@@ -184,6 +216,11 @@ jobs:
         with:
           name: platform-bundle
 
+      - name: Download docs artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: platform-docs
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -195,12 +232,19 @@ jobs:
             exit 1
           fi
 
+          if [ ! -f docs.tar.gz ]; then
+            echo "Error: docs.tar.gz not found"
+            exit 1
+          fi
+
           # Create release with auto-generated notes
           gh release create "${{ github.event.inputs.release_tag }}" \
             "$BUNDLE_FILE" \
+            docs.tar.gz \
             --title "${{ github.event.inputs.release_tag }}" \
             --generate-notes \
-            --notes "Platform bundle built with Rust (stable) and the latest Roc nightly (new compiler)."
+            --notes "Platform bundle and docs built with Rust (stable) and the latest Roc nightly (new compiler)."
 
           echo "Release created: ${{ github.event.inputs.release_tag }}"
           echo "Bundle uploaded: $BUNDLE_FILE"
+          echo "Docs uploaded: docs.tar.gz"

@@ -57,7 +57,7 @@ Http := [].{
         }
     }
 
-    ## Perform an HTTP GET and decode the response body as a UTF-8 [Str].
+    ## Perform an HTTP GET and decode the response body as a UTF-8 `Str`.
     ##
     ## ```roc
     ## hello_str = Http.get_utf8!("http://localhost:8000")?
