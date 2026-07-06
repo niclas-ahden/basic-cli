@@ -5,15 +5,16 @@ app [main!] { pf: platform "../platform/main.roc" }
 import pf.Stdout
 import pf.Random
 
+main! : List(Str) => Try({}, [Exit(I32), ..])
 main! = |_args| {
-    result = Random.seed_u64!({})
+    result = Random.seed_u64!()
     match result {
         Ok(random_u64) => {
-            _r = Stdout.line!("Random U64 seed is: ${random_u64.to_str()}")
+            Stdout.line!("Random U64 seed is: ${random_u64.to_str()}") ? |_| Exit(1)
             Ok({})
         }
         Err(_) => {
-            _r = Stdout.line!("Failed to generate random seed")
+            Stdout.line!("Failed to generate random seed") ? |_| Exit(1)
             Err(Exit(1))
         }
     }

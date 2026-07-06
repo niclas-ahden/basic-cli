@@ -5,6 +5,7 @@ import pf.File
 
 # To run this example: check the README.md in this folder
 
+main! : List(Str) => Try({}, _)
 main! = |_args| {
     file = "LICENSE"
 
@@ -19,5 +20,7 @@ main! = |_args| {
         \\    Executable: ${Str.inspect(is_executable)}
         \\    Readable: ${Str.inspect(is_readable)}
         \\    Writable: ${Str.inspect(is_writable)}
-    )
+    )?
+
+    Ok({})
 }

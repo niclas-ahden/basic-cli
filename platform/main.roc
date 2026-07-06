@@ -12,65 +12,65 @@ platform ""
     }
     provides { "roc_main": main_for_host! }
     hosted {
-        "hosted_cmd_host_exec_exit_code": Cmd.host_exec_exit_code!,
-        "hosted_cmd_host_exec_output": Cmd.host_exec_output!,
-        "hosted_dir_create": Dir.create!,
-        "hosted_dir_create_all": Dir.create_all!,
-        "hosted_dir_delete_all": Dir.delete_all!,
-        "hosted_dir_delete_empty": Dir.delete_empty!,
-        "hosted_dir_list": Dir.list!,
-        "hosted_env_cwd": Env.cwd!,
-        "hosted_env_exe_path": Env.exe_path!,
-        "hosted_env_temp_dir": Env.temp_dir!,
-        "hosted_env_var": Env.var!,
-        "hosted_file_delete": File.delete!,
-        "hosted_file_is_executable": File.is_executable!,
-        "hosted_file_is_readable": File.is_readable!,
-        "hosted_file_is_writable": File.is_writable!,
-        "hosted_file_read_bytes": File.read_bytes!,
-        "hosted_file_read_utf8": File.read_utf8!,
-        "hosted_file_open_reader": File.host_open_reader!,
-        "hosted_file_read_line": File.host_read_line!,
-        "hosted_file_size_in_bytes": File.size_in_bytes!,
-        "hosted_file_time_accessed": File.time_accessed!,
-        "hosted_file_time_created": File.time_created!,
-        "hosted_file_time_modified": File.time_modified!,
-        "hosted_file_write_bytes": File.write_bytes!,
-        "hosted_file_write_utf8": File.write_utf8!,
-        "hosted_locale_all": Locale.all!,
-        "hosted_locale_get": Locale.get!,
-        "hosted_path_type": Path.host_path_type!,
-        "hosted_random_seed_u32": Random.seed_u32!,
-        "hosted_random_seed_u64": Random.seed_u64!,
-        "hosted_sleep_millis": Sleep.millis!,
-        "hosted_stderr_line": Stderr.line!,
-        "hosted_stderr_write": Stderr.write!,
-        "hosted_stderr_write_bytes": Stderr.write_bytes!,
-        "hosted_stdin_bytes": Stdin.bytes!,
-        "hosted_stdin_line": Stdin.line!,
-        "hosted_stdin_read_to_end": Stdin.read_to_end!,
-        "hosted_stdout_line": Stdout.line!,
-        "hosted_stdout_write": Stdout.write!,
-        "hosted_stdout_write_bytes": Stdout.write_bytes!,
-        "hosted_tty_disable_raw_mode": Tty.disable_raw_mode!,
-        "hosted_tty_enable_raw_mode": Tty.enable_raw_mode!,
-        "hosted_utc_now": Utc.now!,
+        "hosted_cmd_host_exec_exit_code": Host.cmd_exec_exit_code!,
+        "hosted_cmd_host_exec_output": Host.cmd_exec_output!,
+        "hosted_dir_create": Host.dir_create!,
+        "hosted_dir_create_all": Host.dir_create_all!,
+        "hosted_dir_delete_all": Host.dir_delete_all!,
+        "hosted_dir_delete_empty": Host.dir_delete_empty!,
+        "hosted_dir_list": Host.dir_list!,
+        "hosted_env_cwd": Host.env_cwd!,
+        "hosted_env_exe_path": Host.env_exe_path!,
+        "hosted_env_temp_dir": Host.env_temp_dir!,
+        "hosted_env_var": Host.env_var!,
+        "hosted_file_delete": Host.file_delete!,
+        "hosted_file_is_executable": Host.file_is_executable!,
+        "hosted_file_is_readable": Host.file_is_readable!,
+        "hosted_file_is_writable": Host.file_is_writable!,
+        "hosted_file_read_bytes": Host.file_read_bytes!,
+        "hosted_file_read_utf8": Host.file_read_utf8!,
+        "hosted_file_open_reader": Host.file_open_reader!,
+        "hosted_file_read_line": Host.file_read_line!,
+        "hosted_file_size_in_bytes": Host.file_size_in_bytes!,
+        "hosted_file_time_accessed": Host.file_time_accessed!,
+        "hosted_file_time_created": Host.file_time_created!,
+        "hosted_file_time_modified": Host.file_time_modified!,
+        "hosted_file_write_bytes": Host.file_write_bytes!,
+        "hosted_file_write_utf8": Host.file_write_utf8!,
+        "hosted_locale_all": Host.locale_all!,
+        "hosted_locale_get": Host.locale_get!,
+        "hosted_path_type": Host.path_type!,
+        "hosted_random_seed_u32": Host.random_seed_u32!,
+        "hosted_random_seed_u64": Host.random_seed_u64!,
+        "hosted_sleep_millis": Host.sleep_millis!,
+        "hosted_stderr_line": Host.stderr_line!,
+        "hosted_stderr_write": Host.stderr_write!,
+        "hosted_stderr_write_bytes": Host.stderr_write_bytes!,
+        "hosted_stdin_bytes": Host.stdin_bytes!,
+        "hosted_stdin_line": Host.stdin_line!,
+        "hosted_stdin_read_to_end": Host.stdin_read_to_end!,
+        "hosted_stdout_line": Host.stdout_line!,
+        "hosted_stdout_write": Host.stdout_write!,
+        "hosted_stdout_write_bytes": Host.stdout_write_bytes!,
+        "hosted_tty_disable_raw_mode": Host.tty_disable_raw_mode!,
+        "hosted_tty_enable_raw_mode": Host.tty_enable_raw_mode!,
+        "hosted_utc_now": Host.utc_now!,
         # SQLite hosted functions are kept at the end so adding them does not
         # renumber the generated glue types for the modules declared above.
-        "hosted_sqlite_prepare": Sqlite.host_prepare!,
-        "hosted_sqlite_bind": Sqlite.host_bind!,
-        "hosted_sqlite_columns": Sqlite.host_columns!,
-        "hosted_sqlite_column_value": Sqlite.host_column_value!,
-        "hosted_sqlite_step": Sqlite.host_step!,
-        "hosted_sqlite_reset": Sqlite.host_reset!,
+        "hosted_sqlite_prepare": Host.sqlite_prepare!,
+        "hosted_sqlite_bind": Host.sqlite_bind!,
+        "hosted_sqlite_columns": Host.sqlite_columns!,
+        "hosted_sqlite_column_value": Host.sqlite_column_value!,
+        "hosted_sqlite_step": Host.sqlite_step!,
+        "hosted_sqlite_reset": Host.sqlite_reset!,
         # TCP hosted functions are likewise kept at the end to avoid renumbering.
-        "hosted_tcp_connect": Tcp.host_connect!,
-        "hosted_tcp_read_up_to": Tcp.host_read_up_to!,
-        "hosted_tcp_read_exactly": Tcp.host_read_exactly!,
-        "hosted_tcp_read_until": Tcp.host_read_until!,
-        "hosted_tcp_write": Tcp.host_write!,
+        "hosted_tcp_connect": Host.tcp_connect!,
+        "hosted_tcp_read_up_to": Host.tcp_read_up_to!,
+        "hosted_tcp_read_exactly": Host.tcp_read_exactly!,
+        "hosted_tcp_read_until": Host.tcp_read_until!,
+        "hosted_tcp_write": Host.tcp_write!,
         # HTTP is likewise kept at the end to avoid renumbering glue types.
-        "hosted_http_send_request": Http.host_send_request!,
+        "hosted_http_send_request": Host.http_send_request!,
     }
     targets: {
         inputs_dir: "targets/",
@@ -84,6 +84,7 @@ import Cmd
 import Dir
 import Env
 import File
+import Host
 import Http
 import IOErr
 import InternalSqlite
@@ -104,8 +105,8 @@ main_for_host! = |args|
     match main!(args) {
         Ok({}) => 0
         Err(Exit(code)) => code
-        Err(other) =>
-            match Stderr.line!("Program exited with error: ${Str.inspect(other)}") {
-                _ => 1
-            }
+        Err(other) => {
+            Stderr.line!("Program exited with error: ${Str.inspect(other)}") ?? {}
+            1
+        }
     }

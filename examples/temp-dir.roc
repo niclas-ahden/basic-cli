@@ -10,8 +10,10 @@ import pf.Env
 # !! this requires the flag `--linker=legacy`:
 # for example: `roc build examples/temp-dir.roc --linker=legacy`
 
+main! : List(Str) => Try({}, _)
 main! = |_args| {
-    temp_dir_path_str = Env.temp_dir!({})
+    temp_dir_path_str = Env.temp_dir!()
 
-    Stdout.line!("The temp dir path is ${temp_dir_path_str}")
+    Stdout.line!("The temp dir path is ${temp_dir_path_str}")?
+    Ok({})
 }

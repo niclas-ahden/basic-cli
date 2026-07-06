@@ -7,55 +7,25 @@
 
 A Roc [platform](https://github.com/roc-lang/roc/wiki/Roc-concepts-explained#platform) for command-line programs.
 
-This migration branch supports command execution, directories, environment variables, files, locales, paths, random seeds, sleeping, standard input/output/error, terminal raw mode, and UTC time. HTTP, TCP, SQLite, and URL helpers from the old API have not been ported to the new compiler backend yet.
+`basic-cli` supports command execution, directories, environment variables, files, HTTP, locales, paths, random seeds, sleeping, SQLite, standard input/output/error, TCP, terminal raw mode, and UTC time.
 
-:eyes: **examples**:
-  - [latest main branch](https://github.com/roc-lang/basic-cli/tree/main/examples)
+## Examples
 
-:book: **documentation**:
-  - [latest release](https://roc-lang.github.io/basic-cli/)
-  - [latest main branch](https://roc-lang.github.io/basic-cli/main/)
+The [examples](examples/) directory shows small CLI programs for common tasks like reading files, running commands, making HTTP requests, working with SQLite, and reading stdin.
 
-## Running Locally
+If you want to run an example without building `basic-cli` from source, use a released bundle URL in place of `"../platform/main.roc"`. To run examples from a local checkout, build the platform first; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-This branch requires a Roc compiler matching the commit in `.roc-version`.
+HTTP examples use Roc's builtin `Json` parser directly through `Http.get!`.
 
-### Version Requirements
+## Documentation
 
-`ci/all_tests.sh` reads `.roc-version`, reuses `roc` on `PATH` when it matches, and otherwise builds the pinned Roc compiler into `roc-src/`.
+- [latest release](https://roc-lang.github.io/basic-cli/)
+- [latest main branch](https://roc-lang.github.io/basic-cli/main/)
 
-```sh
-cat .roc-version
-roc version
-```
+## Help
 
-### Rust Glue
+Ask questions on [Roc Zulip](https://roc.zulipchat.com), especially in the `#beginners` stream.
 
-The Rust host ABI is generated from `platform/main.roc` using Roc's `RustGlue.roc` generator:
+## Contributing
 
-```sh
-./ci/regenerate_glue.sh
-./ci/regenerate_glue.sh --check
-```
-
-Commit `src/roc_platform_abi.rs` with any platform API change and the matching Rust host updates.
-
-### Verification
-
-Run the full local check before opening release or CI-facing changes:
-
-```sh
-./ci/all_tests.sh
-```
-
-The script checks generated glue, builds the host, checks and builds every example, and runs expect tests for examples with maintained scripts. When all target host libraries are present, it also bundles the platform, serves it from localhost, and tests examples against that bundle.
-
-### Documentation
-
-Generate platform docs from the docs entrypoint:
-
-```sh
-ROC_DOCS_URL_ROOT=/basic-cli/main roc docs --output=generated-docs docs/basic-cli.roc
-```
-
-CI attaches `docs.tar.gz` to each GitHub Release and deploys release folders plus the current `main` docs to GitHub Pages.
+Contributor setup, verification, generated glue, and documentation publishing notes live in [CONTRIBUTING.md](CONTRIBUTING.md).

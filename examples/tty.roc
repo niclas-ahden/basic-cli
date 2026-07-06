@@ -6,11 +6,12 @@ import pf.Tty
 ## Raw mode allows you to change the behaviour of the terminal.
 ## This is useful for running an app like vim or a game in the terminal.
 
+main! : List(Str) => Try({}, [Exit(I32), ..])
 main! = |_args| {
-    match Stdout.line!("Tty: enabling raw mode") { _ => {} }
+    Stdout.line!("Tty: enabling raw mode") ? |_| Exit(1)
     Tty.enable_raw_mode!()
 
-    match Stdout.line!("Tty: disabling raw mode") { _ => {} }
+    Stdout.line!("Tty: disabling raw mode") ? |_| Exit(1)
     Tty.disable_raw_mode!()
 
     Ok({})

@@ -15,34 +15,51 @@ import pf.Sqlite
 #     status TEXT NOT NULL
 # );
 
-main! = |_args| {
+main! : List(Str) => Try({}, [Exit(I32), ..])
+main! = |_args|
+    match run!() {
+        Ok(_) => Ok({})
+        Err(_) => Err(Exit(1))
+    }
+
+run! : () => Try({}, [SqliteExampleFailed(Str)])
+run! = || {
     db_path =
         match Env.var!("DB_PATH") {
             Ok(p) => p
             Err(_) => "./examples/todos.db"
         }
 
-    todos = query_todos_by_status!(db_path, "todo")?
+    todos = query_todos_by_status!(db_path, "todo") ? |err| SqliteExampleFailed(Str.inspect(err))
 
-    _h1 = Stdout.line!("All Todos:")
+    print_line!("All Todos:")?
 
-    List.for_each!(todos, |todo| print_todo!(todo))
+    for todo in todos {
+        print_todo!(todo)?
+    }
 
-    completed_todos = query_todos_by_status!(db_path, "completed")?
+    completed_todos = query_todos_by_status!(db_path, "completed") ? |err| SqliteExampleFailed(Str.inspect(err))
 
-    _h2 = Stdout.line!("")
-    _h3 = Stdout.line!("Completed Todos:")
-    List.for_each!(completed_todos, |todo| print_todo!(todo))
+    print_line!("")?
+    print_line!("Completed Todos:")?
+    for todo in completed_todos {
+        print_todo!(todo)?
+    }
 
     Ok({})
 }
 
 Todo : { id : Str, status : TodoStatus, task : Str }
 
+print_todo! : Todo => Try({}, [SqliteExampleFailed(Str)])
 print_todo! = |todo|
-    match Stdout.line!("    id: ${todo.id}, task: ${todo.task}, status: ${status_to_str(todo.status)}") {
-        _ => {}
-    }
+    print_line!("    id: ${todo.id}, task: ${todo.task}, status: ${status_to_str(todo.status)}")
+
+print_line! : Str => Try({}, [SqliteExampleFailed(Str)])
+print_line! = |line| {
+    Stdout.line!(line) ? |_| SqliteExampleFailed("stdout write failed")
+    Ok({})
+}
 
 query_todos_by_status! = |db_path, status|
     Sqlite.query_many!(
@@ -61,8 +78,10 @@ decode_todo = |cols|
         id = Sqlite.i64("id")(cols)(stmt)?
         task = Sqlite.str("task")(cols)(stmt)?
         status_str = Sqlite.str("status")(cols)(stmt)?
-        status = decode_todo_status(status_str)?
-        Ok({ id: I64.to_str(id), task, status })
+        match decode_todo_status(status_str) {
+            Ok(status) => Ok({ id: I64.to_str(id), task, status })
+            Err(ParseError(message)) => Err(ParseError(message))
+        }
     }
 
 TodoStatus : [Todo, Completed, InProgress]

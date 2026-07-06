@@ -1,11 +1,6 @@
 import IOErr exposing [IOErr]
+import Host
 import path.Path as PackagePath
-
-HostPathType := {
-    is_dir : Bool,
-    is_file : Bool,
-    is_sym_link : Bool,
-}
 
 Path := [].{
     ## Create a path from a Roc string using the host platform's native path representation.
@@ -59,8 +54,6 @@ Path := [].{
     from_raw : [UnixBytes(List(U8)), WindowsU16s(List(U16))] -> PackagePath.Path
     from_raw = |raw| PackagePath.from_raw(raw)
 
-    host_path_type! : PackagePath.Path => Try(HostPathType, IOErr)
-
     ## Returns `Bool.True` if the path exists on disk and is pointing at a regular file.
     ##
     ## This function will traverse symbolic links to query information about the
@@ -104,7 +97,7 @@ Path := [].{
     type! = |path| {
         # TODO: once https://github.com/roc-lang/roc/issues/9864 is fixed,
         # app authors should be able to call this effect as `path.type!()`.
-        Path.host_path_type!(path)
+        Host.path_type!(to_bytes(path))
             .map_err(|err| PathErr(err))
             .map_ok(|path_type|{
                 if path_type.is_sym_link {
@@ -117,3 +110,10 @@ Path := [].{
             })
     }
 }
+
+to_bytes : PackagePath.Path -> List(U8)
+to_bytes = |path|
+    match PackagePath.to_raw(path) {
+        UnixBytes(bytes) => bytes
+        WindowsU16s(_) => Str.to_utf8(PackagePath.display(path))
+    }

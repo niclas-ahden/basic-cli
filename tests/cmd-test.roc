@@ -2,9 +2,20 @@ app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.Stdout
 import pf.Cmd
+import pf.IOErr exposing [IOErr]
 
 # Tests all error cases in Cmd functions.
 
+main! : List(Str) => Try(
+    {},
+    [
+        ExecFailed({ command : Str, exit_code : I32 }),
+        Exit(I32),
+        FailedExpectation(Str),
+        FailedToGetExitCode({ command : Str, err : IOErr }),
+        StdoutErr(IOErr),
+    ],
+)
 main! = |_args| {
 
     # exec!
@@ -72,30 +83,33 @@ main! = |_args| {
     if exit_code == 1 {
         Ok({})?
     } else {
-        Err(FailedExpectation(
+        message : Str
+        message =
             \\- Expected:
             \\1
             \\
             \\- Got:
             \\${Str.inspect(exit_code)}
-        ))?
+        Err(FailedExpectation(message))?
     }
 
-    _ = Stdout.line!("All tests passed.")
+    Stdout.line!("All tests passed.")?
 
     Ok({})
 }
 
+expect_err : _, Str -> Try({}, [FailedExpectation(Str)])
 expect_err = |err, expected_str| {
     if Str.inspect(err) == expected_str {
         Ok({})
     } else {
-        Err(FailedExpectation(
+        message : Str
+        message =
             \\- Expected:
             \\${expected_str}
 
             \\- Got:
             \\${Str.inspect(err)}
-        ))
+        Err(FailedExpectation(message))
     }
 }

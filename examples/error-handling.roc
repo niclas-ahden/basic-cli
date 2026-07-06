@@ -5,6 +5,7 @@ import pf.File
 
 # Demonstrates error handling patterns
 
+main! : List(Str) => Try({}, [Exit(I32), ..])
 main! = |_args| {
     file_name = "test-file.txt"
 
@@ -12,19 +13,19 @@ main! = |_args| {
     result = File.read_utf8!("nonexistent-file.txt")
     match result {
         Ok(content) => {
-            _ = Stdout.line!("Unexpected success: ${content}")
+            Stdout.line!("Unexpected success: ${content}") ? |_| Exit(1)
         }
         Err(FileErr(NotFound)) => {
-            _ = Stdout.line!("Expected error: File not found (NotFound)")
+            Stdout.line!("Expected error: File not found (NotFound)") ? |_| Exit(1)
         }
         Err(FileErr(PermissionDenied)) => {
-            _ = Stdout.line!("Error: Permission denied")
+            Stdout.line!("Error: Permission denied") ? |_| Exit(1)
         }
         Err(FileErr(Other(msg))) => {
-            _ = Stdout.line!("Error: ${msg}")
+            Stdout.line!("Error: ${msg}") ? |_| Exit(1)
         }
         Err(_) => {
-            _ = Stdout.line!("Error: Other file error")
+            Stdout.line!("Error: Other file error") ? |_| Exit(1)
         }
     }
 
@@ -33,18 +34,20 @@ main! = |_args| {
         File.write_utf8!(file_name, "Hello from error-handling example!")?
 
         content = File.read_utf8!(file_name)?
-        _ = Stdout.line!("${file_name} contains: ${content}")
 
         # Cleanup
         File.delete!(file_name)?
 
-        Ok({})
+        Ok(content)
     }
 
     match file_result() {
-        Ok({}) => Ok({})
+        Ok(content) => {
+            Stdout.line!("${file_name} contains: ${content}") ? |_| Exit(1)
+            Ok({})
+        }
         Err(_) => {
-            _ = Stdout.line!("Error during file operations")
+            Stdout.line!("Error during file operations") ? |_| Exit(1)
             Err(Exit(1))
         }
     }

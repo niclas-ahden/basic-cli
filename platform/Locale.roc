@@ -1,3 +1,5 @@
+import Host
+
 Locale := [].{
     ## Returns the most preferred locale for the system or application.
     ##
@@ -5,9 +7,11 @@ Locale := [].{
     ##
     ## Returns `Err(NotAvailable)` if the locale cannot be determined.
     get! : () => Try(Str, [NotAvailable, ..])
+    get! = || Ok(Host.locale_get!()?)
 
     ## Returns the preferred locales for the system or application.
     ##
     ## The returned `Str`s are BCP 47 language tags, like `en-US` or `fr-CA`.
     all! : () => List(Str)
+    all! = || Host.locale_all!()
 }

@@ -74,7 +74,7 @@ game_loop! = |state| {
     } else {
         draw_game!(state)?
 
-        input_bytes = Stdin.bytes!({}).map_err(|_| Exit(1))?
+        input_bytes = Stdin.bytes!().map_err(|_| Exit(1))?
         new_state = update_game(apply_input(state, input_bytes))
 
         game_loop!(new_state)
@@ -139,7 +139,7 @@ move_head = |head, direction|
 
 draw_game! : GameState => Try({}, [Exit(I32)])
 draw_game! = |state| {
-    clear_screen!({})?
+    clear_screen!()?
 
     Stdout.line!("\nControls: W A S D to move, Q to quit\n\r").map_err(|_| Exit(1))?
     Stdout.line!("Score: ${(snake_len(state.snake) - init_snake_len).to_str()}\r").map_err(|_| Exit(1))?
@@ -186,8 +186,8 @@ draw_cells = |state, yy, xx, cells| {
     }
 }
 
-clear_screen! : {} => Try({}, [Exit(I32)])
-clear_screen! = |_| Stdout.write!("\u(001b)[2J\u(001b)[H").map_err(|_| Exit(1))
+clear_screen! : () => Try({}, [Exit(I32)])
+clear_screen! = || Stdout.write!("\u(001b)[2J\u(001b)[H").map_err(|_| Exit(1))
 
 snake_contains : Snake, Position -> Bool
 snake_contains = |snake, pos|

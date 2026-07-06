@@ -6,8 +6,13 @@ import pf.Dir
 
 # Demo of all Dir functions.
 
+main! : List(Str) => Try({}, [Exit(I32), ..])
 main! = |_args| {
     dir_result = || {
+        # Best-effort cleanup from a previous interrupted run.
+        Dir.delete_all!("empty-dir") ?? {}
+        Dir.delete_all!("nested-dir") ?? {}
+
         # Create a directory
         Dir.create!("empty-dir")?
 
@@ -31,15 +36,16 @@ main! = |_args| {
         # Delete all directories recursively
         Dir.delete_all!("nested-dir")?
 
-        _ = Stdout.line!("Success!")
-
         Ok({})
     }
 
     match dir_result() {
-        Ok(_) => Ok({}),
+        Ok(_) => {
+            Stdout.line!("Success!") ? |_| Exit(1)
+            Ok({})
+        }
         Err(err) => {
-            _ = Stderr.line!("Error during directory operations: ${Str.inspect(err)}")
+            Stderr.line!("Error during directory operations: ${Str.inspect(err)}") ? |_| Exit(1)
             Err(Exit(1))
         }
     }

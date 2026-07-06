@@ -20,7 +20,15 @@ import pf.Sqlite
 # We recommend using `NOT NULL` when possible.
 # Note 2: boolean is "fake" in sqlite https://www.sqlite.org/datatype3.html
 
-main! = |_args| {
+main! : List(Str) => Try({}, [Exit(I32), ..])
+main! = |_args|
+    match run!() {
+        Ok(_) => Ok({})
+        Err(_) => Err(Exit(1))
+    }
+
+run! : () => Try({}, [SqliteExampleFailed(Str)])
+run! = || {
     db_path =
         match Env.var!("DB_PATH") {
             Ok(p) => p
@@ -35,10 +43,12 @@ main! = |_args| {
             bindings: [],
             rows: decode_full_todo,
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
-    _h1 = Stdout.line!("All Todos:")
-    List.for_each!(all_todos, |t| print_line!("    id: ${I64.to_str(t.id)}, task: ${t.task}, status: ${status_to_str(t.status)}, edited: ${edited_to_str(decode_edited(t.edited_val))}"))
+    print_line!("All Todos:")?
+    for t in all_todos {
+        print_line!("    id: ${I64.to_str(t.id)}, task: ${t.task}, status: ${status_to_str(t.status)}, edited: ${edited_to_str(decode_edited(t.edited_val))}")?
+    }
 
     # Example: filter rows by status (decode a single column)
     tasks_in_progress = Sqlite.query_many!(
@@ -48,11 +58,13 @@ main! = |_args| {
             bindings: [{ name: ":status", value: encode_status(InProgress) }],
             rows: Sqlite.str("task"),
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
-    _h2 = Stdout.line!("")
-    _h3 = Stdout.line!("In-progress Todos:")
-    List.for_each!(tasks_in_progress, |task| print_line!("    In-progress task: ${task}"))
+    print_line!("")?
+    print_line!("In-progress Todos:")?
+    for task in tasks_in_progress {
+        print_line!("    In-progress task: ${task}")?
+    }
 
     # Example: insert a row
     Sqlite.execute!(
@@ -65,7 +77,7 @@ main! = |_args| {
                 { name: ":edited", value: encode_edited(NotEdited) },
             ],
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
     # Example: insert multiple rows from a Roc list
     todos_list = [
@@ -102,7 +114,7 @@ main! = |_args| {
             query: "INSERT INTO todos (task, status, edited) VALUES ${values_str};",
             bindings: all_bindings,
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
     # Example: update a row
     Sqlite.execute!(
@@ -114,7 +126,7 @@ main! = |_args| {
                 { name: ":status", value: encode_status(Completed) },
             ],
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
     # Example: delete a row
     Sqlite.execute!(
@@ -123,7 +135,7 @@ main! = |_args| {
             query: "DELETE FROM todos WHERE task = :task;",
             bindings: [{ name: ":task", value: String("Make sql example.") }],
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
     # Example: delete all rows where ID is greater than 3 (cleanup so this example is repeatable)
     Sqlite.execute!(
@@ -132,7 +144,7 @@ main! = |_args| {
             query: "DELETE FROM todos WHERE id > :id;",
             bindings: [{ name: ":id", value: Integer(3) }],
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
     # Example: count the number of rows
     count = Sqlite.query!(
@@ -142,10 +154,10 @@ main! = |_args| {
             bindings: [],
             row: Sqlite.u64("count"),
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
-    _hc = Stdout.line!("")
-    _hcount = Stdout.line!("Row count: ${U64.to_str(count)}")
+    print_line!("")?
+    print_line!("Row count: ${U64.to_str(count)}")?
 
     # Example: prepared statements
     # Note: This is faster if you execute the same prepared statement many times.
@@ -155,7 +167,7 @@ main! = |_args| {
             # sort by the length of the task description
             query: "SELECT * FROM todos ORDER BY LENGTH(task);",
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
     todos_sorted = Sqlite.query_many_prepared!(
         {
@@ -163,19 +175,22 @@ main! = |_args| {
             bindings: [],
             rows: decode_task_status,
         },
-    )?
+    ) ? |err| SqliteExampleFailed(Str.inspect(err))
 
-    _h4 = Stdout.line!("")
-    _h5 = Stdout.line!("Todos sorted by length of task description:")
-    List.for_each!(todos_sorted, |t| print_line!("    task: ${t.task}, status: ${status_to_str(t.status)}"))
+    print_line!("")?
+    print_line!("Todos sorted by length of task description:")?
+    for t in todos_sorted {
+        print_line!("    task: ${t.task}, status: ${status_to_str(t.status)}")?
+    }
 
     Ok({})
 }
 
-print_line! = |s|
-    match Stdout.line!(s) {
-        _ => {}
-    }
+print_line! : Str => Try({}, [SqliteExampleFailed(Str)])
+print_line! = |s| {
+    Stdout.line!(s) ? |_| SqliteExampleFailed("stdout write failed")
+    Ok({})
+}
 
 # Decode every column of the todos table. The nullable `edited` column is returned
 # raw (`[NotNull(I64), Null]`) and interpreted by `decode_edited` at the call site:
@@ -186,9 +201,13 @@ decode_full_todo = |cols|
         id = Sqlite.i64("id")(cols)(stmt)?
         task = Sqlite.str("task")(cols)(stmt)?
         status_str = Sqlite.str("status")(cols)(stmt)?
-        status = decode_status(status_str)?
-        edited_val = Sqlite.nullable_i64("edited")(cols)(stmt)?
-        Ok({ id, task, status, edited_val })
+        match decode_status(status_str) {
+            Ok(status) => {
+                edited_val = Sqlite.nullable_i64("edited")(cols)(stmt)?
+                Ok({ id, task, status, edited_val })
+            }
+            Err(ParseError(message)) => Err(ParseError(message))
+        }
     }
 
 # Decode just the task and status columns.
@@ -196,8 +215,10 @@ decode_task_status = |cols|
     |stmt| {
         task = Sqlite.str("task")(cols)(stmt)?
         status_str = Sqlite.str("status")(cols)(stmt)?
-        status = decode_status(status_str)?
-        Ok({ task, status })
+        match decode_status(status_str) {
+            Ok(status) => Ok({ task, status })
+            Err(ParseError(message)) => Err(ParseError(message))
+        }
     }
 
 TodoStatus : [Todo, Completed, InProgress]

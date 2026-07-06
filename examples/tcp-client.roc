@@ -19,7 +19,7 @@ main! : List(Str) => Try({}, [Exit(I32), ..])
 main! = |_args|
     match Tcp.connect!("127.0.0.1", 8085) {
         Ok(stream) => {
-            _ = Stdout.line!("Connected!")
+            Stdout.line!("Connected!") ? |_| Exit(1)
             run!(stream)
         }
         Err(connect_err) => report_connect_err!(connect_err)
@@ -28,8 +28,8 @@ main! = |_args|
 ## Read a line from stdin, send it to the server, print the response, repeat.
 run! : Tcp.Stream => Try({}, [Exit(I32), ..])
 run! = |stream| {
-    _ = Stdout.write!("> ")
-    match Stdin.line!({}) {
+    Stdout.write!("> ") ? |_| Exit(1)
+    match Stdin.line!() {
         # No more input — exit cleanly.
         Err(EndOfFile) => Ok({})
         Err(StdinErr(_)) => Ok({})
@@ -40,7 +40,7 @@ run! = |stream| {
                     match Tcp.read_line!(stream) {
                         Err(read_err) => report_read_err!(read_err)
                         Ok(in_msg) => {
-                            _ = Stdout.line!("< ${in_msg}")
+                            Stdout.line!("< ${in_msg}") ? |_| Exit(1)
                             run!(stream)
                         }
                     }
@@ -51,7 +51,7 @@ run! = |stream| {
 report_connect_err! : Tcp.ConnectErr => Try({}, [Exit(I32), ..])
 report_connect_err! = |err| {
     err_str = Tcp.connect_err_to_str(err)
-    _ = Stderr.line!(
+    Stderr.line!(
         \\Failed to connect: ${err_str}
         \\
         \\If you don't have anything listening on port 8085, run:
@@ -59,7 +59,7 @@ report_connect_err! = |err| {
         \\
         \\If you want an echo server you can run:
         \\    $ ncat -e $(which cat) -l 8085
-    )
+    ) ? |_| Exit(1)
     Ok({})
 }
 
@@ -68,7 +68,7 @@ report_read_err! = |err|
     match err {
         TcpReadErr(stream_err) => report_stream_err!("reading", stream_err)
         TcpReadBadUtf8(_) => {
-            _ = Stderr.line!("Received invalid UTF-8 data")
+            Stderr.line!("Received invalid UTF-8 data") ? |_| Exit(1)
             Ok({})
         }
     }
@@ -76,6 +76,6 @@ report_read_err! = |err|
 report_stream_err! : Str, Tcp.StreamErr => Try({}, [Exit(I32), ..])
 report_stream_err! = |action, err| {
     err_str = Tcp.stream_err_to_str(err)
-    _ = Stderr.line!("Error while ${action}: ${err_str}")
+    Stderr.line!("Error while ${action}: ${err_str}") ? |_| Exit(1)
     Ok({})
 }

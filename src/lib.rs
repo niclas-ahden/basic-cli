@@ -19,77 +19,80 @@ use crate::roc_platform_abi::*;
 // RustGlue assigns numbered names (TryTypeN, IOErrTypeN, ...) to anonymous Roc
 // records and result types, and the numbers shift whenever a module is added.
 // To stay robust against that renumbering we alias against the *semantic* names
-// the generator also emits (e.g. `CmdHostExecExitCodeResult`), which are keyed by
+// the generator also emits (e.g. `HostCmdExecExitCodeResult`), which are keyed by
 // module + function name and therefore stable. Where our preferred local name is
-// identical to a generated semantic alias (e.g. `CmdIOErr`, `DirListResult`), we
+// identical to a generated semantic alias (e.g. `HostIOErr`, `HostDirListResult`), we
 // omit it here and rely on the `use crate::roc_platform_abi::*;` glob above.
-type CmdExitResult = CmdHostExecExitCodeResult;
-type CmdExitResultPayload = CmdHostExecExitCodeResultPayload;
-type CmdExitResultTag = CmdHostExecExitCodeResultTag;
-type CmdOutputResult = CmdHostExecOutputResult;
-type CmdOutputResultPayload = CmdHostExecOutputResultPayload;
-type CmdOutputResultTag = CmdHostExecOutputResultTag;
-type CmdOutputFailureResult = CmdHostExecOutputErrResult;
-type CmdOutputFailureResultPayload = CmdHostExecOutputErrResultPayload;
-type CmdOutputFailureResultTag = CmdHostExecOutputErrResultTag;
-type CmdOutputFailure = CmdHostExecOutputErrOk;
-type CmdOutputSuccess = CmdHostExecOutputOk;
+type CmdExitResult = HostCmdExecExitCodeResult;
+type CmdExitResultPayload = HostCmdExecExitCodeResultPayload;
+type CmdExitResultTag = HostCmdExecExitCodeResultTag;
+type CmdOutputResult = HostCmdExecOutputResult;
+type CmdOutputResultPayload = HostCmdExecOutputResultPayload;
+type CmdOutputResultTag = HostCmdExecOutputResultTag;
+type CmdOutputFailureResult = HostCmdExecOutputErrResult;
+type CmdOutputFailureResultPayload = HostCmdExecOutputErrResultPayload;
+type CmdOutputFailureResultTag = HostCmdExecOutputErrResultTag;
+type CmdOutputFailure = HostCmdExecOutputErrOk;
+type CmdOutputSuccess = HostCmdExecOutputOk;
+type Cmd = HostCmdExecExitCodeArgs;
 
-type DirUnitResult = DirCreateResult;
-type DirUnitResultPayload = DirCreateResultPayload;
-type DirUnitResultTag = DirCreateResultTag;
+type DirUnitResult = HostDirCreateResult;
+type DirUnitResultPayload = HostDirCreateResultPayload;
+type DirUnitResultTag = HostDirCreateResultTag;
 
-type FileBytesResult = FileReadBytesResult;
-type FileBytesResultPayload = FileReadBytesResultPayload;
-type FileBytesResultTag = FileReadBytesResultTag;
-type FileReaderOpenResult = FileHostOpenReaderResult;
-type FileReaderOpenResultPayload = FileHostOpenReaderResultPayload;
-type FileReaderOpenResultTag = FileHostOpenReaderResultTag;
-type FileReaderLineResult = FileHostReadLineResult;
-type FileReaderLineResultPayload = FileHostReadLineResultPayload;
-type FileReaderLineResultTag = FileHostReadLineResultTag;
-type FileStrResult = FileReadUtf8Result;
-type FileStrResultPayload = FileReadUtf8ResultPayload;
-type FileStrResultTag = FileReadUtf8ResultTag;
-type FileSizeResult = FileSizeInBytesResult;
-type FileSizeResultPayload = FileSizeInBytesResultPayload;
-type FileSizeResultTag = FileSizeInBytesResultTag;
-type FileBoolResult = FileIsExecutableResult;
-type FileBoolResultPayload = FileIsExecutableResultPayload;
-type FileBoolResultTag = FileIsExecutableResultTag;
-type FileTimeResult = FileTimeAccessedResult;
-type FileTimeResultPayload = FileTimeAccessedResultPayload;
-type FileTimeResultTag = FileTimeAccessedResultTag;
+type FileBytesResult = HostFileReadBytesResult;
+type FileBytesResultPayload = HostFileReadBytesResultPayload;
+type FileBytesResultTag = HostFileReadBytesResultTag;
+type FileReaderOpenResult = HostFileOpenReaderResult;
+type FileReaderOpenResultPayload = HostFileOpenReaderResultPayload;
+type FileReaderOpenResultTag = HostFileOpenReaderResultTag;
+type FileReaderLineResult = HostFileReadLineResult;
+type FileReaderLineResultPayload = HostFileReadLineResultPayload;
+type FileReaderLineResultTag = HostFileReadLineResultTag;
+type FileStrResult = HostFileReadUtf8Result;
+type FileStrResultPayload = HostFileReadUtf8ResultPayload;
+type FileStrResultTag = HostFileReadUtf8ResultTag;
+type FileSizeResult = HostFileSizeInBytesResult;
+type FileSizeResultPayload = HostFileSizeInBytesResultPayload;
+type FileSizeResultTag = HostFileSizeInBytesResultTag;
+type FileBoolResult = HostFileIsExecutableResult;
+type FileBoolResultPayload = HostFileIsExecutableResultPayload;
+type FileBoolResultTag = HostFileIsExecutableResultTag;
+type FileTimeResult = HostFileTimeAccessedResult;
+type FileTimeResultPayload = HostFileTimeAccessedResultPayload;
+type FileTimeResultTag = HostFileTimeAccessedResultTag;
 
-type RandomU64Result = RandomSeedU64Result;
-type RandomU64ResultPayload = RandomSeedU64ResultPayload;
-type RandomU64ResultTag = RandomSeedU64ResultTag;
-type RandomU32Result = RandomSeedU32Result;
-type RandomU32ResultPayload = RandomSeedU32ResultPayload;
-type RandomU32ResultTag = RandomSeedU32ResultTag;
+type RandomU64Result = HostRandomSeedU64Result;
+type RandomU64ResultPayload = HostRandomSeedU64ResultPayload;
+type RandomU64ResultTag = HostRandomSeedU64ResultTag;
+type RandomU32Result = HostRandomSeedU32Result;
+type RandomU32ResultPayload = HostRandomSeedU32ResultPayload;
+type RandomU32ResultTag = HostRandomSeedU32ResultTag;
 
-type StderrUnitResult = StderrLineResult;
-type StderrUnitResultPayload = StderrLineResultPayload;
-type StderrUnitResultTag = StderrLineResultTag;
-type StderrBytesResult = StderrWriteBytesResult;
-type StderrBytesResultPayload = StderrWriteBytesResultPayload;
-type StderrBytesResultTag = StderrWriteBytesResultTag;
+type StderrUnitResult = HostStderrLineResult;
+type StderrUnitResultPayload = HostStderrLineResultPayload;
+type StderrUnitResultTag = HostStderrLineResultTag;
+type StderrBytesResult = HostStderrWriteBytesResult;
+type StderrBytesResultPayload = HostStderrWriteBytesResultPayload;
+type StderrBytesResultTag = HostStderrWriteBytesResultTag;
 
-// The stdin read-error tag unions have no semantic alias, so reference the
-// numbered glue types directly (update these if the glue renumbers them).
-type StdinLineReadErr = EndOfFileOrStdinErrType120;
-type StdinLineReadErrPayload = EndOfFileOrStdinErrType120Payload;
-type StdinLineReadErrTag = EndOfFileOrStdinErrType120Tag;
-type StdinBytesReadErr = EndOfFileOrStdinErrType125;
-type StdinBytesReadErrPayload = EndOfFileOrStdinErrType125Payload;
-type StdinBytesReadErrTag = EndOfFileOrStdinErrType125Tag;
+type StdinLineReadErr = EndOfFileOrStdinErr;
+type StdinLineReadErrPayload = EndOfFileOrStdinErrPayload;
+type StdinLineReadErrTag = EndOfFileOrStdinErrTag;
+type StdinBytesReadErr = EndOfFileOrStdinErr;
+type StdinBytesReadErrPayload = EndOfFileOrStdinErrPayload;
+type StdinBytesReadErrTag = EndOfFileOrStdinErrTag;
 
-type StdoutUnitResult = StdoutLineResult;
-type StdoutUnitResultPayload = StdoutLineResultPayload;
-type StdoutUnitResultTag = StdoutLineResultTag;
-type StdoutBytesResult = StdoutWriteBytesResult;
-type StdoutBytesResultPayload = StdoutWriteBytesResultPayload;
-type StdoutBytesResultTag = StdoutWriteBytesResultTag;
+type StdoutUnitResult = HostStdoutLineResult;
+type StdoutUnitResultPayload = HostStdoutLineResultPayload;
+type StdoutUnitResultTag = HostStdoutLineResultTag;
+type StdoutBytesResult = HostStdoutWriteBytesResult;
+type StdoutBytesResultPayload = HostStdoutWriteBytesResultPayload;
+type StdoutBytesResultTag = HostStdoutWriteBytesResultTag;
+
+fn roc_u8_list_from_slice(slice: &[u8], roc_host: &RocHost) -> RocListWith<u8, false> {
+    unsafe { RocListWith::<u8, false>::from_slice(slice, roc_host) }
+}
 
 // ============================================================================
 // SQLite
@@ -107,8 +110,8 @@ type StdoutBytesResultTag = StdoutWriteBytesResultTag;
 type SqliteValue = BytesOrIntegerOrNullOrRealOrString;
 type SqliteValueTag = BytesOrIntegerOrNullOrRealOrStringTag;
 type SqliteValuePayload = BytesOrIntegerOrNullOrRealOrStringPayload;
-type SqliteError = SqliteHostPrepareErr;
-type SqliteBindings = AnonStruct101;
+type SqliteError = HostSqlitePrepareErr;
+type SqliteBindings = AnonStruct55;
 
 const SQLITE_STMT_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
@@ -133,12 +136,14 @@ thread_local! {
 
 fn box_sqlite_stmt(stmt: SqliteStatement, roc_host: &RocHost) -> *mut u64 {
     let raw: *mut SqliteStatement = Box::into_raw(Box::new(stmt));
-    let boxed = allocate_box(
-        core::mem::size_of::<u64>(),
-        SQLITE_STMT_BOX_ALIGN,
-        false,
-        roc_host,
-    );
+    let boxed = unsafe {
+        allocate_box(
+            core::mem::size_of::<u64>(),
+            SQLITE_STMT_BOX_ALIGN,
+            false,
+            roc_host,
+        )
+    };
     unsafe {
         *(boxed as *mut u64) = raw as u64;
     }
@@ -159,13 +164,15 @@ extern "C" fn drop_sqlite_stmt(data_ptr: *mut c_void, _roc_host: *mut RocHost) {
 }
 
 fn release_sqlite_stmt(handle: *mut u64, roc_host: &RocHost) {
-    decref_box_with(
-        handle as RocBox,
-        SQLITE_STMT_BOX_ALIGN,
-        false,
-        Some(drop_sqlite_stmt),
-        roc_host,
-    );
+    unsafe {
+        decref_box_with(
+            handle as RocBox,
+            SQLITE_STMT_BOX_ALIGN,
+            false,
+            Some(drop_sqlite_stmt),
+            roc_host,
+        );
+    }
 }
 
 // SQLITE_TRANSIENT tells SQLite to make its own copy of bound text/blob data, so
@@ -284,77 +291,77 @@ fn sqlite_value_null() -> SqliteValue {
     }
 }
 
-fn try_sqlite_prepare_ok(handle: *mut u64) -> SqliteHostPrepareResult {
-    SqliteHostPrepareResult {
-        payload: SqliteHostPrepareResultPayload {
+fn try_sqlite_prepare_ok(handle: *mut u64) -> HostSqlitePrepareResult {
+    HostSqlitePrepareResult {
+        payload: HostSqlitePrepareResultPayload {
             ok: ManuallyDrop::new(handle),
         },
-        tag: SqliteHostPrepareResultTag::Ok,
+        tag: HostSqlitePrepareResultTag::Ok,
     }
 }
 
-fn try_sqlite_prepare_err(error: SqliteError) -> SqliteHostPrepareResult {
-    SqliteHostPrepareResult {
-        payload: SqliteHostPrepareResultPayload {
+fn try_sqlite_prepare_err(error: SqliteError) -> HostSqlitePrepareResult {
+    HostSqlitePrepareResult {
+        payload: HostSqlitePrepareResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: SqliteHostPrepareResultTag::Err,
+        tag: HostSqlitePrepareResultTag::Err,
     }
 }
 
-fn try_sqlite_unit_ok() -> SqliteHostBindResult {
-    SqliteHostBindResult {
-        payload: SqliteHostBindResultPayload {
+fn try_sqlite_unit_ok() -> HostSqliteBindResult {
+    HostSqliteBindResult {
+        payload: HostSqliteBindResultPayload {
             ok: ManuallyDrop::new(()),
         },
-        tag: SqliteHostBindResultTag::Ok,
+        tag: HostSqliteBindResultTag::Ok,
     }
 }
 
-fn try_sqlite_unit_err(error: SqliteError) -> SqliteHostBindResult {
-    SqliteHostBindResult {
-        payload: SqliteHostBindResultPayload {
+fn try_sqlite_unit_err(error: SqliteError) -> HostSqliteBindResult {
+    HostSqliteBindResult {
+        payload: HostSqliteBindResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: SqliteHostBindResultTag::Err,
+        tag: HostSqliteBindResultTag::Err,
     }
 }
 
-fn try_sqlite_value_ok(value: SqliteValue) -> SqliteHostColumnValueResult {
-    SqliteHostColumnValueResult {
-        payload: SqliteHostColumnValueResultPayload {
+fn try_sqlite_value_ok(value: SqliteValue) -> HostSqliteColumnValueResult {
+    HostSqliteColumnValueResult {
+        payload: HostSqliteColumnValueResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: SqliteHostColumnValueResultTag::Ok,
+        tag: HostSqliteColumnValueResultTag::Ok,
     }
 }
 
-fn try_sqlite_value_err(error: SqliteError) -> SqliteHostColumnValueResult {
-    SqliteHostColumnValueResult {
-        payload: SqliteHostColumnValueResultPayload {
+fn try_sqlite_value_err(error: SqliteError) -> HostSqliteColumnValueResult {
+    HostSqliteColumnValueResult {
+        payload: HostSqliteColumnValueResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: SqliteHostColumnValueResultTag::Err,
+        tag: HostSqliteColumnValueResultTag::Err,
     }
 }
 
 // `host_step!` marshals a Bool: true => a row is ready (SQLITE_ROW),
 // false => the statement is done (SQLITE_DONE).
-fn try_sqlite_step_ok(has_row: bool) -> SqliteHostStepResult {
-    SqliteHostStepResult {
-        payload: SqliteHostStepResultPayload {
+fn try_sqlite_step_ok(has_row: bool) -> HostSqliteStepResult {
+    HostSqliteStepResult {
+        payload: HostSqliteStepResultPayload {
             ok: ManuallyDrop::new(has_row),
         },
-        tag: SqliteHostStepResultTag::Ok,
+        tag: HostSqliteStepResultTag::Ok,
     }
 }
 
-fn try_sqlite_step_err(error: SqliteError) -> SqliteHostStepResult {
-    SqliteHostStepResult {
-        payload: SqliteHostStepResultPayload {
+fn try_sqlite_step_err(error: SqliteError) -> HostSqliteStepResult {
+    HostSqliteStepResult {
+        payload: HostSqliteStepResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: SqliteHostStepResultTag::Err,
+        tag: HostSqliteStepResultTag::Err,
     }
 }
 
@@ -399,7 +406,7 @@ fn sqlite_bind_all(
     stmt: &mut SqliteStatement,
     bindings: &[SqliteBindings],
     roc_host: &RocHost,
-) -> SqliteHostBindResult {
+) -> HostSqliteBindResult {
     // Clear old bindings so callers must supply every parameter each time.
     let cleared = unsafe { libsqlite3_sys::sqlite3_clear_bindings(stmt.stmt) };
     if cleared != libsqlite3_sys::SQLITE_OK {
@@ -436,12 +443,16 @@ fn sqlite_bind_all(
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_sqlite_prepare(path: RocStr, query: RocStr) -> SqliteHostPrepareResult {
+pub extern "C" fn hosted_sqlite_prepare(path: RocStr, query: RocStr) -> HostSqlitePrepareResult {
     let roc_host = roc_host();
     let path_string = path.as_str().to_owned();
     let query_string = query.as_str().to_owned();
-    path.decref(roc_host);
-    query.decref(roc_host);
+    unsafe {
+        path.decref(roc_host);
+    }
+    unsafe {
+        query.decref(roc_host);
+    }
 
     let connection = match sqlite_get_connection(&path_string) {
         Ok(connection) => connection,
@@ -473,16 +484,18 @@ pub extern "C" fn hosted_sqlite_prepare(path: RocStr, query: RocStr) -> SqliteHo
 pub extern "C" fn hosted_sqlite_bind(
     handle: *mut u64,
     bindings: RocList<SqliteBindings>,
-) -> SqliteHostBindResult {
+) -> HostSqliteBindResult {
     let roc_host = roc_host();
     let result = {
         let stmt = unsafe { sqlite_stmt_ref(handle) };
         sqlite_bind_all(stmt, bindings.as_slice(), roc_host)
     };
     for binding in bindings.as_slice() {
-        decref_anon_struct101(*binding, roc_host);
+        decref_anon_struct55(*binding, roc_host);
     }
-    bindings.decref(roc_host);
+    unsafe {
+        bindings.decref(roc_host);
+    }
     release_sqlite_stmt(handle, roc_host);
     result
 }
@@ -492,7 +505,7 @@ pub extern "C" fn hosted_sqlite_columns(handle: *mut u64) -> RocList<RocStr> {
     let roc_host = roc_host();
     let stmt = unsafe { sqlite_stmt_ref(handle) };
     let count = unsafe { libsqlite3_sys::sqlite3_column_count(stmt.stmt) }.max(0) as usize;
-    let list = RocList::<RocStr>::allocate(count, roc_host);
+    let list = unsafe { RocList::<RocStr>::allocate(count, roc_host) };
     for index in 0..count {
         let name = unsafe {
             let raw = libsqlite3_sys::sqlite3_column_name(stmt.stmt, index as c_int);
@@ -514,7 +527,7 @@ pub extern "C" fn hosted_sqlite_columns(handle: *mut u64) -> RocList<RocStr> {
 pub extern "C" fn hosted_sqlite_column_value(
     handle: *mut u64,
     i: u64,
-) -> SqliteHostColumnValueResult {
+) -> HostSqliteColumnValueResult {
     let roc_host = roc_host();
     let result = {
         let stmt = unsafe { sqlite_stmt_ref(handle) };
@@ -537,8 +550,8 @@ pub extern "C" fn hosted_sqlite_column_value(
                     }
                     libsqlite3_sys::SQLITE_TEXT => {
                         let text = libsqlite3_sys::sqlite3_column_text(stmt.stmt, index);
-                        let len = libsqlite3_sys::sqlite3_column_bytes(stmt.stmt, index).max(0)
-                            as usize;
+                        let len =
+                            libsqlite3_sys::sqlite3_column_bytes(stmt.stmt, index).max(0) as usize;
                         let slice = if text.is_null() {
                             &[][..]
                         } else {
@@ -550,15 +563,16 @@ pub extern "C" fn hosted_sqlite_column_value(
                         ))
                     }
                     libsqlite3_sys::SQLITE_BLOB => {
-                        let blob = libsqlite3_sys::sqlite3_column_blob(stmt.stmt, index) as *const u8;
-                        let len = libsqlite3_sys::sqlite3_column_bytes(stmt.stmt, index).max(0)
-                            as usize;
+                        let blob =
+                            libsqlite3_sys::sqlite3_column_blob(stmt.stmt, index) as *const u8;
+                        let len =
+                            libsqlite3_sys::sqlite3_column_bytes(stmt.stmt, index).max(0) as usize;
                         let slice = if blob.is_null() {
                             &[][..]
                         } else {
                             std::slice::from_raw_parts(blob, len)
                         };
-                        sqlite_value_bytes(RocListWith::<u8, false>::from_slice(slice, roc_host))
+                        sqlite_value_bytes(roc_u8_list_from_slice(slice, roc_host))
                     }
                     _ => sqlite_value_null(),
                 }
@@ -571,7 +585,7 @@ pub extern "C" fn hosted_sqlite_column_value(
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_sqlite_step(handle: *mut u64) -> SqliteHostStepResult {
+pub extern "C" fn hosted_sqlite_step(handle: *mut u64) -> HostSqliteStepResult {
     let roc_host = roc_host();
     let result = {
         let stmt = unsafe { sqlite_stmt_ref(handle) };
@@ -589,7 +603,7 @@ pub extern "C" fn hosted_sqlite_step(handle: *mut u64) -> SqliteHostStepResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_sqlite_reset(handle: *mut u64) -> SqliteHostBindResult {
+pub extern "C" fn hosted_sqlite_reset(handle: *mut u64) -> HostSqliteBindResult {
     let roc_host = roc_host();
     let result = {
         let stmt = unsafe { sqlite_stmt_ref(handle) };
@@ -623,12 +637,14 @@ const TCP_STREAM_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
 fn box_tcp_stream(stream: BufReader<TcpStream>, roc_host: &RocHost) -> *mut u64 {
     let raw: *mut BufReader<TcpStream> = Box::into_raw(Box::new(stream));
-    let boxed = allocate_box(
-        core::mem::size_of::<u64>(),
-        TCP_STREAM_BOX_ALIGN,
-        false,
-        roc_host,
-    );
+    let boxed = unsafe {
+        allocate_box(
+            core::mem::size_of::<u64>(),
+            TCP_STREAM_BOX_ALIGN,
+            false,
+            roc_host,
+        )
+    };
     unsafe {
         *(boxed as *mut u64) = raw as u64;
     }
@@ -649,13 +665,15 @@ extern "C" fn drop_tcp_stream(data_ptr: *mut c_void, _roc_host: *mut RocHost) {
 }
 
 fn release_tcp_stream(handle: *mut u64, roc_host: &RocHost) {
-    decref_box_with(
-        handle as RocBox,
-        TCP_STREAM_BOX_ALIGN,
-        false,
-        Some(drop_tcp_stream),
-        roc_host,
-    );
+    unsafe {
+        decref_box_with(
+            handle as RocBox,
+            TCP_STREAM_BOX_ALIGN,
+            false,
+            Some(drop_tcp_stream),
+            roc_host,
+        );
+    }
 }
 
 fn to_tcp_connect_err(err: io::Error, roc_host: &RocHost) -> RocStr {
@@ -714,66 +732,68 @@ fn tcp_read_until_impl(stream: &mut BufReader<TcpStream>, delim: u8) -> io::Resu
     }
 }
 
-fn try_tcp_connect_ok(handle: *mut u64) -> TcpHostConnectResult {
-    TcpHostConnectResult {
-        payload: TcpHostConnectResultPayload {
+fn try_tcp_connect_ok(handle: *mut u64) -> HostTcpConnectResult {
+    HostTcpConnectResult {
+        payload: HostTcpConnectResultPayload {
             ok: ManuallyDrop::new(handle),
         },
-        tag: TcpHostConnectResultTag::Ok,
+        tag: HostTcpConnectResultTag::Ok,
     }
 }
 
-fn try_tcp_connect_err(error: RocStr) -> TcpHostConnectResult {
-    TcpHostConnectResult {
-        payload: TcpHostConnectResultPayload {
+fn try_tcp_connect_err(error: RocStr) -> HostTcpConnectResult {
+    HostTcpConnectResult {
+        payload: HostTcpConnectResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: TcpHostConnectResultTag::Err,
+        tag: HostTcpConnectResultTag::Err,
     }
 }
 
 // The three read host fns share an identical result layout (`Try(List U8, Str)`).
-fn try_tcp_read_ok(bytes: RocListWith<u8, false>) -> TcpHostReadUpToResult {
-    TcpHostReadUpToResult {
-        payload: TcpHostReadUpToResultPayload {
+fn try_tcp_read_ok(bytes: RocListWith<u8, false>) -> HostTcpReadUpToResult {
+    HostTcpReadUpToResult {
+        payload: HostTcpReadUpToResultPayload {
             ok: ManuallyDrop::new(bytes),
         },
-        tag: TcpHostReadUpToResultTag::Ok,
+        tag: HostTcpReadUpToResultTag::Ok,
     }
 }
 
-fn try_tcp_read_err(error: RocStr) -> TcpHostReadUpToResult {
-    TcpHostReadUpToResult {
-        payload: TcpHostReadUpToResultPayload {
+fn try_tcp_read_err(error: RocStr) -> HostTcpReadUpToResult {
+    HostTcpReadUpToResult {
+        payload: HostTcpReadUpToResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: TcpHostReadUpToResultTag::Err,
+        tag: HostTcpReadUpToResultTag::Err,
     }
 }
 
-fn try_tcp_write_ok() -> TcpHostWriteResult {
-    TcpHostWriteResult {
-        payload: TcpHostWriteResultPayload {
+fn try_tcp_write_ok() -> HostTcpWriteResult {
+    HostTcpWriteResult {
+        payload: HostTcpWriteResultPayload {
             ok: ManuallyDrop::new(()),
         },
-        tag: TcpHostWriteResultTag::Ok,
+        tag: HostTcpWriteResultTag::Ok,
     }
 }
 
-fn try_tcp_write_err(error: RocStr) -> TcpHostWriteResult {
-    TcpHostWriteResult {
-        payload: TcpHostWriteResultPayload {
+fn try_tcp_write_err(error: RocStr) -> HostTcpWriteResult {
+    HostTcpWriteResult {
+        payload: HostTcpWriteResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: TcpHostWriteResultTag::Err,
+        tag: HostTcpWriteResultTag::Err,
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_tcp_connect(host: RocStr, port: u16) -> TcpHostConnectResult {
+pub extern "C" fn hosted_tcp_connect(host: RocStr, port: u16) -> HostTcpConnectResult {
     let roc_host = roc_host();
     let host_string = host.as_str().to_owned();
-    host.decref(roc_host);
+    unsafe {
+        host.decref(roc_host);
+    }
 
     match TcpStream::connect((host_string.as_str(), port)) {
         Ok(stream) => {
@@ -788,7 +808,7 @@ pub extern "C" fn hosted_tcp_connect(host: RocStr, port: u16) -> TcpHostConnectR
 pub extern "C" fn hosted_tcp_read_up_to(
     handle: *mut u64,
     bytes_to_read: u64,
-) -> TcpHostReadUpToResult {
+) -> HostTcpReadUpToResult {
     let roc_host = roc_host();
     let result = {
         let stream = unsafe { tcp_stream_ref(handle) };
@@ -797,7 +817,7 @@ pub extern "C" fn hosted_tcp_read_up_to(
             Ok(received) => {
                 let received = received.to_vec();
                 stream.consume(received.len());
-                try_tcp_read_ok(RocListWith::<u8, false>::from_slice(&received, roc_host))
+                try_tcp_read_ok(roc_u8_list_from_slice(&received, roc_host))
             }
             Err(err) => try_tcp_read_err(to_tcp_stream_err(err, roc_host)),
         }
@@ -810,7 +830,7 @@ pub extern "C" fn hosted_tcp_read_up_to(
 pub extern "C" fn hosted_tcp_read_exactly(
     handle: *mut u64,
     bytes_to_read: u64,
-) -> TcpHostReadExactlyResult {
+) -> HostTcpReadExactlyResult {
     let roc_host = roc_host();
     let result = {
         let stream = unsafe { tcp_stream_ref(handle) };
@@ -821,7 +841,7 @@ pub extern "C" fn hosted_tcp_read_exactly(
                 if (read as u64) < bytes_to_read {
                     try_tcp_read_err(RocStr::from_str("UnexpectedEof", roc_host))
                 } else {
-                    try_tcp_read_ok(RocListWith::<u8, false>::from_slice(&buffer, roc_host))
+                    try_tcp_read_ok(roc_u8_list_from_slice(&buffer, roc_host))
                 }
             }
             Err(err) => try_tcp_read_err(to_tcp_stream_err(err, roc_host)),
@@ -832,12 +852,12 @@ pub extern "C" fn hosted_tcp_read_exactly(
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_tcp_read_until(handle: *mut u64, byte: u8) -> TcpHostReadUntilResult {
+pub extern "C" fn hosted_tcp_read_until(handle: *mut u64, byte: u8) -> HostTcpReadUntilResult {
     let roc_host = roc_host();
     let result = {
         let stream = unsafe { tcp_stream_ref(handle) };
         match tcp_read_until_impl(stream, byte) {
-            Ok(buffer) => try_tcp_read_ok(RocListWith::<u8, false>::from_slice(&buffer, roc_host)),
+            Ok(buffer) => try_tcp_read_ok(roc_u8_list_from_slice(&buffer, roc_host)),
             Err(err) => try_tcp_read_err(to_tcp_stream_err(err, roc_host)),
         }
     };
@@ -849,7 +869,7 @@ pub extern "C" fn hosted_tcp_read_until(handle: *mut u64, byte: u8) -> TcpHostRe
 pub extern "C" fn hosted_tcp_write(
     handle: *mut u64,
     msg: RocListWith<u8, false>,
-) -> TcpHostWriteResult {
+) -> HostTcpWriteResult {
     let roc_host = roc_host();
     let result = {
         let stream = unsafe { tcp_stream_ref(handle) };
@@ -858,7 +878,9 @@ pub extern "C" fn hosted_tcp_write(
             Err(err) => try_tcp_write_err(to_tcp_stream_err(err, roc_host)),
         }
     };
-    msg.decref(roc_host);
+    unsafe {
+        msg.decref(roc_host);
+    }
     release_tcp_stream(handle, roc_host);
     result
 }
@@ -871,21 +893,23 @@ pub extern "C" fn hosted_tcp_write(
 // current-thread tokio runtime driving a hyper client over a rustls (ring)
 // TLS connector seeded with the system's native root certificates.
 //
-// Transport failures are surfaced to Roc as reserved status+body sentinels
-// (matching the checks in Http.roc's `send!`):
-//   * 408 + "Timeout"        -> request exceeded its timeout
-//   * 500 + "NetworkError"   -> could not initialise the TLS connector
-//   * 500 + "BadBody"        -> response body could not be collected
-//   * 500 + "OTHER ERROR\n…" -> any other transport/build error (detail follows)
+// Transport failures are surfaced to Roc as a typed `Try` error, separate from
+// real HTTP responses. This avoids interpreting a legitimate server status/body
+// pair as a platform transport failure.
 // ----------------------------------------------------------------------------
 
 // The generated glue names the request/response records by anonymous-struct
-// number; alias them to the stable semantic names (the response also has the
-// generator's stable `HttpHostSendRequest` alias). Headers are `(Str, Str)`
-// tuples (matching the roc-lang/http package), rendered as a struct with `_0`
-// (name) and `_1` (value) fields.
-type HttpResponse = HttpHostSendRequest;
-type HttpHeader = AnonStruct62;
+// number; alias them to stable semantic names. Headers are `(Str, Str)` tuples
+// (matching the roc-lang/http package), rendered as a struct with `_0` (name)
+// and `_1` (value) fields.
+type HttpResponse = HostHttpSendRequestOk;
+type HttpHeader = AnonStruct38;
+type HttpResult = HostHttpSendRequestResult;
+type HttpResultPayload = HostHttpSendRequestResultPayload;
+type HttpResultTag = HostHttpSendRequestResultTag;
+type HttpTransportErr = BadBodyOrNetworkErrorOrOtherOrTimeout;
+type HttpTransportErrPayload = BadBodyOrNetworkErrorOrOtherOrTimeoutPayload;
+type HttpTransportErrTag = BadBodyOrNetworkErrorOrOtherOrTimeoutTag;
 
 thread_local! {
     static TOKIO_RUNTIME: tokio::runtime::Runtime = tokio::runtime::Builder::new_current_thread()
@@ -912,16 +936,56 @@ fn as_hyper_method(method: u8, method_ext: &str) -> Option<hyper::Method> {
     }
 }
 
-fn http_sentinel_response(status: u16, body: &[u8], roc_host: &RocHost) -> HttpResponse {
-    HttpResponse {
-        body: RocListWith::<u8, false>::from_slice(body, roc_host),
-        headers: RocList::empty(),
-        status,
+fn http_ok(response: HttpResponse) -> HttpResult {
+    HttpResult {
+        payload: HttpResultPayload {
+            ok: ManuallyDrop::new(response),
+        },
+        tag: HttpResultTag::Ok,
+    }
+}
+
+fn http_err(error: HttpTransportErr) -> HttpResult {
+    HttpResult {
+        payload: HttpResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: HttpResultTag::Err,
+    }
+}
+
+fn http_err_timeout() -> HttpTransportErr {
+    HttpTransportErr {
+        payload: HttpTransportErrPayload { timeout: [] },
+        tag: HttpTransportErrTag::Timeout,
+    }
+}
+
+fn http_err_network_error() -> HttpTransportErr {
+    HttpTransportErr {
+        payload: HttpTransportErrPayload { network_error: [] },
+        tag: HttpTransportErrTag::NetworkError,
+    }
+}
+
+fn http_err_bad_body() -> HttpTransportErr {
+    HttpTransportErr {
+        payload: HttpTransportErrPayload { bad_body: [] },
+        tag: HttpTransportErrTag::BadBody,
+    }
+}
+
+fn http_err_other(message: &str, roc_host: &RocHost) -> HttpTransportErr {
+    HttpTransportErr {
+        payload: HttpTransportErrPayload {
+            other: ManuallyDrop::new(roc_u8_list_from_slice(message.as_bytes(), roc_host)),
+        },
+        tag: HttpTransportErrTag::Other,
     }
 }
 
 fn build_hyper_request(
-    args: &HttpHostSendRequestArgs,
+    args: &HostHttpSendRequestArgs,
 ) -> Result<hyper::Request<http_body_util::Full<bytes::Bytes>>, String> {
     let method = as_hyper_method(args.method, args.method_ext.as_str())
         .ok_or_else(|| "invalid HTTP method".to_string())?;
@@ -946,7 +1010,7 @@ fn build_hyper_request(
 }
 
 fn build_roc_headers(pairs: &[(String, String)], roc_host: &RocHost) -> RocList<HttpHeader> {
-    let list = RocList::<HttpHeader>::allocate(pairs.len(), roc_host);
+    let list = unsafe { RocList::<HttpHeader>::allocate(pairs.len(), roc_host) };
     for (index, (name, value)) in pairs.iter().enumerate() {
         let header = HttpHeader {
             _0: RocStr::from_str(name, roc_host),
@@ -962,7 +1026,7 @@ fn build_roc_headers(pairs: &[(String, String)], roc_host: &RocHost) -> RocList<
 async fn async_send_request(
     request: hyper::Request<http_body_util::Full<bytes::Bytes>>,
     roc_host: &RocHost,
-) -> HttpResponse {
+) -> HttpResult {
     use http_body_util::BodyExt;
     use hyper_rustls::HttpsConnectorBuilder;
     use hyper_util::client::legacy::Client;
@@ -970,7 +1034,7 @@ async fn async_send_request(
 
     let https = match HttpsConnectorBuilder::new().with_native_roots() {
         Ok(builder) => builder.https_or_http().enable_http1().build(),
-        Err(_) => return http_sentinel_response(500, b"NetworkError", roc_host),
+        Err(_) => return http_err(http_err_network_error()),
     };
 
     let client: Client<_, http_body_util::Full<bytes::Bytes>> =
@@ -993,47 +1057,49 @@ async fn async_send_request(
             match response.into_body().collect().await {
                 Ok(collected) => {
                     let bytes = collected.to_bytes();
-                    HttpResponse {
-                        body: RocListWith::<u8, false>::from_slice(&bytes, roc_host),
+                    http_ok(HttpResponse {
+                        body: roc_u8_list_from_slice(&bytes, roc_host),
                         headers: build_roc_headers(&pairs, roc_host),
                         status,
-                    }
+                    })
                 }
-                Err(_) => http_sentinel_response(500, b"BadBody", roc_host),
+                Err(_) => http_err(http_err_bad_body()),
             }
         }
         Err(err) => {
-            let detail = format!("OTHER ERROR\n{}", err);
-            http_sentinel_response(500, detail.as_bytes(), roc_host)
+            let detail = err.to_string();
+            http_err(http_err_other(&detail, roc_host))
         }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_http_send_request(args: HttpHostSendRequestArgs) -> HttpResponse {
+pub extern "C" fn hosted_http_send_request(args: HostHttpSendRequestArgs) -> HttpResult {
     let roc_host = roc_host();
     let timeout_ms = args.timeout_ms;
 
     // Build the hyper request from the borrowed args, then release the owned
     // Roc values (the request has copied everything it needs).
     let request_result = build_hyper_request(&args);
-    args.body.decref(roc_host);
-    for header in args.headers.as_slice() {
-        decref_anon_struct62(*header, roc_host);
+    unsafe {
+        args.body.decref(roc_host);
     }
-    args.headers.decref(roc_host);
-    args.method_ext.decref(roc_host);
-    args.uri.decref(roc_host);
+    for header in args.headers.as_slice() {
+        decref_anon_struct38(*header, roc_host);
+    }
+    unsafe {
+        args.headers.decref(roc_host);
+    }
+    unsafe {
+        args.method_ext.decref(roc_host);
+    }
+    unsafe {
+        args.uri.decref(roc_host);
+    }
 
     let request = match request_result {
         Ok(request) => request,
-        Err(err) => {
-            return http_sentinel_response(
-                500,
-                format!("OTHER ERROR\n{}", err).as_bytes(),
-                roc_host,
-            )
-        }
+        Err(err) => return http_err(http_err_other(&err, roc_host)),
     };
 
     TOKIO_RUNTIME.with(|rt| {
@@ -1046,7 +1112,7 @@ pub extern "C" fn hosted_http_send_request(args: HttpHostSendRequestArgs) -> Htt
                 .await
                 {
                     Ok(response) => response,
-                    Err(_) => http_sentinel_response(408, b"Timeout", roc_host),
+                    Err(_) => http_err(http_err_timeout()),
                 }
             })
         } else {
@@ -1134,71 +1200,77 @@ macro_rules! define_common_io_err {
 define_common_io_err!(
     cmd_io_err_from_io,
     cmd_io_err_other,
-    CmdIOErr,
-    CmdIOErrTag,
-    CmdIOErrPayload
+    HostIOErr,
+    HostIOErrTag,
+    HostIOErrPayload
 );
 define_common_io_err!(
     dir_io_err_from_io,
     dir_io_err_other,
-    DirIOErr,
-    DirIOErrTag,
-    DirIOErrPayload
+    HostIOErr,
+    HostIOErrTag,
+    HostIOErrPayload
 );
 define_common_io_err!(
     file_io_err_from_io,
     file_io_err_other,
-    FileIOErr,
-    FileIOErrTag,
-    FileIOErrPayload
+    HostIOErr,
+    HostIOErrTag,
+    HostIOErrPayload
 );
 define_common_io_err!(
     path_io_err_from_io,
     path_io_err_other,
-    PathIOErr,
-    PathIOErrTag,
-    PathIOErrPayload
+    HostIOErr,
+    HostIOErrTag,
+    HostIOErrPayload
 );
 define_common_io_err!(
     random_io_err_from_io,
     random_io_err_other,
-    RandomIOErr,
-    RandomIOErrTag,
-    RandomIOErrPayload
+    HostIOErr,
+    HostIOErrTag,
+    HostIOErrPayload
 );
 define_common_io_err!(
     stderr_io_err_from_io,
     stderr_io_err_other,
-    StderrIOErr,
-    StderrIOErrTag,
-    StderrIOErrPayload
+    HostIOErr,
+    HostIOErrTag,
+    HostIOErrPayload
 );
 define_common_io_err!(
     stdin_io_err_from_io,
     stdin_io_err_other,
-    StdinIOErr,
-    StdinIOErrTag,
-    StdinIOErrPayload
+    HostIOErr,
+    HostIOErrTag,
+    HostIOErrPayload
 );
 define_common_io_err!(
     stdout_io_err_from_io,
     stdout_io_err_other,
-    StdoutIOErr,
-    StdoutIOErrTag,
-    StdoutIOErrPayload
+    HostIOErr,
+    HostIOErrTag,
+    HostIOErrPayload
 );
 
 fn decref_roc_str_list(list: &RocList<RocStr>, roc_host: &RocHost) {
     for item in list.as_slice() {
-        item.decref(roc_host);
+        unsafe {
+            item.decref(roc_host);
+        }
     }
-    list.decref(roc_host);
+    unsafe {
+        list.decref(roc_host);
+    }
 }
 
 fn decref_host_cmd_arg(cmd: &Cmd, roc_host: &RocHost) {
     decref_roc_str_list(&cmd.args, roc_host);
     decref_roc_str_list(&cmd.envs, roc_host);
-    cmd.program.decref(roc_host);
+    unsafe {
+        cmd.program.decref(roc_host);
+    }
 }
 
 fn cmd_to_std(cmd: &Cmd) -> std::process::Command {
@@ -1230,7 +1302,7 @@ fn try_cmd_exit_ok(value: i32) -> CmdExitResult {
     }
 }
 
-fn try_cmd_exit_err(error: CmdIOErr) -> CmdExitResult {
+fn try_cmd_exit_err(error: HostIOErr) -> CmdExitResult {
     CmdExitResult {
         payload: CmdExitResultPayload {
             err: ManuallyDrop::new(error),
@@ -1266,7 +1338,7 @@ fn try_cmd_output_failure_ok(value: CmdOutputFailure) -> CmdOutputFailureResult 
     }
 }
 
-fn try_cmd_output_failure_err(error: CmdIOErr) -> CmdOutputFailureResult {
+fn try_cmd_output_failure_err(error: HostIOErr) -> CmdOutputFailureResult {
     CmdOutputFailureResult {
         payload: CmdOutputFailureResultPayload {
             err: ManuallyDrop::new(error),
@@ -1284,7 +1356,7 @@ fn try_dir_unit_ok() -> DirUnitResult {
     }
 }
 
-fn try_dir_unit_err(error: DirIOErr) -> DirUnitResult {
+fn try_dir_unit_err(error: HostIOErr) -> DirUnitResult {
     DirUnitResult {
         payload: DirUnitResultPayload {
             err: ManuallyDrop::new(error),
@@ -1293,75 +1365,75 @@ fn try_dir_unit_err(error: DirIOErr) -> DirUnitResult {
     }
 }
 
-fn try_dir_list_ok(value: RocList<RocStr>) -> DirListResult {
-    DirListResult {
-        payload: DirListResultPayload {
+fn try_dir_list_ok(value: RocList<RocStr>) -> HostDirListResult {
+    HostDirListResult {
+        payload: HostDirListResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: DirListResultTag::Ok,
+        tag: HostDirListResultTag::Ok,
     }
 }
 
-fn try_dir_list_err(error: DirIOErr) -> DirListResult {
-    DirListResult {
-        payload: DirListResultPayload {
+fn try_dir_list_err(error: HostIOErr) -> HostDirListResult {
+    HostDirListResult {
+        payload: HostDirListResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: DirListResultTag::Err,
+        tag: HostDirListResultTag::Err,
     }
 }
 
-fn try_env_str_ok(value: RocStr) -> EnvVarResult {
-    EnvVarResult {
-        payload: EnvVarResultPayload {
+fn try_env_str_ok(value: RocStr) -> HostEnvVarResult {
+    HostEnvVarResult {
+        payload: HostEnvVarResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: EnvVarResultTag::Ok,
+        tag: HostEnvVarResultTag::Ok,
     }
 }
 
-fn try_env_str_err(error: RocStr) -> EnvVarResult {
-    EnvVarResult {
-        payload: EnvVarResultPayload {
+fn try_env_str_err(error: RocStr) -> HostEnvVarResult {
+    HostEnvVarResult {
+        payload: HostEnvVarResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: EnvVarResultTag::Err,
+        tag: HostEnvVarResultTag::Err,
     }
 }
 
-fn try_env_cwd_ok(value: RocStr) -> EnvCwdResult {
-    EnvCwdResult {
-        payload: EnvCwdResultPayload {
+fn try_env_cwd_ok(value: RocStr) -> HostEnvCwdResult {
+    HostEnvCwdResult {
+        payload: HostEnvCwdResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: EnvCwdResultTag::Ok,
+        tag: HostEnvCwdResultTag::Ok,
     }
 }
 
-fn try_env_cwd_err() -> EnvCwdResult {
-    EnvCwdResult {
-        payload: EnvCwdResultPayload {
+fn try_env_cwd_err() -> HostEnvCwdResult {
+    HostEnvCwdResult {
+        payload: HostEnvCwdResultPayload {
             err: ManuallyDrop::new(core::ptr::null_mut()),
         },
-        tag: EnvCwdResultTag::Err,
+        tag: HostEnvCwdResultTag::Err,
     }
 }
 
-fn try_env_exe_path_ok(value: RocStr) -> EnvExePathResult {
-    EnvExePathResult {
-        payload: EnvExePathResultPayload {
+fn try_env_exe_path_ok(value: RocStr) -> HostEnvExePathResult {
+    HostEnvExePathResult {
+        payload: HostEnvExePathResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: EnvExePathResultTag::Ok,
+        tag: HostEnvExePathResultTag::Ok,
     }
 }
 
-fn try_env_exe_path_err() -> EnvExePathResult {
-    EnvExePathResult {
-        payload: EnvExePathResultPayload {
+fn try_env_exe_path_err() -> HostEnvExePathResult {
+    HostEnvExePathResult {
+        payload: HostEnvExePathResultPayload {
             err: ManuallyDrop::new(core::ptr::null_mut()),
         },
-        tag: EnvExePathResultTag::Err,
+        tag: HostEnvExePathResultTag::Err,
     }
 }
 
@@ -1374,7 +1446,7 @@ fn try_file_bytes_ok(value: RocListWith<u8, false>) -> FileBytesResult {
     }
 }
 
-fn try_file_bytes_err(error: FileIOErr) -> FileBytesResult {
+fn try_file_bytes_err(error: HostIOErr) -> FileBytesResult {
     FileBytesResult {
         payload: FileBytesResultPayload {
             err: ManuallyDrop::new(error),
@@ -1392,7 +1464,7 @@ fn try_file_reader_ok(handle: *mut u64) -> FileReaderOpenResult {
     }
 }
 
-fn try_file_reader_err(error: FileIOErr) -> FileReaderOpenResult {
+fn try_file_reader_err(error: HostIOErr) -> FileReaderOpenResult {
     FileReaderOpenResult {
         payload: FileReaderOpenResultPayload {
             err: ManuallyDrop::new(error),
@@ -1410,7 +1482,7 @@ fn try_file_reader_line_ok(value: RocListWith<u8, false>) -> FileReaderLineResul
     }
 }
 
-fn try_file_reader_line_err(error: FileIOErr) -> FileReaderLineResult {
+fn try_file_reader_line_err(error: HostIOErr) -> FileReaderLineResult {
     FileReaderLineResult {
         payload: FileReaderLineResultPayload {
             err: ManuallyDrop::new(error),
@@ -1419,21 +1491,21 @@ fn try_file_reader_line_err(error: FileIOErr) -> FileReaderLineResult {
     }
 }
 
-fn try_file_write_bytes_ok() -> FileWriteBytesResult {
-    FileWriteBytesResult {
-        payload: FileWriteBytesResultPayload {
+fn try_file_write_bytes_ok() -> HostFileWriteBytesResult {
+    HostFileWriteBytesResult {
+        payload: HostFileWriteBytesResultPayload {
             ok: ManuallyDrop::new(()),
         },
-        tag: FileWriteBytesResultTag::Ok,
+        tag: HostFileWriteBytesResultTag::Ok,
     }
 }
 
-fn try_file_write_bytes_err(error: FileIOErr) -> FileWriteBytesResult {
-    FileWriteBytesResult {
-        payload: FileWriteBytesResultPayload {
+fn try_file_write_bytes_err(error: HostIOErr) -> HostFileWriteBytesResult {
+    HostFileWriteBytesResult {
+        payload: HostFileWriteBytesResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: FileWriteBytesResultTag::Err,
+        tag: HostFileWriteBytesResultTag::Err,
     }
 }
 
@@ -1446,7 +1518,7 @@ fn try_file_str_ok(value: RocStr) -> FileStrResult {
     }
 }
 
-fn try_file_str_err(error: FileIOErr) -> FileStrResult {
+fn try_file_str_err(error: HostIOErr) -> FileStrResult {
     FileStrResult {
         payload: FileStrResultPayload {
             err: ManuallyDrop::new(error),
@@ -1455,39 +1527,39 @@ fn try_file_str_err(error: FileIOErr) -> FileStrResult {
     }
 }
 
-fn try_file_write_utf8_ok() -> FileWriteUtf8Result {
-    FileWriteUtf8Result {
-        payload: FileWriteUtf8ResultPayload {
+fn try_file_write_utf8_ok() -> HostFileWriteUtf8Result {
+    HostFileWriteUtf8Result {
+        payload: HostFileWriteUtf8ResultPayload {
             ok: ManuallyDrop::new(()),
         },
-        tag: FileWriteUtf8ResultTag::Ok,
+        tag: HostFileWriteUtf8ResultTag::Ok,
     }
 }
 
-fn try_file_write_utf8_err(error: FileIOErr) -> FileWriteUtf8Result {
-    FileWriteUtf8Result {
-        payload: FileWriteUtf8ResultPayload {
+fn try_file_write_utf8_err(error: HostIOErr) -> HostFileWriteUtf8Result {
+    HostFileWriteUtf8Result {
+        payload: HostFileWriteUtf8ResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: FileWriteUtf8ResultTag::Err,
+        tag: HostFileWriteUtf8ResultTag::Err,
     }
 }
 
-fn try_file_delete_ok() -> FileDeleteResult {
-    FileDeleteResult {
-        payload: FileDeleteResultPayload {
+fn try_file_delete_ok() -> HostFileDeleteResult {
+    HostFileDeleteResult {
+        payload: HostFileDeleteResultPayload {
             ok: ManuallyDrop::new(()),
         },
-        tag: FileDeleteResultTag::Ok,
+        tag: HostFileDeleteResultTag::Ok,
     }
 }
 
-fn try_file_delete_err(error: FileIOErr) -> FileDeleteResult {
-    FileDeleteResult {
-        payload: FileDeleteResultPayload {
+fn try_file_delete_err(error: HostIOErr) -> HostFileDeleteResult {
+    HostFileDeleteResult {
+        payload: HostFileDeleteResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: FileDeleteResultTag::Err,
+        tag: HostFileDeleteResultTag::Err,
     }
 }
 
@@ -1500,7 +1572,7 @@ fn try_file_size_ok(value: u64) -> FileSizeResult {
     }
 }
 
-fn try_file_size_err(error: FileIOErr) -> FileSizeResult {
+fn try_file_size_err(error: HostIOErr) -> FileSizeResult {
     FileSizeResult {
         payload: FileSizeResultPayload {
             err: ManuallyDrop::new(error),
@@ -1518,7 +1590,7 @@ fn try_file_bool_ok(value: bool) -> FileBoolResult {
     }
 }
 
-fn try_file_bool_err(error: FileIOErr) -> FileBoolResult {
+fn try_file_bool_err(error: HostIOErr) -> FileBoolResult {
     FileBoolResult {
         payload: FileBoolResultPayload {
             err: ManuallyDrop::new(error),
@@ -1536,7 +1608,7 @@ fn try_file_time_ok(value: u128) -> FileTimeResult {
     }
 }
 
-fn try_file_time_err(error: FileIOErr) -> FileTimeResult {
+fn try_file_time_err(error: HostIOErr) -> FileTimeResult {
     FileTimeResult {
         payload: FileTimeResultPayload {
             err: ManuallyDrop::new(error),
@@ -1545,30 +1617,30 @@ fn try_file_time_err(error: FileIOErr) -> FileTimeResult {
     }
 }
 
-fn try_locale_get_ok(value: RocStr) -> LocaleGetResult {
-    LocaleGetResult {
-        payload: LocaleGetResultPayload {
+fn try_locale_get_ok(value: RocStr) -> HostLocaleGetResult {
+    HostLocaleGetResult {
+        payload: HostLocaleGetResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: LocaleGetResultTag::Ok,
+        tag: HostLocaleGetResultTag::Ok,
     }
 }
 
-fn try_path_type_ok(value: HostPathType) -> PathHostPathTypeResult {
-    PathHostPathTypeResult {
-        payload: PathHostPathTypeResultPayload {
+fn try_path_type_ok(value: HostPathTypeOk) -> HostPathTypeResult {
+    HostPathTypeResult {
+        payload: HostPathTypeResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: PathHostPathTypeResultTag::Ok,
+        tag: HostPathTypeResultTag::Ok,
     }
 }
 
-fn try_path_type_err(error: PathIOErr) -> PathHostPathTypeResult {
-    PathHostPathTypeResult {
-        payload: PathHostPathTypeResultPayload {
+fn try_path_type_err(error: HostIOErr) -> HostPathTypeResult {
+    HostPathTypeResult {
+        payload: HostPathTypeResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: PathHostPathTypeResultTag::Err,
+        tag: HostPathTypeResultTag::Err,
     }
 }
 
@@ -1581,7 +1653,7 @@ fn try_random_u64_ok(value: u64) -> RandomU64Result {
     }
 }
 
-fn try_random_u64_err(error: RandomIOErr) -> RandomU64Result {
+fn try_random_u64_err(error: HostIOErr) -> RandomU64Result {
     RandomU64Result {
         payload: RandomU64ResultPayload {
             err: ManuallyDrop::new(error),
@@ -1599,7 +1671,7 @@ fn try_random_u32_ok(value: u32) -> RandomU32Result {
     }
 }
 
-fn try_random_u32_err(error: RandomIOErr) -> RandomU32Result {
+fn try_random_u32_err(error: HostIOErr) -> RandomU32Result {
     RandomU32Result {
         payload: RandomU32ResultPayload {
             err: ManuallyDrop::new(error),
@@ -1617,7 +1689,7 @@ fn try_stderr_unit_ok() -> StderrUnitResult {
     }
 }
 
-fn try_stderr_unit_err(error: StderrIOErr) -> StderrUnitResult {
+fn try_stderr_unit_err(error: HostIOErr) -> StderrUnitResult {
     StderrUnitResult {
         payload: StderrUnitResultPayload {
             err: ManuallyDrop::new(error),
@@ -1635,7 +1707,7 @@ fn try_stderr_bytes_ok() -> StderrBytesResult {
     }
 }
 
-fn try_stderr_bytes_err(error: StderrIOErr) -> StderrBytesResult {
+fn try_stderr_bytes_err(error: HostIOErr) -> StderrBytesResult {
     StderrBytesResult {
         payload: StderrBytesResultPayload {
             err: ManuallyDrop::new(error),
@@ -1651,7 +1723,7 @@ fn stdin_line_eof_or_err_eof() -> StdinLineReadErr {
     }
 }
 
-fn stdin_line_eof_or_err_io(error: StdinIOErr) -> StdinLineReadErr {
+fn stdin_line_eof_or_err_io(error: HostIOErr) -> StdinLineReadErr {
     StdinLineReadErr {
         payload: StdinLineReadErrPayload {
             stdin_err: ManuallyDrop::new(error),
@@ -1667,7 +1739,7 @@ fn stdin_bytes_eof_or_err_eof() -> StdinBytesReadErr {
     }
 }
 
-fn stdin_bytes_eof_or_err_io(error: StdinIOErr) -> StdinBytesReadErr {
+fn stdin_bytes_eof_or_err_io(error: HostIOErr) -> StdinBytesReadErr {
     StdinBytesReadErr {
         payload: StdinBytesReadErrPayload {
             stdin_err: ManuallyDrop::new(error),
@@ -1676,57 +1748,57 @@ fn stdin_bytes_eof_or_err_io(error: StdinIOErr) -> StdinBytesReadErr {
     }
 }
 
-fn try_stdin_line_ok(value: RocStr) -> StdinLineResult {
-    StdinLineResult {
-        payload: StdinLineResultPayload {
+fn try_stdin_line_ok(value: RocStr) -> HostStdinLineResult {
+    HostStdinLineResult {
+        payload: HostStdinLineResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: StdinLineResultTag::Ok,
+        tag: HostStdinLineResultTag::Ok,
     }
 }
 
-fn try_stdin_line_err(error: StdinLineReadErr) -> StdinLineResult {
-    StdinLineResult {
-        payload: StdinLineResultPayload {
+fn try_stdin_line_err(error: StdinLineReadErr) -> HostStdinLineResult {
+    HostStdinLineResult {
+        payload: HostStdinLineResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: StdinLineResultTag::Err,
+        tag: HostStdinLineResultTag::Err,
     }
 }
 
-fn try_stdin_bytes_ok(value: RocListWith<u8, false>) -> StdinBytesResult {
-    StdinBytesResult {
-        payload: StdinBytesResultPayload {
+fn try_stdin_bytes_ok(value: RocListWith<u8, false>) -> HostStdinBytesResult {
+    HostStdinBytesResult {
+        payload: HostStdinBytesResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: StdinBytesResultTag::Ok,
+        tag: HostStdinBytesResultTag::Ok,
     }
 }
 
-fn try_stdin_bytes_err(error: StdinBytesReadErr) -> StdinBytesResult {
-    StdinBytesResult {
-        payload: StdinBytesResultPayload {
+fn try_stdin_bytes_err(error: StdinBytesReadErr) -> HostStdinBytesResult {
+    HostStdinBytesResult {
+        payload: HostStdinBytesResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: StdinBytesResultTag::Err,
+        tag: HostStdinBytesResultTag::Err,
     }
 }
 
-fn try_stdin_read_to_end_ok(value: RocListWith<u8, false>) -> StdinReadToEndResult {
-    StdinReadToEndResult {
-        payload: StdinReadToEndResultPayload {
+fn try_stdin_read_to_end_ok(value: RocListWith<u8, false>) -> HostStdinReadToEndResult {
+    HostStdinReadToEndResult {
+        payload: HostStdinReadToEndResultPayload {
             ok: ManuallyDrop::new(value),
         },
-        tag: StdinReadToEndResultTag::Ok,
+        tag: HostStdinReadToEndResultTag::Ok,
     }
 }
 
-fn try_stdin_read_to_end_err(error: StdinIOErr) -> StdinReadToEndResult {
-    StdinReadToEndResult {
-        payload: StdinReadToEndResultPayload {
+fn try_stdin_read_to_end_err(error: HostIOErr) -> HostStdinReadToEndResult {
+    HostStdinReadToEndResult {
+        payload: HostStdinReadToEndResultPayload {
             err: ManuallyDrop::new(error),
         },
-        tag: StdinReadToEndResultTag::Err,
+        tag: HostStdinReadToEndResultTag::Err,
     }
 }
 
@@ -1739,7 +1811,7 @@ fn try_stdout_unit_ok() -> StdoutUnitResult {
     }
 }
 
-fn try_stdout_unit_err(error: StdoutIOErr) -> StdoutUnitResult {
+fn try_stdout_unit_err(error: HostIOErr) -> StdoutUnitResult {
     StdoutUnitResult {
         payload: StdoutUnitResultPayload {
             err: ManuallyDrop::new(error),
@@ -1757,7 +1829,7 @@ fn try_stdout_bytes_ok() -> StdoutBytesResult {
     }
 }
 
-fn try_stdout_bytes_err(error: StdoutIOErr) -> StdoutBytesResult {
+fn try_stdout_bytes_err(error: HostIOErr) -> StdoutBytesResult {
     StdoutBytesResult {
         payload: StdoutBytesResultPayload {
             err: ManuallyDrop::new(error),
@@ -1789,8 +1861,8 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
 
     match std_cmd.output() {
         Ok(output) => {
-            let stdout_bytes = RocListWith::<u8, false>::from_slice(&output.stdout, roc_host);
-            let stderr_bytes = RocListWith::<u8, false>::from_slice(&output.stderr, roc_host);
+            let stdout_bytes = roc_u8_list_from_slice(&output.stdout, roc_host);
+            let stderr_bytes = roc_u8_list_from_slice(&output.stderr, roc_host);
 
             match output.status.code() {
                 Some(0) => try_cmd_output_ok(CmdOutputSuccess {
@@ -1805,8 +1877,12 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
                     }))
                 }
                 None => {
-                    stdout_bytes.decref(roc_host);
-                    stderr_bytes.decref(roc_host);
+                    unsafe {
+                        stdout_bytes.decref(roc_host);
+                    }
+                    unsafe {
+                        stderr_bytes.decref(roc_host);
+                    }
                     try_cmd_output_err(try_cmd_output_failure_err(cmd_io_err_other(
                         "Process was killed by signal",
                         roc_host,
@@ -1822,7 +1898,9 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
 
 fn path_from_roc_str(path: RocStr, roc_host: &RocHost) -> String {
     let path_string = path.as_str().to_owned();
-    path.decref(roc_host);
+    unsafe {
+        path.decref(roc_host);
+    }
     path_string
 }
 
@@ -1863,7 +1941,7 @@ pub extern "C" fn hosted_dir_delete_empty(path: RocStr) -> DirUnitResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_dir_list(path: RocStr) -> DirListResult {
+pub extern "C" fn hosted_dir_list(path: RocStr) -> HostDirListResult {
     let roc_host = roc_host();
     match fs::read_dir(path_from_roc_str(path, roc_host)) {
         Ok(read_dir) => {
@@ -1874,7 +1952,7 @@ pub extern "C" fn hosted_dir_list(path: RocStr) -> DirListResult {
                         .map(|entry| entry.path().to_string_lossy().into_owned())
                 })
                 .collect();
-            let list = RocList::<RocStr>::allocate(entries.len(), roc_host);
+            let list = unsafe { RocList::<RocStr>::allocate(entries.len(), roc_host) };
             for (index, entry) in entries.iter().enumerate() {
                 unsafe {
                     list.elements
@@ -1889,7 +1967,7 @@ pub extern "C" fn hosted_dir_list(path: RocStr) -> DirListResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_env_cwd() -> EnvCwdResult {
+pub extern "C" fn hosted_env_cwd() -> HostEnvCwdResult {
     let roc_host = roc_host();
     match std::env::current_dir() {
         Ok(path) => try_env_cwd_ok(RocStr::from_str(path.to_string_lossy().as_ref(), roc_host)),
@@ -1898,7 +1976,7 @@ pub extern "C" fn hosted_env_cwd() -> EnvCwdResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_env_exe_path() -> EnvExePathResult {
+pub extern "C" fn hosted_env_exe_path() -> HostEnvExePathResult {
     let roc_host = roc_host();
     match std::env::current_exe() {
         Ok(path) => {
@@ -1915,12 +1993,14 @@ pub extern "C" fn hosted_env_temp_dir() -> RocStr {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_env_var(name: RocStr) -> EnvVarResult {
+pub extern "C" fn hosted_env_var(name: RocStr) -> HostEnvVarResult {
     let roc_host = roc_host();
     let key = name.as_str().to_owned();
     match std::env::var_os(&key) {
         Some(value) => {
-            name.decref(roc_host);
+            unsafe {
+                name.decref(roc_host);
+            }
             try_env_str_ok(RocStr::from_str(value.to_string_lossy().as_ref(), roc_host))
         }
         None => try_env_str_err(name),
@@ -1928,7 +2008,7 @@ pub extern "C" fn hosted_env_var(name: RocStr) -> EnvVarResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_delete(path: RocStr) -> FileDeleteResult {
+pub extern "C" fn hosted_file_delete(path: RocStr) -> HostFileDeleteResult {
     let roc_host = roc_host();
     match fs::remove_file(path_from_roc_str(path, roc_host)) {
         Ok(()) => try_file_delete_ok(),
@@ -1940,7 +2020,7 @@ pub extern "C" fn hosted_file_delete(path: RocStr) -> FileDeleteResult {
 pub extern "C" fn hosted_file_read_bytes(path: RocStr) -> FileBytesResult {
     let roc_host = roc_host();
     match fs::read(path_from_roc_str(path, roc_host)) {
-        Ok(bytes) => try_file_bytes_ok(RocListWith::<u8, false>::from_slice(&bytes, roc_host)),
+        Ok(bytes) => try_file_bytes_ok(roc_u8_list_from_slice(&bytes, roc_host)),
         Err(error) => try_file_bytes_err(file_io_err_from_io(&error, roc_host)),
     }
 }
@@ -1967,12 +2047,14 @@ const FILE_READER_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
 fn box_file_reader(reader: BufReader<fs::File>, roc_host: &RocHost) -> *mut u64 {
     let raw: *mut BufReader<fs::File> = Box::into_raw(Box::new(reader));
-    let boxed = allocate_box(
-        core::mem::size_of::<u64>(),
-        FILE_READER_BOX_ALIGN,
-        false,
-        roc_host,
-    );
+    let boxed = unsafe {
+        allocate_box(
+            core::mem::size_of::<u64>(),
+            FILE_READER_BOX_ALIGN,
+            false,
+            roc_host,
+        )
+    };
     unsafe {
         *(boxed as *mut u64) = raw as u64;
     }
@@ -1993,13 +2075,15 @@ extern "C" fn drop_file_reader(data_ptr: *mut c_void, _roc_host: *mut RocHost) {
 }
 
 fn release_file_reader(handle: *mut u64, roc_host: &RocHost) {
-    decref_box_with(
-        handle as RocBox,
-        FILE_READER_BOX_ALIGN,
-        false,
-        Some(drop_file_reader),
-        roc_host,
-    );
+    unsafe {
+        decref_box_with(
+            handle as RocBox,
+            FILE_READER_BOX_ALIGN,
+            false,
+            Some(drop_file_reader),
+            roc_host,
+        );
+    }
 }
 
 #[no_mangle]
@@ -2025,9 +2109,7 @@ pub extern "C" fn hosted_file_read_line(handle: *mut u64) -> FileReaderLineResul
         let reader = unsafe { file_reader_ref(handle) };
         let mut buffer = Vec::new();
         match reader.read_until(b'\n', &mut buffer) {
-            Ok(_) => try_file_reader_line_ok(RocListWith::<u8, false>::from_slice(
-                &buffer, roc_host,
-            )),
+            Ok(_) => try_file_reader_line_ok(roc_u8_list_from_slice(&buffer, roc_host)),
             Err(error) => try_file_reader_line_err(file_io_err_from_io(&error, roc_host)),
         }
     };
@@ -2146,11 +2228,13 @@ pub extern "C" fn hosted_file_time_modified(path: RocStr) -> FileTimeResult {
 pub extern "C" fn hosted_file_write_bytes(
     path: RocStr,
     bytes: RocListWith<u8, false>,
-) -> FileWriteBytesResult {
+) -> HostFileWriteBytesResult {
     let roc_host = roc_host();
     let path_string = path_from_roc_str(path, roc_host);
     let result = fs::write(path_string, bytes.as_slice());
-    bytes.decref(roc_host);
+    unsafe {
+        bytes.decref(roc_host);
+    }
 
     match result {
         Ok(()) => try_file_write_bytes_ok(),
@@ -2159,11 +2243,13 @@ pub extern "C" fn hosted_file_write_bytes(
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_write_utf8(path: RocStr, content: RocStr) -> FileWriteUtf8Result {
+pub extern "C" fn hosted_file_write_utf8(path: RocStr, content: RocStr) -> HostFileWriteUtf8Result {
     let roc_host = roc_host();
     let path_string = path_from_roc_str(path, roc_host);
     let content_string = content.as_str().to_owned();
-    content.decref(roc_host);
+    unsafe {
+        content.decref(roc_host);
+    }
 
     match fs::write(path_string, content_string) {
         Ok(()) => try_file_write_utf8_ok(),
@@ -2227,7 +2313,7 @@ fn locale_all_strings() -> Vec<String> {
 pub extern "C" fn hosted_locale_all() -> RocList<RocStr> {
     let roc_host = roc_host();
     let locales = locale_all_strings();
-    let list = RocList::<RocStr>::allocate(locales.len(), roc_host);
+    let list = unsafe { RocList::<RocStr>::allocate(locales.len(), roc_host) };
 
     for (index, locale) in locales.iter().enumerate() {
         unsafe {
@@ -2241,75 +2327,42 @@ pub extern "C" fn hosted_locale_all() -> RocList<RocStr> {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_locale_get() -> LocaleGetResult {
+pub extern "C" fn hosted_locale_get() -> HostLocaleGetResult {
     let roc_host = roc_host();
     try_locale_get_ok(RocStr::from_str(&locale_get_string(), roc_host))
 }
 
-fn path_io_err_unsupported() -> PathIOErr {
-    PathIOErr {
-        payload: PathIOErrPayload { unsupported: [] },
-        tag: PathIOErrTag::Unsupported,
+fn path_buf_from_bytes(path: RocListWith<u8, false>, roc_host: &RocHost) -> std::path::PathBuf {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+
+        let path_buf = std::path::PathBuf::from(std::ffi::OsStr::from_bytes(path.as_slice()));
+        unsafe {
+            path.decref(roc_host);
+        }
+        path_buf
     }
-}
 
-fn path_buf_from_raw_path(
-    raw_path: Path,
-    roc_host: &RocHost,
-) -> Result<std::path::PathBuf, PathIOErr> {
-    match raw_path.tag {
-        PathTag::Unix => unsafe {
-            let bytes = ManuallyDrop::into_inner(raw_path.payload.unix);
-
-            #[cfg(unix)]
-            {
-                use std::os::unix::ffi::OsStrExt;
-
-                let path = std::ffi::OsStr::from_bytes(bytes.as_slice()).to_owned();
-                bytes.decref(roc_host);
-                Ok(std::path::PathBuf::from(path))
-            }
-
-            #[cfg(not(unix))]
-            {
-                bytes.decref(roc_host);
-                Err(path_io_err_unsupported())
-            }
-        },
-
-        PathTag::Windows => unsafe {
-            let u16s = ManuallyDrop::into_inner(raw_path.payload.windows);
-
-            #[cfg(windows)]
-            {
-                use std::os::windows::ffi::OsStringExt;
-
-                let path = std::ffi::OsString::from_wide(u16s.as_slice());
-                u16s.decref(roc_host);
-                Ok(std::path::PathBuf::from(path))
-            }
-
-            #[cfg(not(windows))]
-            {
-                u16s.decref(roc_host);
-                Err(path_io_err_unsupported())
-            }
-        },
+    #[cfg(not(unix))]
+    {
+        let path_buf = std::path::PathBuf::from(String::from_utf8_lossy(path.as_slice()).as_ref());
+        unsafe {
+            path.decref(roc_host);
+        }
+        path_buf
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_path_type(path: Path) -> PathHostPathTypeResult {
+pub extern "C" fn hosted_path_type(path: RocListWith<u8, false>) -> HostPathTypeResult {
     let roc_host = roc_host();
-    let path = match path_buf_from_raw_path(path, roc_host) {
-        Ok(path) => path,
-        Err(error) => return try_path_type_err(error),
-    };
+    let path = path_buf_from_bytes(path, roc_host);
 
     match path.symlink_metadata() {
         Ok(metadata) => {
             let file_type = metadata.file_type();
-            try_path_type_ok(HostPathType {
+            try_path_type_ok(HostPathTypeOk {
                 is_dir: metadata.is_dir(),
                 is_file: metadata.is_file(),
                 is_sym_link: file_type.is_symlink(),
@@ -2357,7 +2410,9 @@ pub extern "C" fn hosted_stderr_line(message: RocStr) -> StderrUnitResult {
         let mut stderr = io::stderr().lock();
         writeln!(stderr, "{}", message.as_str())
     };
-    message.decref(roc_host);
+    unsafe {
+        message.decref(roc_host);
+    }
 
     match result {
         Ok(()) => try_stderr_unit_ok(),
@@ -2372,7 +2427,9 @@ pub extern "C" fn hosted_stderr_write(message: RocStr) -> StderrUnitResult {
         let mut stderr = io::stderr().lock();
         write!(stderr, "{}", message.as_str()).and_then(|()| stderr.flush())
     };
-    message.decref(roc_host);
+    unsafe {
+        message.decref(roc_host);
+    }
 
     match result {
         Ok(()) => try_stderr_unit_ok(),
@@ -2389,7 +2446,9 @@ pub extern "C" fn hosted_stderr_write_bytes(bytes: RocListWith<u8, false>) -> St
             .write_all(bytes.as_slice())
             .and_then(|()| stderr.flush())
     };
-    bytes.decref(roc_host);
+    unsafe {
+        bytes.decref(roc_host);
+    }
 
     match result {
         Ok(()) => try_stderr_bytes_ok(),
@@ -2398,7 +2457,7 @@ pub extern "C" fn hosted_stderr_write_bytes(bytes: RocListWith<u8, false>) -> St
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_stdin_line() -> StdinLineResult {
+pub extern "C" fn hosted_stdin_line() -> HostStdinLineResult {
     let roc_host = roc_host();
     let mut line = String::new();
     match io::stdin().lock().read_line(&mut line) {
@@ -2414,15 +2473,14 @@ pub extern "C" fn hosted_stdin_line() -> StdinLineResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_stdin_bytes() -> StdinBytesResult {
+pub extern "C" fn hosted_stdin_bytes() -> HostStdinBytesResult {
     let roc_host = roc_host();
     let mut buffer = [0u8; 16_384];
     match io::stdin().lock().read(&mut buffer) {
         Ok(0) => try_stdin_bytes_err(stdin_bytes_eof_or_err_eof()),
-        Ok(bytes_read) => try_stdin_bytes_ok(RocListWith::<u8, false>::from_slice(
-            &buffer[..bytes_read],
-            roc_host,
-        )),
+        Ok(bytes_read) => {
+            try_stdin_bytes_ok(roc_u8_list_from_slice(&buffer[..bytes_read], roc_host))
+        }
         Err(error) => try_stdin_bytes_err(stdin_bytes_eof_or_err_io(stdin_io_err_from_io(
             &error, roc_host,
         ))),
@@ -2430,11 +2488,11 @@ pub extern "C" fn hosted_stdin_bytes() -> StdinBytesResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_stdin_read_to_end() -> StdinReadToEndResult {
+pub extern "C" fn hosted_stdin_read_to_end() -> HostStdinReadToEndResult {
     let roc_host = roc_host();
     let mut buffer = Vec::new();
     match io::stdin().lock().read_to_end(&mut buffer) {
-        Ok(_) => try_stdin_read_to_end_ok(RocListWith::<u8, false>::from_slice(&buffer, roc_host)),
+        Ok(_) => try_stdin_read_to_end_ok(roc_u8_list_from_slice(&buffer, roc_host)),
         Err(error) => try_stdin_read_to_end_err(stdin_io_err_from_io(&error, roc_host)),
     }
 }
@@ -2446,7 +2504,9 @@ pub extern "C" fn hosted_stdout_line(message: RocStr) -> StdoutUnitResult {
         let mut stdout = io::stdout().lock();
         writeln!(stdout, "{}", message.as_str())
     };
-    message.decref(roc_host);
+    unsafe {
+        message.decref(roc_host);
+    }
 
     match result {
         Ok(()) => try_stdout_unit_ok(),
@@ -2461,7 +2521,9 @@ pub extern "C" fn hosted_stdout_write(message: RocStr) -> StdoutUnitResult {
         let mut stdout = io::stdout().lock();
         write!(stdout, "{}", message.as_str()).and_then(|()| stdout.flush())
     };
-    message.decref(roc_host);
+    unsafe {
+        message.decref(roc_host);
+    }
 
     match result {
         Ok(()) => try_stdout_unit_ok(),
@@ -2478,7 +2540,9 @@ pub extern "C" fn hosted_stdout_write_bytes(bytes: RocListWith<u8, false>) -> St
             .write_all(bytes.as_slice())
             .and_then(|()| stdout.flush())
     };
-    bytes.decref(roc_host);
+    unsafe {
+        bytes.decref(roc_host);
+    }
 
     match result {
         Ok(()) => try_stdout_bytes_ok(),
@@ -2545,7 +2609,7 @@ fn build_args_list(argc: i32, argv: *const *const c_char, roc_host: &RocHost) ->
         return RocList::empty();
     }
 
-    let list = RocList::<RocStr>::allocate(argc as usize, roc_host);
+    let list = unsafe { RocList::<RocStr>::allocate(argc as usize, roc_host) };
     for index in 0..argc as isize {
         unsafe {
             let arg_ptr = *argv.offset(index);

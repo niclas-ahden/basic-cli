@@ -32,9 +32,20 @@ async fn handle_request(req: Request<Incoming>) -> Result<Response<BoxBody>, Gen
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(full(Bytes::from(utf8_bytes)))?
         },
+        (&Method::GET, "/invalid-json") => {
+            Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "application/json")
+                .body(full(Bytes::from_static(b"not-json")))?
+        },
+        (&Method::GET, "/invalid-utf8") => {
+            Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "application/octet-stream")
+                .body(full(Bytes::from_static(&[0xff])))?
+        },
         _ => {
-            // Default response (original functionality)
-            // output of: Encode.to_bytes({foo: "Hello Json!"}, Json.utf8)
+            // Default JSON response for `{ foo: "Hello Json!" }`.
             let json_bytes: Vec<u8> = vec![123, 34, 102, 111, 111, 34, 58, 34, 72, 101, 108, 108, 111, 32, 74, 115, 111, 110, 33, 34, 125];
 
             Response::builder()

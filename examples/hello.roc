@@ -4,6 +4,6 @@ import pf.Stdout
 
 main! : List(Str) => Try({}, [Exit(I32)])
 main! = |_args| {
-    _ = Stdout.line!("Hello from basic-cli!")
+    Stdout.line!("Hello from basic-cli!") ? |_| Exit(1)
     Ok({})
 }

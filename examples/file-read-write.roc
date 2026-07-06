@@ -5,28 +5,30 @@ import pf.File
 
 # Demo of File.read_utf8! and File.write_utf8!
 
+main! : List(Str) => Try({}, [Exit(I32), ..])
 main! = |_args| {
     out_file = "out.txt"
 
-    _ = Stdout.line!("Writing a string to out.txt")
+    Stdout.line!("Writing a string to out.txt") ? |_| Exit(1)
 
     file_result = || {
         File.write_utf8!(out_file, "a string!")?
 
         contents = File.read_utf8!(out_file)?
 
-        _ = Stdout.line!("I read the file back. Its contents are: \"${contents}\"")
-
         # Cleanup
         File.delete!(out_file)?
 
-        Ok({})
+        Ok(contents)
     }
 
     match file_result() {
-        Ok({}) => Ok({})
+        Ok(contents) => {
+            Stdout.line!("I read the file back. Its contents are: \"${contents}\"") ? |_| Exit(1)
+            Ok({})
+        }
         Err(_) => {
-            _ = Stdout.line!("Error during file operations")
+            Stdout.line!("Error during file operations") ? |_| Exit(1)
             Err(Exit(1))
         }
     }

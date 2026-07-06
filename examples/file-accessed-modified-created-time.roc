@@ -6,6 +6,7 @@ import pf.Utc
 
 # To run this example: check the README.md in this folder
 
+main! : List(Str) => Try({}, _)
 main! = |_args| {
     file = "LICENSE"
 
@@ -21,5 +22,7 @@ main! = |_args| {
         \\    Modified: ${time_modified.to_str()} ms since epoch
         \\    Accessed: ${time_accessed.to_str()} ms since epoch
         \\    Created: ${time_created.to_str()} ms since epoch
-    )
+    )?
+
+    Ok({})
 }
