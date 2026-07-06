@@ -26,7 +26,7 @@ main! = |_args| {
         paths = Dir.list!("nested-dir")?
 
         # Check the contents of the directory
-        expect List.len(paths) == 2
+        expect paths.len() == 2
         expect List.contains(paths, "nested-dir/a")
         expect List.contains(paths, "nested-dir/child")
 

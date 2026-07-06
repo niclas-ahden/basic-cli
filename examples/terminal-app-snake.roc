@@ -63,7 +63,7 @@ initial_state_from_args : List(Str) -> GameState
 initial_state_from_args = |args| {
     # Avoid specializing the renderer with a fully known initial state; the
     # current compiler postcheck panics on that path.
-    has_args = List.len(args) > 0
+    has_args = args.len() > 0
     { ..initial_state, game_over: has_args and Bool.not(has_args) }
 }
 
@@ -210,7 +210,7 @@ snake_prepend = |snake, pos|
 
 snake_len : Snake -> U64
 snake_len = |snake|
-    1 + List.len(snake.rest)
+    1 + snake.rest.len()
 
 initial_grid =
     \\....................

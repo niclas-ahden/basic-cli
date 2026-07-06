@@ -10,12 +10,13 @@ InternalHttp := [].{
     ## response is available.
     TransportErr : [Timeout, NetworkError, BadBody, Other(List(U8))]
 
-    HostHeader : (Str, Str)
+    # Generated Rust glue uses tuple headers at the host ABI boundary.
+    HostHeaderTuple : (Str, Str)
 
     RequestToAndFromHost : {
         method : U8,
         method_ext : Str,
-        headers : List(HostHeader),
+        headers : List(HostHeaderTuple),
         uri : Str,
         body : List(U8),
         timeout_ms : U64,
@@ -23,7 +24,7 @@ InternalHttp := [].{
 
     ResponseToAndFromHost : {
         status : U16,
-        headers : List(HostHeader),
+        headers : List(HostHeaderTuple),
         body : List(U8),
     }
 
@@ -41,17 +42,16 @@ InternalHttp := [].{
     }
 
     from_host_response : ResponseToAndFromHost -> Response.Response
-    from_host_response = |response| {
-        r0 = Response.from_status(response.status)
-        r1 = Response.with_headers(r0, from_host_headers(response.headers))
-        Response.with_body(r1, response.body)
-    }
+    from_host_response = |response|
+        Response.from_status(response.status)
+            .with_headers(from_host_headers(response.headers))
+            .with_body(response.body)
 
-    to_host_headers : List(Header.Header) -> List(HostHeader)
+    to_host_headers : List(Header.Header) -> List(HostHeaderTuple)
     to_host_headers = |headers|
         headers.map(|{ name, value }| (name, value))
 
-    from_host_headers : List(HostHeader) -> List(Header.Header)
+    from_host_headers : List(HostHeaderTuple) -> List(Header.Header)
     from_host_headers = |headers|
         headers.map(|(name, value)| { name, value })
 }

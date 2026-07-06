@@ -12,7 +12,7 @@ Http := [].{
     ## `HttpErr`.
     ##
     ## ```roc
-    ## request = Request.from_method(GET) |> Request.with_uri("https://www.roc-lang.org")
+    ## request = Request.from_method(GET).with_uri("https://www.roc-lang.org")
     ## response = Http.send!(request)?
     ## ```
     send! : Request.Request => Try(Response.Response, [HttpErr(TransportErr), ..])

@@ -183,6 +183,13 @@ for example in "${EXAMPLE_NAMES[@]}"; do
     roc check "examples/${example}.roc"
 done
 
+echo ""
+echo "=== Testing examples ==="
+for example in "${EXAMPLE_NAMES[@]}"; do
+    echo "Testing: ${example}.roc"
+    roc test "examples/${example}.roc"
+done
+
 TESTS_FILES=()
 for roc_file in "${TESTS_DIR}"*.roc; do
     [ -f "$roc_file" ] && TESTS_FILES+=("$(basename "${roc_file%.roc}")")

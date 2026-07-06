@@ -47,7 +47,7 @@ ReadSummary : {
 process_line! : File.Reader, ReadSummary => Try(ReadSummary, _)
 process_line! = |reader, { lines_read, bytes_read }|
     match File.read_line!(reader) {
-        Ok(bytes) if List.len(bytes) == 0 =>
+        Ok(bytes) if bytes.len() == 0 =>
             Ok({ lines_read, bytes_read })
 
         Ok(bytes) =>
@@ -55,7 +55,7 @@ process_line! = |reader, { lines_read, bytes_read }|
                 reader,
                 {
                     lines_read: lines_read + 1,
-                    bytes_read: bytes_read + List.len(bytes),
+                    bytes_read: bytes_read + bytes.len(),
                 },
             )
 
