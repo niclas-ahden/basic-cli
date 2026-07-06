@@ -111,7 +111,7 @@ type SqliteValue = BytesOrIntegerOrNullOrRealOrString;
 type SqliteValueTag = BytesOrIntegerOrNullOrRealOrStringTag;
 type SqliteValuePayload = BytesOrIntegerOrNullOrRealOrStringPayload;
 type SqliteError = HostSqlitePrepareErr;
-type SqliteBindings = AnonStruct55;
+type SqliteBindings = AnonStruct56;
 
 const SQLITE_STMT_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
@@ -491,7 +491,7 @@ pub extern "C" fn hosted_sqlite_bind(
         sqlite_bind_all(stmt, bindings.as_slice(), roc_host)
     };
     for binding in bindings.as_slice() {
-        decref_anon_struct55(*binding, roc_host);
+        decref_anon_struct56(*binding, roc_host);
     }
     unsafe {
         bindings.decref(roc_host);
@@ -891,7 +891,7 @@ pub extern "C" fn hosted_tcp_write(
 // A single host effect, `hosted_http_send_request`, takes a fully-marshalled
 // request record and returns a response record. Requests run on a thread-local
 // current-thread tokio runtime driving a hyper client over a rustls (ring)
-// TLS connector seeded with the system's native root certificates.
+// TLS connector seeded with embedded WebPKI root certificates.
 //
 // Transport failures are surfaced to Roc as a typed `Try` error, separate from
 // real HTTP responses. This avoids interpreting a legitimate server status/body
@@ -902,7 +902,7 @@ pub extern "C" fn hosted_tcp_write(
 // number; alias them to stable semantic names. Host ABI headers are `(Str, Str)`
 // tuples, rendered as a struct with `_0` (name) and `_1` (value) fields.
 type HttpResponse = HostHttpSendRequestOk;
-type HttpHeader = AnonStruct38;
+type HttpHeader = AnonStruct39;
 type HttpResult = HostHttpSendRequestResult;
 type HttpResultPayload = HostHttpSendRequestResultPayload;
 type HttpResultTag = HostHttpSendRequestResultTag;
@@ -957,13 +957,6 @@ fn http_err_timeout() -> HttpTransportErr {
     HttpTransportErr {
         payload: HttpTransportErrPayload { timeout: [] },
         tag: HttpTransportErrTag::Timeout,
-    }
-}
-
-fn http_err_network_error() -> HttpTransportErr {
-    HttpTransportErr {
-        payload: HttpTransportErrPayload { network_error: [] },
-        tag: HttpTransportErrTag::NetworkError,
     }
 }
 
@@ -1031,10 +1024,11 @@ async fn async_send_request(
     use hyper_util::client::legacy::Client;
     use hyper_util::rt::TokioExecutor;
 
-    let https = match HttpsConnectorBuilder::new().with_native_roots() {
-        Ok(builder) => builder.https_or_http().enable_http1().build(),
-        Err(_) => return http_err(http_err_network_error()),
-    };
+    let https = HttpsConnectorBuilder::new()
+        .with_webpki_roots()
+        .https_or_http()
+        .enable_http1()
+        .build();
 
     let client: Client<_, http_body_util::Full<bytes::Bytes>> =
         Client::builder(TokioExecutor::new()).build(https);
@@ -1084,7 +1078,7 @@ pub extern "C" fn hosted_http_send_request(args: HostHttpSendRequestArgs) -> Htt
         args.body.decref(roc_host);
     }
     for header in args.headers.as_slice() {
-        decref_anon_struct38(*header, roc_host);
+        decref_anon_struct39(*header, roc_host);
     }
     unsafe {
         args.headers.decref(roc_host);
@@ -1364,7 +1358,7 @@ fn try_dir_unit_err(error: HostIOErr) -> DirUnitResult {
     }
 }
 
-fn try_dir_list_ok(value: RocList<RocStr>) -> HostDirListResult {
+fn try_dir_list_ok(value: RocList<RocListWith<u8, false>>) -> HostDirListResult {
     HostDirListResult {
         payload: HostDirListResultPayload {
             ok: ManuallyDrop::new(value),
@@ -1400,7 +1394,7 @@ fn try_env_str_err(error: RocStr) -> HostEnvVarResult {
     }
 }
 
-fn try_env_cwd_ok(value: RocStr) -> HostEnvCwdResult {
+fn try_env_cwd_ok(value: RocListWith<u8, false>) -> HostEnvCwdResult {
     HostEnvCwdResult {
         payload: HostEnvCwdResultPayload {
             ok: ManuallyDrop::new(value),
@@ -1418,7 +1412,7 @@ fn try_env_cwd_err() -> HostEnvCwdResult {
     }
 }
 
-fn try_env_exe_path_ok(value: RocStr) -> HostEnvExePathResult {
+fn try_env_exe_path_ok(value: RocListWith<u8, false>) -> HostEnvExePathResult {
     HostEnvExePathResult {
         payload: HostEnvExePathResultPayload {
             ok: ManuallyDrop::new(value),
@@ -1903,6 +1897,19 @@ fn path_from_roc_str(path: RocStr, roc_host: &RocHost) -> String {
     path_string
 }
 
+fn path_bytes_from_path(path: &std::path::Path, roc_host: &RocHost) -> RocListWith<u8, false> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        roc_u8_list_from_slice(path.as_os_str().as_bytes(), roc_host)
+    }
+
+    #[cfg(not(unix))]
+    {
+        roc_u8_list_from_slice(path.to_string_lossy().as_bytes(), roc_host)
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn hosted_dir_create(path: RocStr) -> DirUnitResult {
     let roc_host = roc_host();
@@ -1944,19 +1951,16 @@ pub extern "C" fn hosted_dir_list(path: RocStr) -> HostDirListResult {
     let roc_host = roc_host();
     match fs::read_dir(path_from_roc_str(path, roc_host)) {
         Ok(read_dir) => {
-            let entries: Vec<String> = read_dir
-                .filter_map(|entry| {
-                    entry
-                        .ok()
-                        .map(|entry| entry.path().to_string_lossy().into_owned())
-                })
+            let entries: Vec<std::path::PathBuf> = read_dir
+                .filter_map(|entry| entry.ok().map(|entry| entry.path()))
                 .collect();
-            let list = unsafe { RocList::<RocStr>::allocate(entries.len(), roc_host) };
+            let list =
+                unsafe { RocList::<RocListWith<u8, false>>::allocate(entries.len(), roc_host) };
             for (index, entry) in entries.iter().enumerate() {
                 unsafe {
                     list.elements
                         .add(index)
-                        .write(RocStr::from_str(entry, roc_host));
+                        .write(path_bytes_from_path(entry.as_path(), roc_host));
                 }
             }
             try_dir_list_ok(list)
@@ -1969,7 +1973,7 @@ pub extern "C" fn hosted_dir_list(path: RocStr) -> HostDirListResult {
 pub extern "C" fn hosted_env_cwd() -> HostEnvCwdResult {
     let roc_host = roc_host();
     match std::env::current_dir() {
-        Ok(path) => try_env_cwd_ok(RocStr::from_str(path.to_string_lossy().as_ref(), roc_host)),
+        Ok(path) => try_env_cwd_ok(path_bytes_from_path(path.as_path(), roc_host)),
         Err(_) => try_env_cwd_err(),
     }
 }
@@ -1978,17 +1982,15 @@ pub extern "C" fn hosted_env_cwd() -> HostEnvCwdResult {
 pub extern "C" fn hosted_env_exe_path() -> HostEnvExePathResult {
     let roc_host = roc_host();
     match std::env::current_exe() {
-        Ok(path) => {
-            try_env_exe_path_ok(RocStr::from_str(path.to_string_lossy().as_ref(), roc_host))
-        }
+        Ok(path) => try_env_exe_path_ok(path_bytes_from_path(path.as_path(), roc_host)),
         Err(_) => try_env_exe_path_err(),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_env_temp_dir() -> RocStr {
+pub extern "C" fn hosted_env_temp_dir() -> RocListWith<u8, false> {
     let roc_host = roc_host();
-    RocStr::from_str(std::env::temp_dir().to_string_lossy().as_ref(), roc_host)
+    path_bytes_from_path(std::env::temp_dir().as_path(), roc_host)
 }
 
 #[no_mangle]

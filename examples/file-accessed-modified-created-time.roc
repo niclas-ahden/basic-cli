@@ -10,8 +10,9 @@ main! : List(Str) => Try({}, _)
 main! = |_args| {
     file = "LICENSE"
 
-    # NOTE: these functions will not work if basic-cli was built with musl, which is the case for the normal tar.br URL release.
-    # See https://github.com/roc-lang/basic-cli?tab=readme-ov-file#running-locally to build basic-cli without musl.
+    # NOTE: these functions are checked and built in CI, but not run in release
+    # smoke tests because normal musl bundle builds do not support them
+    # consistently across targets.
 
     time_modified = Utc.to_millis_since_epoch(File.time_modified!(file)?)
     time_accessed = Utc.to_millis_since_epoch(File.time_accessed!(file)?)

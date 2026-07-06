@@ -4,7 +4,7 @@ import Host
 Cmd :: {
     args : List(Str),
     clear_envs : Bool,
-    envs : List(Str), # TODO change this to List((Str, Str))
+    envs : List((Str, Str)),
     program : Str,
 }.{
     ## Simplest way to execute a command by name with arguments.
@@ -208,8 +208,7 @@ Cmd :: {
     ## ```
     env : Cmd, Str, Str -> Cmd
     env = |cmd, key, value| {
-        new_envs = cmd.envs.append(key).append(value)
-        { ..cmd, envs: new_envs }
+        { ..cmd, envs: cmd.envs.append((key, value)) }
     }
 
     ## Add multiple environment variables to the command.
@@ -218,10 +217,7 @@ Cmd :: {
     ## cmd = Cmd.new("env").envs([("FOO", "bar"), ("BAZ", "qux")])
     ## ```
     envs : Cmd, List((Str, Str)) -> Cmd
-    envs = |cmd, pairs| {
-        new_envs = flatten_str_pairs(pairs, cmd.envs, 0)
-        { ..cmd, envs: new_envs }
-    }
+    envs = |cmd, pairs| { ..cmd, envs: cmd.envs.concat(pairs) }
 
     ## Clear all environment variables before running the command.
     ## Only environment variables added via `env` or `envs` will be available.
@@ -260,9 +256,10 @@ to_str = |cmd| {
             "envs: ${trimmed_str}"
         }
 
-    envs_str =
-        # TODO once we're using List of tuples: .map(|(key, value)| "${key}=${value}")
-        my_trim(Str.trim(Str.join_with(cmd.envs, " ")))
+    envs_str = {
+        envs = cmd.envs.map(|(key, value)| "${key}=${value}")
+        my_trim(Str.trim(Str.join_with(envs, " ")))
+    }
 
     clear_envs_str = if cmd.clear_envs { ", clear_envs: true" } else { "" }
     args_str = Str.join_with(cmd.args, " ")
@@ -274,6 +271,6 @@ to_host_cmd : Cmd -> Host.Cmd
 to_host_cmd = |cmd| {
     args: cmd.args,
     clear_envs: cmd.clear_envs,
-    envs: cmd.envs,
+    envs: flatten_str_pairs(cmd.envs, [], 0),
     program: cmd.program,
 }

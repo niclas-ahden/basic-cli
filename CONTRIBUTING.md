@@ -2,7 +2,9 @@
 
 Thanks for helping improve `basic-cli`.
 
-This branch requires a Roc compiler matching the commit in `.roc-version`.
+CI uses the current Roc nightly from [`roc-lang/nightlies`](https://github.com/roc-lang/nightlies).
+For local work, use any recent `roc` on `PATH`, or run `./ci/install_roc.sh`
+to install the same latest nightly style used by CI.
 
 ## Code of Conduct
 
@@ -10,20 +12,28 @@ We are committed to providing a friendly, safe, and welcoming environment for al
 
 ## Version Requirements
 
-`ci/all_tests.sh` reads `.roc-version`, reuses `roc` on `PATH` when it matches, and otherwise builds the pinned Roc compiler into `roc-src/`.
+Check the compiler available locally:
 
 ```sh
-cat .roc-version
 roc version
 ```
 
-## Updating Roc
+To install the latest nightly locally:
 
-The pinned Roc compiler commit lives in `.roc-version`. To update it:
+```sh
+./ci/install_roc.sh
+ROC_BIN_DIR="$(dirname "$(find .roc-bin -type f -name roc | head -1)")"
+export PATH="$(pwd)/$ROC_BIN_DIR:$PATH"
+```
 
-1. Update `.roc-version` to the full 40-character Roc commit SHA.
-2. Run `./ci/regenerate_glue.sh` to refresh `src/roc_platform_abi.rs`.
-3. Run `cargo check` and `./ci/all_tests.sh` to verify the new compiler works.
+## Updating Roc Glue
+
+CI intentionally tracks the current nightly, so compiler updates are adopted as
+soon as a new nightly is published. If a nightly changes the host ABI:
+
+1. Run `./ci/regenerate_glue.sh` to refresh `src/roc_platform_abi.rs`.
+2. Reconcile `src/lib.rs` if generated names or layouts changed.
+3. Run `cargo check` and `./ci/all_tests.sh`.
 
 ## Verification
 
@@ -64,13 +74,14 @@ Do not edit generated glue by hand.
 
 ## Examples
 
-Every checked-in example should pass `roc check` and `roc build` with the pinned compiler.
+Every checked-in example should pass `roc check`, `roc test`, and `roc build`
+with the current nightly.
 
 Examples should include a top-level `main!` annotation. When the full platform error row would distract from the example, map low-level errors into a small example-domain error or use `_` for the error type. Prefer postfix `?`, infix `?`, or `??` for effect results instead of ignoring them.
 
 HTTP examples use Roc's builtin `Json` parser directly through `Http.get!`.
 
-Examples that are intentionally kept out of CI while an API or compiler blocker is tracked use the `.todoroc` extension and must include a TODO comment with a GitHub issue link. Rename them back to `.roc` only after they check and build with the pinned compiler.
+Examples that are intentionally kept out of CI while an API or compiler blocker is tracked use the `.todoroc` extension and must include a TODO comment with a GitHub issue link. Rename them back to `.roc` only after they check and build with the current nightly.
 
 ## Documentation
 

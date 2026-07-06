@@ -1,5 +1,6 @@
 import IOErr exposing [IOErr]
 import Host
+import path.Path as PackagePath
 
 Dir := [].{
     ## Creates a new, empty directory at the provided path.
@@ -30,10 +31,11 @@ Dir := [].{
 
     ## Lists the contents of a directory.
     ##
-    ## Returns the paths of all files and directories within the specified directory.
-    ##
-    ## TODO: This temporarily returns lossy Str paths. When the vendored Path
-    ## subset is replaced by roc-lang/path, return byte-preserving Path values.
-    list! : Str => Try(List(Str), [DirErr(IOErr), ..])
-    list! = |path| Ok(Host.dir_list!(path)?)
+    ## Returns the byte-preserving paths of all files and directories within
+    ## the specified directory.
+    list! : Str => Try(List(PackagePath.Path), [DirErr(IOErr), ..])
+    list! = |path| {
+        bytes_list = Host.dir_list!(path)?
+        Ok(bytes_list.map(|bytes| PackagePath.unix_bytes(bytes)))
+    }
 }

@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - ".github/workflows/deploy-docs.yml"
-      - ".roc-version"
       - "ci/install_roc.sh"
       - "docs/**"
       - "platform/**"
@@ -43,7 +42,7 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Install Roc (pinned nightly from .roc-version)
+      - name: Install Roc nightly
         run: ./ci/install_roc.sh
         env:
           GITHUB_TOKEN: ${{ github.token }}

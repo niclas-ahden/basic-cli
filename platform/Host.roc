@@ -40,12 +40,12 @@ Host := [].{
     dir_create_all! : Str => Try({}, [DirErr(IOErr)])
     dir_delete_empty! : Str => Try({}, [DirErr(IOErr)])
     dir_delete_all! : Str => Try({}, [DirErr(IOErr)])
-    dir_list! : Str => Try(List(Str), [DirErr(IOErr)])
+    dir_list! : Str => Try(List(List(U8)), [DirErr(IOErr)])
 
     env_var! : Str => Try(Str, [VarNotFound(Str)])
-    env_cwd! : () => Try(Str, [CwdUnavailable])
-    env_exe_path! : () => Try(Str, [ExePathUnavailable])
-    env_temp_dir! : () => Str
+    env_cwd! : () => Try(List(U8), [CwdUnavailable])
+    env_exe_path! : () => Try(List(U8), [ExePathUnavailable])
+    env_temp_dir! : () => List(U8)
 
     file_read_bytes! : Str => Try(List(U8), [FileErr(IOErr)])
     file_write_bytes! : Str, List(U8) => Try({}, [FileErr(IOErr)])

@@ -90,5 +90,5 @@ platform/targets/*/libhost.a
 # Bundled platform package
 *.tar.zst
 
-# Pinned roc nightly downloaded by ci/install_roc.sh
+# Roc nightly downloaded by ci/install_roc.sh
 .roc-bin/

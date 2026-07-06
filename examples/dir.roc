@@ -3,6 +3,7 @@ app [main!] { pf: platform "../platform/main.roc" }
 import pf.Stdout
 import pf.Stderr
 import pf.Dir
+import pf.Path
 
 # Demo of all Dir functions.
 
@@ -27,8 +28,8 @@ main! = |_args| {
 
         # Check the contents of the directory
         expect paths.len() == 2
-        expect List.contains(paths, "nested-dir/a")
-        expect List.contains(paths, "nested-dir/child")
+        expect List.contains(paths.map(Path.display), "nested-dir/a")
+        expect List.contains(paths.map(Path.display), "nested-dir/child")
 
         # Delete an empty directory
         Dir.delete_empty!("empty-dir")?

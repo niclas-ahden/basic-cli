@@ -42,7 +42,7 @@ jobs:
         with:
           targets: x86_64-apple-darwin,aarch64-apple-darwin,x86_64-unknown-linux-musl,aarch64-unknown-linux-musl
 
-      - name: Install Roc (pinned nightly from .roc-version)
+      - name: Install Roc nightly
         run: ./ci/install_roc.sh
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -114,7 +114,7 @@ jobs:
         if: startsWith(matrix.os, 'macos-')
         run: brew install expect
 
-      - name: Install Roc (pinned nightly from .roc-version)
+      - name: Install Roc nightly
         run: ./ci/install_roc.sh
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -177,7 +177,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Roc (pinned nightly from .roc-version)
+      - name: Install Roc nightly
         run: ./ci/install_roc.sh
         env:
           GITHUB_TOKEN: ${{ github.token }}

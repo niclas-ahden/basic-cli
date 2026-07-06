@@ -38,7 +38,7 @@ jobs:
         with:
           version: 0.16.0
 
-      - name: Install Roc (pinned nightly from .roc-version)
+      - name: Install Roc nightly
         run: ./ci/install_roc.sh
         env:
           GITHUB_TOKEN: ${{ github.token }}

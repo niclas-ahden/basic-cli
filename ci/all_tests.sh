@@ -42,19 +42,12 @@ trap cleanup EXIT
 echo "=== basic-cli CI ==="
 echo ""
 
-# Roc is provided on PATH by ci/install_roc.sh in CI (a specific pinned nightly
-# from roc-lang/nightlies, recorded in .roc-version). For local runs any `roc` on
-# PATH is used; otherwise we fall back to a source build in roc-src/ (see
-# ci/build_pinned_roc.sh) if one is present.
+# Roc is provided on PATH by ci/install_roc.sh in CI (the current nightly from
+# roc-lang/nightlies). For local runs any `roc` on PATH is used.
 if ! command -v roc &>/dev/null; then
-    if [ -x "roc-src/zig-out/bin/roc" ]; then
-        export PATH="$(pwd)/roc-src/zig-out/bin:$PATH"
-    else
-        echo "Error: 'roc' was not found on PATH." >&2
-        echo "Install it (e.g. via roc-lang/setup-roc) or build it into roc-src/" >&2
-        echo "with ./ci/build_pinned_roc.sh, then re-run." >&2
-        exit 1
-    fi
+    echo "Error: 'roc' was not found on PATH." >&2
+    echo "Install it with ./ci/install_roc.sh or put a recent roc binary on PATH." >&2
+    exit 1
 fi
 
 echo "Using roc version: $(roc version)"
@@ -69,11 +62,10 @@ fi
 
 # NOTE: the committed src/roc_platform_abi.rs (generated glue) is the source of
 # truth for the host ABI and is intentionally NOT re-checked here: CI installs
-# only the roc binary (no glue spec to regenerate from). The glue is generated
-# locally against the pinned compiler in .roc-version; correctness is enforced by
-# the host compiling against it and the end-to-end expect tests below exercising
-# the real ABI. To adopt a newer compiler: bump .roc-version, regenerate glue
-# with ci/regenerate_glue.sh, reconcile src/lib.rs, and commit together.
+# only the roc binary (no glue spec to regenerate from). Correctness is enforced
+# by the host compiling against committed glue and the end-to-end expect tests
+# below exercising the real ABI. If a new nightly changes generated glue, run
+# ci/regenerate_glue.sh locally, reconcile src/lib.rs, and commit together.
 
 # Build the platform
 if [ "${NO_BUILD:-}" != "1" ]; then
