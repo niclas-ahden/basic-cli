@@ -899,9 +899,8 @@ pub extern "C" fn hosted_tcp_write(
 // ----------------------------------------------------------------------------
 
 // The generated glue names the request/response records by anonymous-struct
-// number; alias them to stable semantic names. Headers are `(Str, Str)` tuples
-// (matching the roc-lang/http package), rendered as a struct with `_0` (name)
-// and `_1` (value) fields.
+// number; alias them to stable semantic names. Host ABI headers are `(Str, Str)`
+// tuples, rendered as a struct with `_0` (name) and `_1` (value) fields.
 type HttpResponse = HostHttpSendRequestOk;
 type HttpHeader = AnonStruct38;
 type HttpResult = HostHttpSendRequestResult;
@@ -919,7 +918,7 @@ thread_local! {
         .expect("failed to build tokio runtime");
 }
 
-// Numeric method tags must match `to_host_method` in platform/Http.roc.
+// Numeric method tags must match `to_host_method` in platform/InternalHttp.roc.
 fn as_hyper_method(method: u8, method_ext: &str) -> Option<hyper::Method> {
     match method {
         0 => Some(hyper::Method::CONNECT),
