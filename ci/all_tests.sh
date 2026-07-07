@@ -11,6 +11,7 @@ TEST_NAMES=()
 TEST_EXPECT_NAMES=(
     "env"
     "file"
+    "path-test"
     "tcp"
 )
 
