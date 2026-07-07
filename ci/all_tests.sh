@@ -14,6 +14,7 @@ TEST_EXPECT_NAMES=(
     "path-test"
     "sqlite"
     "tcp"
+    "url"
     "utc"
 )
 

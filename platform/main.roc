@@ -1,6 +1,6 @@
 platform ""
     requires {} { main! : List(Str) => Try({}, [Exit(I32), ..]) }
-    exposes [Cmd, Dir, Env, File, Http, IOErr, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Utc]
+    exposes [Cmd, Dir, Env, File, Http, IOErr, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Url, Utc]
     packages {
         # HTTP data types (Method, Request, Response) come from the shared
         # roc-lang/http package so apps and other packages using it see the same
@@ -102,6 +102,7 @@ import Stdout
 import Stderr
 import Tcp
 import Tty
+import Url
 import Utc
 
 main_for_host! : List(Str) => I32
