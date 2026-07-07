@@ -7,14 +7,16 @@ set timeout 7
 
 source ./ci/expect_scripts/shared-code.exp
 
-# get path to cat command
-set cat_path [exec which cat]
-# Start echo server
-spawn ncat -e $cat_path -l 8085
+# Resolve the directory this script lives in so we can find the echo server.
+set script_dir [file dirname [info script]]
+
+# Start a self-contained echo server (avoids depending on ncat/nc being present).
+spawn python3 "$script_dir/tcp_echo_server.py"
+set server_id $spawn_id
 sleep 1
 
 spawn $env(TESTS_DIR)tcp
-
+set client_id $spawn_id
 
 set expected_output [normalize_output {
 Testing Tcp module functions...
@@ -28,10 +30,8 @@ Testing Tcp.write!:
 Echo server reply: Hello
 
 
-
 Testing Tcp.write_utf8!:
 Echo server reply: Test message from Roc!
-
 
 
 Testing Tcp.read_up_to!:
@@ -49,8 +49,8 @@ Tcp.read_until yielded: 'Line1
 All tests executed.
 }]
 
-expect $expected_output {
-    expect eof {
+expect -i $client_id $expected_output {
+    expect -i $client_id eof {
         check_exit_and_segfault
     }
 }

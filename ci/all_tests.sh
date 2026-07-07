@@ -8,6 +8,9 @@ cd "$ROOT_DIR"
 
 EXAMPLE_NAMES=()
 TEST_NAMES=()
+TEST_EXPECT_NAMES=(
+    "tcp"
+)
 
 # Cleanup function to restore examples and stop HTTP server
 cleanup() {
@@ -184,6 +187,17 @@ for roc_file in "${TESTS_DIR}"*.roc; do
     [ -f "$roc_file" ] && TEST_NAMES+=("$(basename "${roc_file%.roc}")")
 done
 
+for test in "${TEST_EXPECT_NAMES[@]}"; do
+    if [ ! -f "tests/${test}.roc" ]; then
+        echo "Error: missing tests/${test}.roc for expect test" >&2
+        exit 1
+    fi
+    if [ ! -f "ci/expect_scripts/${test}.exp" ]; then
+        echo "Error: missing expect script for tests/${test}.roc" >&2
+        exit 1
+    fi
+done
+
 echo ""
 echo "=== Checking tests ==="
 for test in "${TEST_NAMES[@]}"; do
@@ -201,6 +215,16 @@ for example in "${EXAMPLE_NAMES[@]}"; do
     echo "Building: ${example}.roc"
     roc build "examples/${example}.roc"
     mv "./${example}" "examples/"
+done
+
+if [ "${#TEST_EXPECT_NAMES[@]}" -gt 0 ]; then
+    echo ""
+    echo "=== Building standalone expect tests ==="
+fi
+for test in "${TEST_EXPECT_NAMES[@]}"; do
+    echo "Building: ${test}.roc"
+    roc build "tests/${test}.roc"
+    mv "./${test}" "tests/"
 done
 
 # The http-client expect test drives a local HTTP server; build it up front.
@@ -225,6 +249,23 @@ for example in "${EXAMPLE_NAMES[@]}"; do
         echo "PASS: $example"
     else
         echo "FAIL: $example (exit code: $EXIT_CODE)"
+        FAILED=1
+    fi
+done
+
+echo ""
+echo "=== Running standalone expect tests ==="
+for test in "${TEST_EXPECT_NAMES[@]}"; do
+    echo ""
+    echo "--- Testing: $test ---"
+    set +e
+    expect "ci/expect_scripts/${test}.exp"
+    EXIT_CODE=$?
+    set -e
+    if [ $EXIT_CODE -eq 0 ]; then
+        echo "PASS: $test"
+    else
+        echo "FAIL: $test (exit code: $EXIT_CODE)"
         FAILED=1
     fi
 done

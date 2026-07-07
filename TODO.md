@@ -53,7 +53,6 @@
   - `tests/file.roc` -> `ci/expect_scripts/file.exp`
   - `tests/path-test.roc` -> `ci/expect_scripts/path-test.exp`
   - `tests/sqlite.roc` -> `ci/expect_scripts/sqlite.exp`
-  - `tests/tcp.roc` -> `ci/expect_scripts/tcp.exp`
   - `tests/utc.roc` -> `ci/expect_scripts/utc.exp`
   - `tests/url.roc` and `ci/expect_scripts/url.exp` need a product decision:
     either restore/port `platform/Url.roc` or delete both with that rationale.
@@ -71,3 +70,6 @@
     current nightly cannot build the optimized coverage path due to
     https://github.com/roc-lang/roc/issues/10003 and still segfaults after
     dev/direct runs complete their assertions.
+
+- Re-enabled standalone expect coverage:
+  - `tests/tcp.roc` -> `ci/expect_scripts/tcp.exp`
