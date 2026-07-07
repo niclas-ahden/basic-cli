@@ -14,6 +14,7 @@ TEST_EXPECT_NAMES=(
     "path-test"
     "sqlite"
     "tcp"
+    "utc"
 )
 
 # Cleanup function to restore examples and stop HTTP server
