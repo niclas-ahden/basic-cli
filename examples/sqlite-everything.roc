@@ -20,14 +20,10 @@ import pf.Sqlite
 # We recommend using `NOT NULL` when possible.
 # Note 2: boolean is "fake" in sqlite https://www.sqlite.org/datatype3.html
 
-main! : List(Str) => Try({}, [Exit(I32), ..])
-main! = |_args|
-    match run!() {
-        Ok(_) => Ok({})
-        Err(_) => Err(Exit(1))
-    }
+main! : List(Str) => Try({}, _)
+main! = |_args| run!()
 
-run! : () => Try({}, [SqliteExampleFailed(Str)])
+run! : () => Try({}, _)
 run! = || {
     db_path =
         match Env.var!("DB_PATH") {
@@ -43,7 +39,7 @@ run! = || {
             bindings: [],
             rows: decode_full_todo,
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| QueryAllTodosFailed(err)
 
     print_line!("All Todos:")?
     for t in all_todos {
@@ -58,7 +54,7 @@ run! = || {
             bindings: [{ name: ":status", value: encode_status(InProgress) }],
             rows: Sqlite.str("task"),
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| QueryInProgressTasksFailed(err)
 
     print_line!("")?
     print_line!("In-progress Todos:")?
@@ -77,7 +73,7 @@ run! = || {
                 { name: ":edited", value: encode_edited(NotEdited) },
             ],
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| InsertTodoFailed(err)
 
     # Example: insert multiple rows from a Roc list
     todos_list = [
@@ -114,7 +110,7 @@ run! = || {
             query: "INSERT INTO todos (task, status, edited) VALUES ${values_str};",
             bindings: all_bindings,
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| InsertTodoListFailed(err)
 
     # Example: update a row
     Sqlite.execute!(
@@ -126,7 +122,7 @@ run! = || {
                 { name: ":status", value: encode_status(Completed) },
             ],
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| UpdateTodoFailed(err)
 
     # Example: delete a row
     Sqlite.execute!(
@@ -135,7 +131,7 @@ run! = || {
             query: "DELETE FROM todos WHERE task = :task;",
             bindings: [{ name: ":task", value: String("Make sql example.") }],
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| DeleteTodoFailed(err)
 
     # Example: delete all rows where ID is greater than 3 (cleanup so this example is repeatable)
     Sqlite.execute!(
@@ -144,7 +140,7 @@ run! = || {
             query: "DELETE FROM todos WHERE id > :id;",
             bindings: [{ name: ":id", value: Integer(3) }],
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| CleanupInsertedTodosFailed(err)
 
     # Example: count the number of rows
     count = Sqlite.query!(
@@ -154,7 +150,7 @@ run! = || {
             bindings: [],
             row: Sqlite.u64("count"),
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| CountTodosFailed(err)
 
     print_line!("")?
     print_line!("Row count: ${U64.to_str(count)}")?
@@ -167,7 +163,7 @@ run! = || {
             # sort by the length of the task description
             query: "SELECT * FROM todos ORDER BY LENGTH(task);",
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| PrepareSortedTodosFailed(err)
 
     todos_sorted = Sqlite.query_many_prepared!(
         {
@@ -175,7 +171,7 @@ run! = || {
             bindings: [],
             rows: decode_task_status,
         },
-    ) ? |err| SqliteExampleFailed(Str.inspect(err))
+    ) ? |err| QuerySortedTodosFailed(err)
 
     print_line!("")?
     print_line!("Todos sorted by length of task description:")?
@@ -186,11 +182,8 @@ run! = || {
     Ok({})
 }
 
-print_line! : Str => Try({}, [SqliteExampleFailed(Str)])
-print_line! = |s| {
-    Stdout.line!(s) ? |_| SqliteExampleFailed("stdout write failed")
-    Ok({})
-}
+print_line! : Str => Try({}, _)
+print_line! = |s| Stdout.line!(s)
 
 # Decode every column of the todos table. The nullable `edited` column is returned
 # raw (`[NotNull(I64), Null]`) and interpreted by `decode_edited` at the call site:

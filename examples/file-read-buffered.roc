@@ -18,24 +18,13 @@ import pf.File
 #
 # See examples/file-read-write.roc if you want to read the full contents at once.
 
-main! : List(Str) => Try({}, [Exit(I32), ..])
+main! : List(Str) => Try({}, _)
 main! = |_args| {
-    read_file = || {
-        reader = File.open_reader!("LICENSE")?
+    reader = File.open_reader!("LICENSE")?
+    read_summary = process_line!(reader, { lines_read: 0, bytes_read: 0 })?
 
-        process_line!(reader, { lines_read: 0, bytes_read: 0 })
-    }
-
-    match read_file() {
-        Ok(read_summary) => {
-            Stdout.line!("Done reading file: ${Str.inspect(read_summary)}") ? |_| Exit(1)
-            Ok({})
-        }
-        Err(err) => {
-            Stdout.line!("Error during buffered file read: ${Str.inspect(err)}") ? |_| Exit(1)
-            Err(Exit(1))
-        }
-    }
+    Stdout.line!("Done reading file: ${Str.inspect(read_summary)}")?
+    Ok({})
 }
 
 ReadSummary : {

@@ -47,16 +47,15 @@ right = { dx: 1, dy: 0 }
 init_snake_len : U64
 init_snake_len = snake_len(initial_state.snake)
 
-main! : List(Str) => Try({}, [Exit(I32)])
+main! : List(Str) => Try({}, _)
 main! = |args| {
     Tty.enable_raw_mode!()
     game_result = game_loop!(initial_state_from_args(args))
     Tty.disable_raw_mode!()
 
-    match game_result {
-        Ok({}) => Stdout.line!("\n--- Game Over ---").map_err(|_| Exit(1))
-        Err(err) => Err(err)
-    }
+    game_result?
+    Stdout.line!("\n--- Game Over ---")?
+    Ok({})
 }
 
 initial_state_from_args : List(Str) -> GameState
@@ -67,14 +66,14 @@ initial_state_from_args = |args| {
     { ..initial_state, game_over: has_args and Bool.not(has_args) }
 }
 
-game_loop! : GameState => Try({}, [Exit(I32)])
+game_loop! : GameState => Try({}, _)
 game_loop! = |state| {
     if state.game_over {
         Ok({})
     } else {
         draw_game!(state)?
 
-        input_bytes = Stdin.bytes!().map_err(|_| Exit(1))?
+        input_bytes = Stdin.bytes!()?
         new_state = update_game(apply_input(state, input_bytes))
 
         game_loop!(new_state)
@@ -137,15 +136,15 @@ move_head : Position, Direction -> Position
 move_head = |head, direction|
     { x: head.x + direction.dx, y: head.y + direction.dy }
 
-draw_game! : GameState => Try({}, [Exit(I32)])
+draw_game! : GameState => Try({}, _)
 draw_game! = |state| {
     clear_screen!()?
 
-    Stdout.line!("\nControls: W A S D to move, Q to quit\n\r").map_err(|_| Exit(1))?
-    Stdout.line!("Score: ${(snake_len(state.snake) - init_snake_len).to_str()}\r").map_err(|_| Exit(1))?
+    Stdout.line!("\nControls: W A S D to move, Q to quit\n\r")?
+    Stdout.line!("Score: ${(snake_len(state.snake) - init_snake_len).to_str()}\r")?
 
     rendered_game_str = draw_game_pure(state)
-    Stdout.line!("${rendered_game_str}\r").map_err(|_| Exit(1))
+    Stdout.line!("${rendered_game_str}\r")
 }
 
 draw_game_pure : GameState -> Str
@@ -186,8 +185,8 @@ draw_cells = |state, yy, xx, cells| {
     }
 }
 
-clear_screen! : () => Try({}, [Exit(I32)])
-clear_screen! = || Stdout.write!("\u(001b)[2J\u(001b)[H").map_err(|_| Exit(1))
+clear_screen! : () => Try({}, _)
+clear_screen! = || Stdout.write!("\u(001b)[2J\u(001b)[H")
 
 snake_contains : Snake, Position -> Bool
 snake_contains = |snake, pos|

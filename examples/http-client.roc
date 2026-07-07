@@ -18,35 +18,25 @@ import http.Response
 #
 #     roc build examples/http-client.roc
 #     ./examples/http-client
-main! : List(Str) => Try({}, [Exit(I32), ..])
-main! = |_args|
-    match run_demo!() {
-        Ok({}) => Ok({})
-        Err(message) => report_failure!(message)
-    }
+main! : List(Str) => Try({}, _)
+main! = |_args| run_demo!()
 
-report_failure! : Str => Try({}, [Exit(I32), ..])
-report_failure! = |message| {
-    Stdout.line!("HTTP request failed: ${message}") ? |_| Exit(1)
-    Err(Exit(1))
-}
-
-run_demo! : () => Try({}, Str)
+run_demo! : () => Try({}, _)
 run_demo! = || {
-    utf8 = Http.get_utf8!("http://localhost:9000/utf8test") ? |_| "GET /utf8test failed"
+    utf8 = Http.get_utf8!("http://localhost:9000/utf8test") ? |err| GetUtf8Failed(err)
     write_line!("I received '${utf8}' from the server.")?
 
     request = Request.from_method(GET).with_uri("http://localhost:9000/utf8test")
-    response = Http.send!(request) ? |_| "send! failed"
+    response = Http.send!(request) ? |err| SendFailed(err)
     status = U16.to_str(Response.status(response))
 
     decoded : { foo : Str }
-    decoded = Http.get!("http://localhost:9000") ? |_| "GET / failed"
+    decoded = Http.get!("http://localhost:9000") ? |err| GetJsonFailed(err)
 
     echo_request = Request.from_method(POST).with_uri("http://localhost:9000/echo-json")
-    echo_response = Http.send_json!(echo_request, { foo: "Hello Json!" }) ? |_| "send_json! failed"
+    echo_response = Http.send_json!(echo_request, { foo: "Hello Json!" }) ? |err| SendJsonFailed(err)
     echoed : { foo : Str }
-    echoed = Http.decode_json_response(echo_response) ? |_| "send_json! echoed invalid JSON"
+    echoed = Http.decode_json_response(echo_response) ? |err| EchoedJsonDecodeFailed(err)
 
     write_line!("The json I received was: { foo: \"${decoded.foo}\" }")?
     write_line!("send! returned status ${status}.")?
@@ -57,31 +47,28 @@ run_demo! = || {
     Ok({})
 }
 
-reject_invalid_json! : () => Try({}, Str)
+reject_invalid_json! : () => Try({}, _)
 reject_invalid_json! = || {
     result : Try({ foo : Str }, _)
     result = Http.get!("http://localhost:9000/invalid-json")
 
     match result {
         Err(JsonErr(_)) => write_line!("invalid JSON was rejected.")
-        Err(_) => Err("GET /invalid-json failed with the wrong error")
-        Ok(_) => Err("GET /invalid-json unexpectedly succeeded")
+        Err(err) => Err(InvalidJsonRejectedWithWrongError(err))
+        Ok(_) => Err(InvalidJsonUnexpectedlySucceeded)
     }
 }
 
-reject_invalid_utf8! : () => Try({}, Str)
+reject_invalid_utf8! : () => Try({}, _)
 reject_invalid_utf8! = || {
     result = Http.get_utf8!("http://localhost:9000/invalid-utf8")
 
     match result {
         Err(BadBody(_)) => write_line!("invalid UTF-8 was rejected.")
-        Err(_) => Err("GET /invalid-utf8 failed with the wrong error")
-        Ok(_) => Err("GET /invalid-utf8 unexpectedly succeeded")
+        Err(err) => Err(InvalidUtf8RejectedWithWrongError(err))
+        Ok(_) => Err(InvalidUtf8UnexpectedlySucceeded)
     }
 }
 
-write_line! : Str => Try({}, Str)
-write_line! = |message| {
-    Stdout.line!(message) ? |_| "stdout write failed"
-    Ok({})
-}
+write_line! : Str => Try({}, _)
+write_line! = |message| Stdout.line!(message)

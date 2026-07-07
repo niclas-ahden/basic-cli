@@ -6,7 +6,7 @@ import pf.Sleep
 
 # Demo Utc and Sleep functions
 
-main! : List(Str) => Try({}, [Exit(I32), ..])
+main! : List(Str) => Try({}, _)
 main! = |_args| {
     start = Utc.now!()
 
@@ -18,7 +18,7 @@ main! = |_args| {
     duration_ms = Utc.delta_as_millis(finish, start)
     duration_nanos = Utc.delta_as_nanos(finish, start)
 
-    Stdout.line!("Completed in ${duration_ms.to_str()} ms (${duration_nanos.to_str()} ns)") ? |_| Exit(1)
+    Stdout.line!("Completed in ${duration_ms.to_str()} ms (${duration_nanos.to_str()} ns)")?
 
     Ok({})
 }

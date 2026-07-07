@@ -15,14 +15,10 @@ import pf.Sqlite
 #     status TEXT NOT NULL
 # );
 
-main! : List(Str) => Try({}, [Exit(I32), ..])
-main! = |_args|
-    match run!() {
-        Ok(_) => Ok({})
-        Err(_) => Err(Exit(1))
-    }
+main! : List(Str) => Try({}, _)
+main! = |_args| run!()
 
-run! : () => Try({}, [SqliteExampleFailed(Str)])
+run! : () => Try({}, _)
 run! = || {
     db_path =
         match Env.var!("DB_PATH") {
@@ -30,7 +26,7 @@ run! = || {
             Err(_) => "./examples/todos.db"
         }
 
-    todos = query_todos_by_status!(db_path, "todo") ? |err| SqliteExampleFailed(Str.inspect(err))
+    todos = query_todos_by_status!(db_path, "todo") ? |err| QueryTodosFailed(err)
 
     print_line!("All Todos:")?
 
@@ -38,7 +34,7 @@ run! = || {
         print_todo!(todo)?
     }
 
-    completed_todos = query_todos_by_status!(db_path, "completed") ? |err| SqliteExampleFailed(Str.inspect(err))
+    completed_todos = query_todos_by_status!(db_path, "completed") ? |err| QueryCompletedTodosFailed(err)
 
     print_line!("")?
     print_line!("Completed Todos:")?
@@ -51,15 +47,12 @@ run! = || {
 
 Todo : { id : Str, status : TodoStatus, task : Str }
 
-print_todo! : Todo => Try({}, [SqliteExampleFailed(Str)])
+print_todo! : Todo => Try({}, _)
 print_todo! = |todo|
     print_line!("    id: ${todo.id}, task: ${todo.task}, status: ${status_to_str(todo.status)}")
 
-print_line! : Str => Try({}, [SqliteExampleFailed(Str)])
-print_line! = |line| {
-    Stdout.line!(line) ? |_| SqliteExampleFailed("stdout write failed")
-    Ok({})
-}
+print_line! : Str => Try({}, _)
+print_line! = |line| Stdout.line!(line)
 
 query_todos_by_status! = |db_path, status|
     Sqlite.query_many!(
