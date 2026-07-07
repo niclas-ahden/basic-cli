@@ -9,6 +9,7 @@ cd "$ROOT_DIR"
 EXAMPLE_NAMES=()
 TEST_NAMES=()
 TEST_EXPECT_NAMES=(
+    "env"
     "tcp"
 )
 
