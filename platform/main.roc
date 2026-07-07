@@ -1,6 +1,6 @@
 platform ""
-    requires {} { main! : List(Str) => Try({}, [Exit(I32), ..]) }
-    exposes [Cmd, Dir, Env, File, Http, IOErr, InternalSqlite, Locale, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Url, Utc]
+    requires {} { main! : List([Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]) => Try({}, [Exit(I32), ..]) }
+    exposes [Cmd, Dir, Env, File, Http, IOErr, InternalSqlite, Locale, OsStr, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Url, Utc]
     packages {
         # HTTP data types (Method, Request, Response) come from the shared
         # roc-lang/http package so apps and other packages using it see the same
@@ -8,7 +8,7 @@ platform ""
         http: "https://github.com/roc-lang/http/releases/download/1.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",
         # Path data types and pure helpers come from the shared roc-lang/path
         # package so path values have the same nominal type across packages.
-        path: "https://github.com/roc-lang/path/releases/download/1.0.0/8p8iryUUorAFTUDeqYcwc9bFYSwpbVqhYpuHvRAS5Cq4.tar.zst",
+        path: "https://github.com/roc-lang/path/releases/download/2.0.0/6fPkHewxjJj48A6yaApCeXhqfSFwDe77gDD9dcU62qaK.tar.zst",
     }
     provides { "roc_main": main_for_host! }
     hosted {
@@ -93,6 +93,7 @@ import Http
 import IOErr
 import InternalSqlite
 import Locale
+import OsStr
 import Path
 import Random
 import Sleep
@@ -105,7 +106,7 @@ import Tty
 import Url
 import Utc
 
-main_for_host! : List(Str) => I32
+main_for_host! : List(OsStr.OsStr) => I32
 main_for_host! = |args|
     match main!(args) {
         Ok({}) => 0

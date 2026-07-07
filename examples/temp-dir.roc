@@ -1,5 +1,6 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.Env
 import pf.Path
@@ -8,7 +9,7 @@ import pf.Path
 
 # Prints the default temp dir
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     temp_dir_path = Env.temp_dir!()
 

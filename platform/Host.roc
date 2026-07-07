@@ -3,11 +3,14 @@ import InternalHttp
 import InternalSqlite
 
 Host := [].{
+    NativeOsStr : [Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]
+    NativePath : [Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]
+
     Cmd : {
-        args : List(Str),
+        args : List(NativeOsStr),
         clear_envs : Bool,
-        envs : List(Str),
-        program : Str,
+        envs : List(NativeOsStr),
+        program : NativeOsStr,
     }
 
     CmdOutputSuccess : {
@@ -36,45 +39,45 @@ Host := [].{
     cmd_exec_exit_code! : Cmd => Try(I32, IOErr)
     cmd_exec_output! : Cmd => Try(CmdOutputSuccess, [NonZeroExitCode(CmdOutputFailure), FailedToGetExitCode(IOErr)])
 
-    dir_create! : Str => Try({}, [DirErr(IOErr)])
-    dir_create_all! : Str => Try({}, [DirErr(IOErr)])
-    dir_delete_empty! : Str => Try({}, [DirErr(IOErr)])
-    dir_delete_all! : Str => Try({}, [DirErr(IOErr)])
-    dir_list! : Str => Try(List(List(U8)), [DirErr(IOErr)])
+    dir_create! : NativePath => Try({}, [DirErr(IOErr)])
+    dir_create_all! : NativePath => Try({}, [DirErr(IOErr)])
+    dir_delete_empty! : NativePath => Try({}, [DirErr(IOErr)])
+    dir_delete_all! : NativePath => Try({}, [DirErr(IOErr)])
+    dir_list! : NativePath => Try(List(NativePath), [DirErr(IOErr)])
 
-    env_var! : Str => Try(Str, [VarNotFound(Str)])
-    env_cwd! : () => Try(List(U8), [CwdUnavailable])
-    env_exe_path! : () => Try(List(U8), [ExePathUnavailable])
-    env_temp_dir! : () => List(U8)
+    env_var! : NativeOsStr => Try(NativeOsStr, [VarNotFound(NativeOsStr), EnvErr(IOErr)])
+    env_cwd! : () => Try(NativePath, [CwdUnavailable])
+    env_exe_path! : () => Try(NativePath, [ExePathUnavailable])
+    env_temp_dir! : () => NativePath
 
-    file_read_bytes! : Str => Try(List(U8), [FileErr(IOErr)])
-    file_write_bytes! : Str, List(U8) => Try({}, [FileErr(IOErr)])
-    file_read_utf8! : Str => Try(Str, [FileErr(IOErr)])
-    file_write_utf8! : Str, Str => Try({}, [FileErr(IOErr)])
-    file_open_reader! : Str, U64 => Try(FileReader, [FileErr(IOErr)])
+    file_read_bytes! : NativePath => Try(List(U8), [FileErr(IOErr)])
+    file_write_bytes! : NativePath, List(U8) => Try({}, [FileErr(IOErr)])
+    file_read_utf8! : NativePath => Try(Str, [FileErr(IOErr)])
+    file_write_utf8! : NativePath, Str => Try({}, [FileErr(IOErr)])
+    file_open_reader! : NativePath, U64 => Try(FileReader, [FileErr(IOErr)])
     file_read_line! : FileReader => Try(List(U8), [FileErr(IOErr)])
-    file_delete! : Str => Try({}, [FileErr(IOErr)])
-    file_size_in_bytes! : Str => Try(U64, [FileErr(IOErr)])
-    file_is_executable! : Str => Try(Bool, [FileErr(IOErr)])
-    file_is_readable! : Str => Try(Bool, [FileErr(IOErr)])
-    file_is_writable! : Str => Try(Bool, [FileErr(IOErr)])
-    file_time_accessed! : Str => Try(U128, [FileErr(IOErr)])
-    file_time_modified! : Str => Try(U128, [FileErr(IOErr)])
-    file_time_created! : Str => Try(U128, [FileErr(IOErr)])
+    file_delete! : NativePath => Try({}, [FileErr(IOErr)])
+    file_size_in_bytes! : NativePath => Try(U64, [FileErr(IOErr)])
+    file_is_executable! : NativePath => Try(Bool, [FileErr(IOErr)])
+    file_is_readable! : NativePath => Try(Bool, [FileErr(IOErr)])
+    file_is_writable! : NativePath => Try(Bool, [FileErr(IOErr)])
+    file_time_accessed! : NativePath => Try(U128, [FileErr(IOErr)])
+    file_time_modified! : NativePath => Try(U128, [FileErr(IOErr)])
+    file_time_created! : NativePath => Try(U128, [FileErr(IOErr)])
 
     http_send_request! : InternalHttp.RequestToAndFromHost => Try(InternalHttp.ResponseToAndFromHost, InternalHttp.TransportErr)
 
     locale_get! : () => Try(Str, [NotAvailable])
     locale_all! : () => List(Str)
 
-    path_type! : List(U8) => Try(PathType, IOErr)
+    path_type! : NativePath => Try(PathType, IOErr)
 
     random_seed_u64! : () => Try(U64, [RandomErr(IOErr)])
     random_seed_u32! : () => Try(U32, [RandomErr(IOErr)])
 
     sleep_millis! : U64 => {}
 
-    sqlite_prepare! : Str, Str => Try(SqliteStmt, InternalSqlite.SqliteError)
+    sqlite_prepare! : NativePath, Str => Try(SqliteStmt, InternalSqlite.SqliteError)
     sqlite_bind! : SqliteStmt, List(InternalSqlite.SqliteBindings) => Try({}, InternalSqlite.SqliteError)
     sqlite_columns! : SqliteStmt => List(Str)
     sqlite_column_value! : SqliteStmt, U64 => Try(InternalSqlite.SqliteValue, InternalSqlite.SqliteError)
@@ -106,6 +109,6 @@ Host := [].{
 
     # New hosted functions are kept at the end to avoid renumbering existing
     # generated glue more than necessary.
-    file_hard_link! : Str, Str => Try({}, [FileErr(IOErr)])
-    file_rename! : Str, Str => Try({}, [FileErr(IOErr)])
+    file_hard_link! : NativePath, NativePath => Try({}, [FileErr(IOErr)])
+    file_rename! : NativePath, NativePath => Try({}, [FileErr(IOErr)])
 }

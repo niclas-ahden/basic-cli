@@ -1,14 +1,21 @@
 import IOErr exposing [IOErr]
 import Host
+import OsStr exposing [OsStr]
 import path.Path as PackagePath
 
 Path := [].{
-    ## Create a path from a Roc string using the host platform's native path representation.
-    ##
-    ## basic-cli currently targets Unix-like hosts, so this stores the string's UTF-8 bytes
-    ## as a Unix path.
+    ## Create a UTF-8 text path.
+    ## The host lowers this text to the active OS path representation.
     from_str : Str -> PackagePath.Path
-    from_str = |str| PackagePath.unix(str)
+    from_str = |str| PackagePath.utf8(str)
+
+    ## Create a path from an OS string value, preserving raw OS units.
+    from_os_str : OsStr -> PackagePath.Path
+    from_os_str = |os_str| OsStr.to_path(os_str)
+
+    ## Convert a path to an OS string value, preserving raw OS units.
+    to_os_str : PackagePath.Path -> OsStr
+    to_os_str = |path| OsStr.from_path(path)
 
     ## Create a Unix path from a Roc string by storing its UTF-8 bytes.
     unix : Str -> PackagePath.Path
@@ -31,24 +38,28 @@ Path := [].{
     windows_u16s = |u16s| PackagePath.windows_u16s(u16s)
 
     ## Convert a path to a string if its raw representation is valid text.
+    to_str_try : PackagePath.Path -> Try(Str, [InvalidStr(U64)])
+    to_str_try = |path| PackagePath.to_str(path)
+
+    ## Convert a path to a string if its raw representation is valid text.
     to_str : PackagePath.Path -> Try(Str, [InvalidStr(U64)])
-    to_str = |path| path.to_str()
+    to_str = |path| to_str_try(path)
 
     ## Convert a path to a display string, replacing invalid text with U+FFFD.
     display : PackagePath.Path -> Str
-    display = |path| path.display()
+    display = |path| PackagePath.display(path)
 
     ## Returns everything after the last directory separator.
     filename : PackagePath.Path -> Try(PackagePath.Path, [IsDirPath, EndsInDots])
-    filename = |path| path.filename()
+    filename = |path| PackagePath.filename(path)
 
     ## Returns the filename extension without the leading dot.
     ext : PackagePath.Path -> Try(PackagePath.Path, [IsDirPath, EndsInDots])
-    ext = |path| path.ext()
+    ext = |path| PackagePath.ext(path)
 
     ## Adds a separator and a string component to the path.
     join : PackagePath.Path, Str -> PackagePath.Path
-    join = |path, str| path.join(str)
+    join = |path, str| PackagePath.join(path, str)
 
     ## Add or replace the filename extension.
     with_extension : PackagePath.Path, Str -> PackagePath.Path
@@ -66,12 +77,12 @@ Path := [].{
         from_str("${base}.${new_ext}")
     }
 
-    ## Expose the raw OS-specific representation.
-    to_raw : PackagePath.Path -> [UnixBytes(List(U8)), WindowsU16s(List(U16))]
-    to_raw = |path| path.to_raw()
+    ## Expose the host ABI representation.
+    to_raw : PackagePath.Path -> [Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]
+    to_raw = |path| PackagePath.to_raw(path)
 
-    ## Build a path from the raw OS-specific representation.
-    from_raw : [UnixBytes(List(U8)), WindowsU16s(List(U16))] -> PackagePath.Path
+    ## Build a path from the host ABI representation.
+    from_raw : [Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))] -> PackagePath.Path
     from_raw = |raw| PackagePath.from_raw(raw)
 
     ## Returns `Bool.True` if the path exists on disk and is pointing at a regular file.
@@ -124,12 +135,12 @@ Path := [].{
 
     ## Return the type of the path if the path exists on disk.
     ##
-    ## > [`File.type`](File#type!) does the same thing, except it takes a `Str` instead of a path value.
+    ## > [`File.type`](File#type!) does the same thing.
     type! : PackagePath.Path => Try([IsFile, IsDir, IsSymLink], [PathErr(IOErr), ..])
     type! = |path| {
         # TODO: once https://github.com/roc-lang/roc/issues/9864 is fixed,
         # app authors should be able to call this effect as `path.type!()`.
-        Host.path_type!(to_bytes(path))
+        Host.path_type!(PackagePath.to_raw(path))
             .map_err(|err| PathErr(err))
             .map_ok(|path_type|{
                 if path_type.is_sym_link {
@@ -144,60 +155,50 @@ Path := [].{
 
     ## Read all bytes from a file at this path.
     read_bytes! : PackagePath.Path => Try(List(U8), [PathErr(IOErr), ..])
-    read_bytes! = |path| map_file_result(Host.file_read_bytes!(path_to_str(path)))
+    read_bytes! = |path| map_file_result(Host.file_read_bytes!(PackagePath.to_raw(path)))
 
     ## Write bytes to a file at this path, replacing any existing contents.
     write_bytes! : List(U8), PackagePath.Path => Try({}, [PathErr(IOErr), ..])
-    write_bytes! = |bytes, path| map_file_result(Host.file_write_bytes!(path_to_str(path), bytes))
+    write_bytes! = |bytes, path| map_file_result(Host.file_write_bytes!(PackagePath.to_raw(path), bytes))
 
     ## Read a UTF-8 file at this path.
     read_utf8! : PackagePath.Path => Try(Str, [PathErr(IOErr), ..])
-    read_utf8! = |path| map_file_result(Host.file_read_utf8!(path_to_str(path)))
+    read_utf8! = |path| map_file_result(Host.file_read_utf8!(PackagePath.to_raw(path)))
 
     ## Write a UTF-8 file at this path, replacing any existing contents.
     write_utf8! : Str, PackagePath.Path => Try({}, [PathErr(IOErr), ..])
-    write_utf8! = |content, path| map_file_result(Host.file_write_utf8!(path_to_str(path), content))
+    write_utf8! = |content, path| map_file_result(Host.file_write_utf8!(PackagePath.to_raw(path), content))
 
     ## Delete a file at this path.
     delete! : PackagePath.Path => Try({}, [PathErr(IOErr), ..])
-    delete! = |path| map_file_result(Host.file_delete!(path_to_str(path)))
+    delete! = |path| map_file_result(Host.file_delete!(PackagePath.to_raw(path)))
 
     ## Create a hard link at `link` pointing to `original`.
     hard_link! : PackagePath.Path, PackagePath.Path => Try({}, [PathErr(IOErr), ..])
     hard_link! = |original, link|
-        map_file_result(Host.file_hard_link!(path_to_str(original), path_to_str(link)))
+        map_file_result(Host.file_hard_link!(PackagePath.to_raw(original), PackagePath.to_raw(link)))
 
     ## Rename a file from `from` to `to`.
     rename! : PackagePath.Path, PackagePath.Path => Try({}, [PathErr(IOErr), ..])
     rename! = |from, to|
-        map_file_result(Host.file_rename!(path_to_str(from), path_to_str(to)))
+        map_file_result(Host.file_rename!(PackagePath.to_raw(from), PackagePath.to_raw(to)))
 
     ## Create a directory at this path.
     create_dir! : PackagePath.Path => Try({}, [PathErr(IOErr), ..])
-    create_dir! = |path| map_dir_result(Host.dir_create!(path_to_str(path)))
+    create_dir! = |path| map_dir_result(Host.dir_create!(PackagePath.to_raw(path)))
 
     ## Create a directory and any missing parent directories at this path.
     create_all! : PackagePath.Path => Try({}, [PathErr(IOErr), ..])
-    create_all! = |path| map_dir_result(Host.dir_create_all!(path_to_str(path)))
+    create_all! = |path| map_dir_result(Host.dir_create_all!(PackagePath.to_raw(path)))
 
     ## Delete an empty directory at this path.
     delete_empty! : PackagePath.Path => Try({}, [PathErr(IOErr), ..])
-    delete_empty! = |path| map_dir_result(Host.dir_delete_empty!(path_to_str(path)))
+    delete_empty! = |path| map_dir_result(Host.dir_delete_empty!(PackagePath.to_raw(path)))
 
     ## Delete a directory and all contents at this path.
     delete_all! : PackagePath.Path => Try({}, [PathErr(IOErr), ..])
-    delete_all! = |path| map_dir_result(Host.dir_delete_all!(path_to_str(path)))
+    delete_all! = |path| map_dir_result(Host.dir_delete_all!(PackagePath.to_raw(path)))
 }
-
-to_bytes : PackagePath.Path -> List(U8)
-to_bytes = |path|
-    match PackagePath.to_raw(path) {
-        UnixBytes(bytes) => bytes
-        WindowsU16s(_) => Str.to_utf8(PackagePath.display(path))
-    }
-
-path_to_str : PackagePath.Path -> Str
-path_to_str = |path| PackagePath.display(path)
 
 map_file_result : Try(a, [FileErr(IOErr)]) -> Try(a, [PathErr(IOErr), ..])
 map_file_result = |result|

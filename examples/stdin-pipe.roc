@@ -1,5 +1,6 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdin
 import pf.Stdout
 
@@ -7,7 +8,7 @@ import pf.Stdout
 
 # Reading piped text from stdin, for example: `echo "hey" | roc ./examples/stdin-pipe.roc`
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     # Data is only sent with Stdin.line! if the user presses Enter,
     # so you'll need to use read_to_end! to read data that was piped in without a newline.

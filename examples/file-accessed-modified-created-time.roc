@@ -1,12 +1,14 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.File
+import pf.Path
 import pf.Utc
 
 # To run this example: check the README.md in this folder
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     file = "LICENSE"
 
@@ -25,7 +27,7 @@ main! = |_args| {
     }
 
     Stdout.line!(
-        \\${file} file time metadata:
+        \\${Path.display(file)} file time metadata:
         \\    Modified: ${time_modified.to_str()} ms since epoch
         \\    Accessed: ${time_accessed.to_str()} ms since epoch
         \\${created_line}

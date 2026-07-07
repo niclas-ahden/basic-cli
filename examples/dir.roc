@@ -1,12 +1,13 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.Dir
 import pf.Path
 
 # Demo of all Dir functions.
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     # Best-effort cleanup from a previous interrupted run.
     Dir.delete_all!("empty-dir") ?? {}

@@ -12,7 +12,7 @@ spawn $env(EXAMPLES_DIR)/command-line-args foo
 set expected_output [normalize_output {
 received argument: foo
 Unix argument, bytes: [102, 111, 111]
-back to Arg: "foo"
+back to OsStr: OsStr(foo)
 }]
 
 expect -exact $expected_output {

@@ -1,11 +1,12 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 # Demo of basic-cli Random functions
 
 import pf.Stdout
 import pf.Random
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     random_u64 = Random.seed_u64!()?
     Stdout.line!("Random U64 seed is: ${random_u64.to_str()}")?

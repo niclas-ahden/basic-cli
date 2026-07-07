@@ -1,15 +1,32 @@
 import Host
+import IOErr exposing [IOErr]
+import OsStr exposing [OsStr]
 import path.Path as PackagePath
 
 Env := [].{
     ## Reads the given environment variable.
     ##
-    ## If the value is invalid Unicode, the invalid parts will be replaced with the
-    ## [Unicode replacement character](https://unicode.org/glossary/#replacement_character).
-    ##
     ## Returns `Err(VarNotFound(name))` if the variable is not set.
-    var! : Str => Try(Str, [VarNotFound(Str), ..])
-    var! = |name| widen_var_err(Host.env_var!(name))
+    var! : OsStr => Try(OsStr, [VarNotFound(OsStr), EnvErr(IOErr), ..])
+    var! = |name|
+        match Host.env_var!(OsStr.to_raw(name)) {
+            Ok(raw) => Ok(OsStr.from_raw(raw))
+            Err(VarNotFound(raw_name)) => Err(VarNotFound(OsStr.from_raw(raw_name)))
+            Err(EnvErr(err)) => Err(EnvErr(err))
+        }
+
+    ## Reads the given environment variable as a string if its native value is valid text.
+    var_str! : OsStr => Try(Str, [VarNotFound(OsStr), EnvErr(IOErr), InvalidStr(U64), ..])
+    var_str! = |name|
+        match var!(name) {
+            Ok(value) =>
+                match OsStr.to_str_try(value) {
+                    Ok(str) => Ok(str)
+                    Err(InvalidStr(index)) => Err(InvalidStr(index))
+                }
+            Err(VarNotFound(raw_name)) => Err(VarNotFound(raw_name))
+            Err(EnvErr(err)) => Err(EnvErr(err))
+        }
 
     ## Reads the [current working directory](https://en.wikipedia.org/wiki/Working_directory)
     ## from the environment.
@@ -18,7 +35,7 @@ Env := [].{
     cwd! : () => Try(PackagePath.Path, [CwdUnavailable, ..])
     cwd! = ||
         match Host.env_cwd!() {
-            Ok(bytes) => Ok(PackagePath.unix_bytes(bytes)),
+            Ok(raw) => Ok(PackagePath.from_raw(raw)),
             Err(CwdUnavailable) => Err(CwdUnavailable),
         }
 
@@ -28,18 +45,11 @@ Env := [].{
     exe_path! : () => Try(PackagePath.Path, [ExePathUnavailable, ..])
     exe_path! = ||
         match Host.env_exe_path!() {
-            Ok(bytes) => Ok(PackagePath.unix_bytes(bytes)),
+            Ok(raw) => Ok(PackagePath.from_raw(raw)),
             Err(ExePathUnavailable) => Err(ExePathUnavailable),
         }
 
     ## Gets the default directory for temporary files.
     temp_dir! : () => PackagePath.Path
-    temp_dir! = || PackagePath.unix_bytes(Host.env_temp_dir!())
+    temp_dir! = || PackagePath.from_raw(Host.env_temp_dir!())
 }
-
-widen_var_err : Try(a, [VarNotFound(Str)]) -> Try(a, [VarNotFound(Str), ..])
-widen_var_err = |result|
-    match result {
-        Ok(value) => Ok(value),
-        Err(VarNotFound(name)) => Err(VarNotFound(name)),
-    }

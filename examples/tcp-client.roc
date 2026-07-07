@@ -1,5 +1,6 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Tcp
 import pf.Stdout
 import pf.Stdin
@@ -14,7 +15,7 @@ import pf.Stdin
 #     $ ncat -e $(which cat) -l 8085
 #
 # then run this example.
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     stream = Tcp.connect!("127.0.0.1", 8085) ? |err| ConnectFailed(err)
     Stdout.line!("Connected!")?

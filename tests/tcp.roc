@@ -1,9 +1,10 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.Tcp
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     Stdout.line!(
         \\Testing Tcp module functions...

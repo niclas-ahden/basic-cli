@@ -1,7 +1,9 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.File
+import pf.Path
 
 # To run this example: check the README.md in this folder
 
@@ -18,7 +20,7 @@ import pf.File
 #
 # See examples/file-read-write.roc if you want to read the full contents at once.
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     reader = File.open_reader!("LICENSE")?
     read_summary = process_line!(reader, { lines_read: 0, bytes_read: 0 })?

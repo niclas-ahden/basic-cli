@@ -7,7 +7,7 @@ use crate::{roc_host, roc_u8_list_from_slice};
 // number; alias them to stable semantic names. Host ABI headers are `(Str, Str)`
 // tuples, rendered as a struct with `_0` (name) and `_1` (value) fields.
 type HttpResponse = HostHttpSendRequestOk;
-type HttpHeader = AnonStruct39;
+type HttpHeader = AnonStruct43;
 type HttpResult = HostHttpSendRequestResult;
 type HttpResultPayload = HostHttpSendRequestResultPayload;
 type HttpResultTag = HostHttpSendRequestResultTag;
@@ -181,7 +181,7 @@ pub extern "C" fn hosted_http_send_request(args: HostHttpSendRequestArgs) -> Htt
     let request_result = build_hyper_request(&args);
     args.body.decref(roc_host);
     for header in args.headers.as_slice() {
-        decref_anon_struct39(*header, roc_host);
+        decref_anon_struct43(*header, roc_host);
     }
     args.headers.decref(roc_host);
     args.method_ext.decref(roc_host);

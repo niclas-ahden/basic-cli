@@ -2,7 +2,7 @@ use core::mem::ManuallyDrop;
 use std::io;
 
 use crate::roc_platform_abi::*;
-use crate::{roc_host, roc_u8_list_from_slice};
+use crate::{os_string_from_native, roc_host, roc_u8_list_from_slice, NativeOsStr};
 
 type CmdExitResult = HostCmdExecExitCodeResult;
 type CmdExitResultPayload = HostCmdExecExitCodeResultPayload;
@@ -62,37 +62,55 @@ fn cmd_io_err_from_io(error: &io::Error, roc_host: &RocHost) -> HostIOErr {
     }
 }
 
-fn decref_roc_str_list(list: &RocList<RocStr>, roc_host: &RocHost) {
+fn take_arg_list(
+    list: &RocList<NativeOsStr>,
+    roc_host: &RocHost,
+) -> io::Result<Vec<std::ffi::OsString>> {
+    let mut values = Vec::with_capacity(list.len());
+    let mut first_error = None;
+
     for item in list.as_slice() {
-        item.decref(roc_host);
+        match os_string_from_native(*item, roc_host) {
+            Ok(value) => values.push(value),
+            Err(error) => {
+                if first_error.is_none() {
+                    first_error = Some(error);
+                }
+            }
+        }
     }
+
     list.decref(roc_host);
+
+    match first_error {
+        Some(error) => Err(error),
+        None => Ok(values),
+    }
 }
 
-fn decref_host_cmd_arg(cmd: &Cmd, roc_host: &RocHost) {
-    decref_roc_str_list(&cmd.args, roc_host);
-    decref_roc_str_list(&cmd.envs, roc_host);
-    cmd.program.decref(roc_host);
-}
+fn cmd_to_std(cmd: &Cmd, roc_host: &RocHost) -> io::Result<std::process::Command> {
+    let program = os_string_from_native(cmd.program, roc_host);
+    let args = take_arg_list(&cmd.args, roc_host);
+    let envs = take_arg_list(&cmd.envs, roc_host);
 
-fn cmd_to_std(cmd: &Cmd) -> std::process::Command {
-    let mut std_cmd = std::process::Command::new(cmd.program.as_str());
+    let mut std_cmd = std::process::Command::new(program?);
 
-    for arg in cmd.args.as_slice() {
-        std_cmd.arg(arg.as_str());
+    for arg in args? {
+        std_cmd.arg(arg);
     }
 
     if cmd.clear_envs {
         std_cmd.env_clear();
     }
 
-    for chunk in cmd.envs.as_slice().chunks(2) {
+    let envs = envs?;
+    for chunk in envs.chunks(2) {
         if let [key, value] = chunk {
-            std_cmd.env(key.as_str(), value.as_str());
+            std_cmd.env(key, value);
         }
     }
 
-    std_cmd
+    Ok(std_cmd)
 }
 
 fn try_cmd_exit_ok(value: i32) -> CmdExitResult {
@@ -152,8 +170,10 @@ fn cmd_output_failed_to_get_exit_code(error: HostIOErr) -> CmdOutputError {
 #[no_mangle]
 pub extern "C" fn hosted_cmd_host_exec_exit_code(cmd: Cmd) -> CmdExitResult {
     let roc_host = roc_host();
-    let mut std_cmd = cmd_to_std(&cmd);
-    decref_host_cmd_arg(&cmd, roc_host);
+    let mut std_cmd = match cmd_to_std(&cmd, roc_host) {
+        Ok(cmd) => cmd,
+        Err(error) => return try_cmd_exit_err(cmd_io_err_from_io(&error, roc_host)),
+    };
 
     match std_cmd.status() {
         Ok(status) => match status.code() {
@@ -167,8 +187,14 @@ pub extern "C" fn hosted_cmd_host_exec_exit_code(cmd: Cmd) -> CmdExitResult {
 #[no_mangle]
 pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
     let roc_host = roc_host();
-    let mut std_cmd = cmd_to_std(&cmd);
-    decref_host_cmd_arg(&cmd, roc_host);
+    let mut std_cmd = match cmd_to_std(&cmd, roc_host) {
+        Ok(cmd) => cmd,
+        Err(error) => {
+            return try_cmd_output_err(cmd_output_failed_to_get_exit_code(cmd_io_err_from_io(
+                &error, roc_host,
+            )))
+        }
+    };
 
     match std_cmd.output() {
         Ok(output) => {

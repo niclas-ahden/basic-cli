@@ -1,13 +1,14 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.Path
 
 # Demo of basic-cli Path functions
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-    path = Path.from_str("path.roc")
+    path = "path.roc"
 
     Stdout.line!(
         \\is_file: ${Str.inspect(Path.is_file!(path))}

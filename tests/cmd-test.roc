@@ -1,5 +1,6 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.Cmd
 import pf.IOErr exposing [IOErr]
@@ -9,7 +10,7 @@ import pf.IOErr exposing [IOErr]
 # https://github.com/roc-lang/roc/issues/10003, and dev runs still segfault after
 # the assertions complete.
 
-main! : List(Str) => Try({}, [Exit(I32)])
+main! : List(OsStr) => Try({}, [Exit(I32)])
 main! = |_args|
     match run!() {
         Ok({}) => Ok({})

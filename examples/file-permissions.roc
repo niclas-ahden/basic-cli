@@ -1,11 +1,13 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.File
+import pf.Path
 
 # To run this example: check the README.md in this folder
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     file = "LICENSE"
 
@@ -16,7 +18,7 @@ main! = |_args| {
     is_writable = File.is_writable!(file)?
 
     Stdout.line!(
-        \\${file} file permissions:
+        \\${Path.display(file)} file permissions:
         \\    Executable: ${Str.inspect(is_executable)}
         \\    Readable: ${Str.inspect(is_readable)}
         \\    Writable: ${Str.inspect(is_writable)}

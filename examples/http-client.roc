@@ -3,6 +3,7 @@ app [main!] {
     http: "https://github.com/roc-lang/http/releases/download/1.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",
 }
 
+import pf.OsStr exposing [OsStr]
 import pf.Http
 import pf.Stdout
 import http.Request
@@ -18,7 +19,7 @@ import http.Response
 #
 #     roc build examples/http-client.roc
 #     ./examples/http-client
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| run_demo!()
 
 run_demo! : () => Try({}, _)

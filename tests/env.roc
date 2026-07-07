@@ -1,16 +1,17 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Env
 import pf.Path
 import pf.Stdout
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     Stdout.line!("Testing Env module functions...")?
 
     Stdout.line!("\nTesting Env.var!:")?
     env_var = Env.var!("BASIC_CLI_ENV_TEST")?
-    Stdout.line!("BASIC_CLI_ENV_TEST: ${env_var}")?
+    Stdout.line!("BASIC_CLI_ENV_TEST: ${OsStr.display(env_var)}")?
 
     Stdout.line!("\nTesting Env.cwd!:")?
     cwd = Env.cwd!()?

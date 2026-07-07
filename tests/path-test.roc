@@ -1,10 +1,11 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Cmd
 import pf.Path
 import pf.Stdout
 
-main! : List(Str) => Try({}, [Exit(I32), ..])
+main! : List(OsStr) => Try({}, [Exit(I32), ..])
 main! = |_args| {
     result = run_tests!()
     cleanup_result = cleanup_test_files!()
@@ -48,13 +49,13 @@ test_path_creation! = || {
     expected_str = "test_path"
     actual_str = Path.display(path_from_bytes)
 
-    base_path = Path.from_str("test_file")
+    base_path = "test_file"
     path_with_ext = Path.with_extension(base_path, "txt")
 
-    path_with_dot = Path.from_str("test_file.")
+    path_with_dot = "test_file."
     path_dot_ext = Path.with_extension(path_with_dot, "json")
 
-    path_replace_ext = Path.from_str("test_file.old")
+    path_replace_ext = "test_file.old"
     path_new_ext = Path.with_extension(path_replace_ext, "new")
 
     Stdout.line!("Created path from bytes: ${Path.display(path_from_bytes)}")?
@@ -74,7 +75,7 @@ test_file_operations! = || {
     Stdout.line!("\nTesting Path file operations:")?
 
     test_bytes = [72, 101, 108, 108, 111, 44, 32, 80, 97, 116, 104, 33]
-    bytes_path = Path.from_str("test_path_bytes.txt")
+    bytes_path = "test_path_bytes.txt"
     Path.write_bytes!(test_bytes, bytes_path)?
 
     read_bytes = Path.read_bytes!(bytes_path)?
@@ -84,7 +85,7 @@ test_file_operations! = || {
     Stdout.line!("Bytes match: ${bool_to_old_str(test_bytes == read_bytes)}")?
 
     utf8_content = "Hello from Path module! 🚀"
-    utf8_path = Path.from_str("test_path_utf8.txt")
+    utf8_path = "test_path_utf8.txt"
     Path.write_utf8!(utf8_content, utf8_path)?
 
     cat_output = Cmd.new("cat").arg("test_path_utf8.txt").exec_output!()?
@@ -96,7 +97,7 @@ test_file_operations! = || {
     Stdout.line!("UTF-8 content matches: ${bool_to_old_str(utf8_content == read_utf8)}")?
 
     json_content = "{\"message\":\"Path test\",\"numbers\":[1,2,3]}"
-    json_path = Path.from_str("test_path_json.json")
+    json_path = "test_path_json.json"
     Path.write_utf8!(json_content, json_path)?
     read_json = Path.read_utf8!(json_path)?
 
@@ -104,7 +105,7 @@ test_file_operations! = || {
     Stdout.line!("JSON contains 'message' field: ${bool_to_old_str(Str.contains(read_json, "\"message\""))}")?
     Stdout.line!("JSON contains 'numbers' field: ${bool_to_old_str(Str.contains(read_json, "\"numbers\""))}")?
 
-    delete_path = Path.from_str("test_to_delete.txt")
+    delete_path = "test_to_delete.txt"
     Path.write_utf8!("This file will be deleted", delete_path)?
     Path.delete!(delete_path)?
 
@@ -118,10 +119,10 @@ test_directory_operations! : () => Try({}, _)
 test_directory_operations! = || {
     Stdout.line!("\nTesting Path directory operations...")?
 
-    single_dir = Path.from_str("test_single_dir")
+    single_dir = "test_single_dir"
     Path.create_dir!(single_dir)?
 
-    nested_dir = Path.from_str("test_parent/test_child/test_grandchild")
+    nested_dir = "test_parent/test_child/test_grandchild"
     Path.create_all!(nested_dir)?
 
     find_output = Cmd.new("find").args(["test_parent", "-type", "d"]).exec_output!()?
@@ -132,24 +133,24 @@ test_directory_operations! = || {
     Stdout.line!("")?
     Stdout.line!("Number of directories created: ${U64.to_str(dir_count)}")?
 
-    Path.write_utf8!("File 1", Path.from_str("test_single_dir/file1.txt"))?
-    Path.write_utf8!("File 2", Path.from_str("test_single_dir/file2.txt"))?
-    Path.create_dir!(Path.from_str("test_single_dir/subdir"))?
+    Path.write_utf8!("File 1", "test_single_dir/file1.txt")?
+    Path.write_utf8!("File 2", "test_single_dir/file2.txt")?
+    Path.create_dir!("test_single_dir/subdir")?
 
     ls_contents = Cmd.new("ls").args(["-la", "test_single_dir"]).exec_output!()?
     Stdout.line!("Directory contents:")?
     Stdout.write!(ls_contents.stdout_utf8)?
     Stdout.line!("")?
 
-    empty_dir = Path.from_str("test_empty_dir")
+    empty_dir = "test_empty_dir"
     Path.create_dir!(empty_dir)?
     Path.delete_empty!(empty_dir)?
     empty_exists_after_delete = Path.exists!(empty_dir)?
     Stdout.line!("Empty dir was deleted: ${bool_to_old_str(Bool.not(empty_exists_after_delete))}")?
 
     du_output = Cmd.new("du").args(["-sh", "test_parent"]).exec_output!()?
-    Path.delete_all!(Path.from_str("test_parent"))?
-    parent_exists_after_delete = Path.exists!(Path.from_str("test_parent"))?
+    Path.delete_all!("test_parent")?
+    parent_exists_after_delete = Path.exists!("test_parent")?
 
     Stdout.write!("Size before delete_all: ${du_output.stdout_utf8}")?
     Stdout.line!("")?
@@ -161,7 +162,7 @@ test_directory_operations! = || {
 
 get_hard_link_count! : Str => Try(Str, _)
 get_hard_link_count! = |path_str| {
-    ls_l = Cmd.new("ls").args(["-l", path_str]).exec_output!()?
+    ls_l = Cmd.new("ls").args_str(["-l", path_str]).exec_output!()?
     parts = Str.split_on(ls_l.stdout_utf8, " ")
     non_empty_parts = List.keep_if(parts, |part| !Str.is_empty(part))
     count = non_empty_parts.get(1) ? |_| HardLinkCountNotFound
@@ -172,12 +173,12 @@ test_hard_link! : () => Try({}, _)
 test_hard_link! = || {
     Stdout.line!("\nTesting Path.hard_link!:")?
 
-    original_path = Path.from_str("test_path_original.txt")
+    original_path = "test_path_original.txt"
     Path.write_utf8!("Original content for Path hard link test", original_path)?
 
     hard_link_count_before = get_hard_link_count!("test_path_original.txt")?
 
-    link_path = Path.from_str("test_path_hardlink.txt")
+    link_path = "test_path_hardlink.txt"
     Path.hard_link!(original_path, link_path)?
 
     hard_link_count_after = get_hard_link_count!("test_path_original.txt")?
@@ -221,8 +222,8 @@ test_path_rename! : () => Try({}, _)
 test_path_rename! = || {
     Stdout.line!("\nTesting Path.rename!:")?
 
-    original_path = Path.from_str("test_path_rename_original.txt")
-    new_path = Path.from_str("test_path_rename_new.txt")
+    original_path = "test_path_rename_original.txt"
+    new_path = "test_path_rename_new.txt"
     test_file_content = "Content for rename test."
 
     Path.write_utf8!(test_file_content, original_path)?
@@ -256,7 +257,7 @@ test_path_exists! : () => Try({}, _)
 test_path_exists! = || {
     Stdout.line!("\nTesting Path.exists!:")?
 
-    filename = Path.from_str("test_path_exists.txt")
+    filename = "test_path_exists.txt"
     Path.write_utf8!("This file exists", filename)?
 
     file_exists = Path.exists!(filename)?
@@ -318,7 +319,7 @@ cleanup_test_files! = || {
 
     ls_after_cleanup =
         Cmd.new("sh")
-        .args(["-c", ls_after_cleanup_command])
+        .args_str(["-c", ls_after_cleanup_command])
         .exec_output!()?
 
     Stdout.write!(ls_after_cleanup.stderr_utf8_lossy)?

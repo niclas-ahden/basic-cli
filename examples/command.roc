@@ -1,11 +1,12 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.Cmd
 
 # Different ways to run commands like you do in a terminal.
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| run!()
 
 run! : () => Try({}, _)

@@ -18,13 +18,21 @@ type SqliteValue = BytesOrIntegerOrNullOrRealOrString;
 type SqliteValueTag = BytesOrIntegerOrNullOrRealOrStringTag;
 type SqliteValuePayload = BytesOrIntegerOrNullOrRealOrStringPayload;
 type SqliteError = HostSqlitePrepareErr;
-type SqliteBindings = AnonStruct56;
+type SqliteBindings = AnonStruct60;
+type NativePath = UnixBytesOrUtf8OrWindowsU16sType19;
+type NativePathTag = UnixBytesOrUtf8OrWindowsU16sType19Tag;
 
 const SQLITE_STMT_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
 struct SqliteStatement {
     connection: *mut libsqlite3_sys::sqlite3,
     stmt: *mut libsqlite3_sys::sqlite3_stmt,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum SqlitePath {
+    Unix(Vec<u8>),
+    Windows(Vec<u16>),
 }
 
 impl Drop for SqliteStatement {
@@ -37,7 +45,7 @@ impl Drop for SqliteStatement {
 
 thread_local! {
     // Connections are cached per database path and live until process exit.
-    static SQLITE_CONNECTIONS: RefCell<Vec<(CString, *mut libsqlite3_sys::sqlite3)>> =
+    static SQLITE_CONNECTIONS: RefCell<Vec<(SqlitePath, *mut libsqlite3_sys::sqlite3)>> =
         const { RefCell::new(Vec::new()) };
 }
 
@@ -115,38 +123,136 @@ fn sqlite_err_from_stmt(stmt: &SqliteStatement, code: c_int, roc_host: &RocHost)
     sqlite_error(code, &message, roc_host)
 }
 
-fn sqlite_get_connection(path: &str) -> Result<*mut libsqlite3_sys::sqlite3, (c_int, String)> {
+fn sqlite_path_from_native(
+    path: NativePath,
+    roc_host: &RocHost,
+) -> Result<SqlitePath, (c_int, String)> {
+    match path.tag {
+        NativePathTag::UnixBytes => unsafe {
+            let bytes = ManuallyDrop::into_inner(path.payload.unix_bytes);
+            let path = SqlitePath::Unix(bytes.as_slice().to_vec());
+            bytes.decref(roc_host);
+            Ok(path)
+        },
+        NativePathTag::Utf8 => unsafe {
+            let text = ManuallyDrop::into_inner(path.payload.utf8);
+            #[cfg(unix)]
+            let path = SqlitePath::Unix(text.as_str().as_bytes().to_vec());
+            #[cfg(windows)]
+            let path = SqlitePath::Windows(text.as_str().encode_utf16().collect());
+            #[cfg(not(any(unix, windows)))]
+            let path = {
+                text.decref(roc_host);
+                return Err((
+                    libsqlite3_sys::SQLITE_CANTOPEN,
+                    "UTF-8 database paths are not supported on this host".to_string(),
+                ));
+            };
+            text.decref(roc_host);
+            Ok(path)
+        },
+        NativePathTag::WindowsU16s => unsafe {
+            let u16s = ManuallyDrop::into_inner(path.payload.windows_u16s);
+            let path = SqlitePath::Windows(u16s.as_slice().to_vec());
+            u16s.decref(roc_host);
+            Ok(path)
+        },
+    }
+}
+
+#[cfg(windows)]
+extern "C" {
+    fn sqlite3_open16(filename: *const c_void, pp_db: *mut *mut libsqlite3_sys::sqlite3) -> c_int;
+}
+
+fn sqlite_open_native(path: &SqlitePath) -> Result<*mut libsqlite3_sys::sqlite3, (c_int, String)> {
+    let mut connection: *mut libsqlite3_sys::sqlite3 = core::ptr::null_mut();
+
+    match path {
+        SqlitePath::Unix(bytes) => {
+            #[cfg(unix)]
+            {
+                let cpath = CString::new(bytes.as_slice()).map_err(|_| {
+                    (
+                        libsqlite3_sys::SQLITE_ERROR,
+                        "database path contained an interior nul byte".to_string(),
+                    )
+                })?;
+                let flags = libsqlite3_sys::SQLITE_OPEN_CREATE
+                    | libsqlite3_sys::SQLITE_OPEN_READWRITE
+                    | libsqlite3_sys::SQLITE_OPEN_NOMUTEX;
+                let err = unsafe {
+                    libsqlite3_sys::sqlite3_open_v2(
+                        cpath.as_ptr(),
+                        &mut connection,
+                        flags,
+                        core::ptr::null(),
+                    )
+                };
+                if err != libsqlite3_sys::SQLITE_OK {
+                    let message = sqlite_errmsg(connection, err);
+                    return Err((err, message));
+                }
+
+                Ok(connection)
+            }
+
+            #[cfg(not(unix))]
+            {
+                let _ = bytes;
+                Err((
+                    libsqlite3_sys::SQLITE_CANTOPEN,
+                    "Unix database paths are not supported on this host".to_string(),
+                ))
+            }
+        }
+        SqlitePath::Windows(u16s) => {
+            #[cfg(windows)]
+            {
+                if u16s.iter().any(|unit| *unit == 0) {
+                    return Err((
+                        libsqlite3_sys::SQLITE_ERROR,
+                        "database path contained an interior nul code unit".to_string(),
+                    ));
+                }
+
+                let mut nul_terminated = u16s.clone();
+                nul_terminated.push(0);
+                let err = unsafe {
+                    sqlite3_open16(nul_terminated.as_ptr() as *const c_void, &mut connection)
+                };
+                if err != libsqlite3_sys::SQLITE_OK {
+                    let message = sqlite_errmsg(connection, err);
+                    return Err((err, message));
+                }
+
+                Ok(connection)
+            }
+
+            #[cfg(not(windows))]
+            {
+                let _ = u16s;
+                Err((
+                    libsqlite3_sys::SQLITE_CANTOPEN,
+                    "Windows database paths are not supported on this host".to_string(),
+                ))
+            }
+        }
+    }
+}
+
+fn sqlite_get_connection(
+    path: SqlitePath,
+) -> Result<*mut libsqlite3_sys::sqlite3, (c_int, String)> {
     SQLITE_CONNECTIONS.with(|cell| {
         for (conn_path, connection) in cell.borrow().iter() {
-            if conn_path.as_bytes() == path.as_bytes() {
+            if conn_path == &path {
                 return Ok(*connection);
             }
         }
 
-        let cpath = CString::new(path).map_err(|_| {
-            (
-                libsqlite3_sys::SQLITE_ERROR,
-                "database path contained an interior nul byte".to_string(),
-            )
-        })?;
-        let mut connection: *mut libsqlite3_sys::sqlite3 = core::ptr::null_mut();
-        let flags = libsqlite3_sys::SQLITE_OPEN_CREATE
-            | libsqlite3_sys::SQLITE_OPEN_READWRITE
-            | libsqlite3_sys::SQLITE_OPEN_NOMUTEX;
-        let err = unsafe {
-            libsqlite3_sys::sqlite3_open_v2(
-                cpath.as_ptr(),
-                &mut connection,
-                flags,
-                core::ptr::null(),
-            )
-        };
-        if err != libsqlite3_sys::SQLITE_OK {
-            let message = sqlite_errmsg(connection, err);
-            return Err((err, message));
-        }
-
-        cell.borrow_mut().push((cpath, connection));
+        let connection = sqlite_open_native(&path)?;
+        cell.borrow_mut().push((path, connection));
         Ok(connection)
     })
 }
@@ -346,14 +452,22 @@ fn sqlite_bind_all(
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_sqlite_prepare(path: RocStr, query: RocStr) -> HostSqlitePrepareResult {
+pub extern "C" fn hosted_sqlite_prepare(
+    path: NativePath,
+    query: RocStr,
+) -> HostSqlitePrepareResult {
     let roc_host = roc_host();
-    let path_string = path.as_str().to_owned();
+    let path = match sqlite_path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err((code, message)) => {
+            query.decref(roc_host);
+            return try_sqlite_prepare_err(sqlite_error(code, &message, roc_host));
+        }
+    };
     let query_string = query.as_str().to_owned();
-    path.decref(roc_host);
     query.decref(roc_host);
 
-    let connection = match sqlite_get_connection(&path_string) {
+    let connection = match sqlite_get_connection(path) {
         Ok(connection) => connection,
         Err((code, message)) => {
             return try_sqlite_prepare_err(sqlite_error(code, &message, roc_host));
@@ -390,7 +504,7 @@ pub extern "C" fn hosted_sqlite_bind(
         sqlite_bind_all(stmt, bindings.as_slice(), roc_host)
     };
     for binding in bindings.as_slice() {
-        decref_anon_struct56(*binding, roc_host);
+        decref_anon_struct60(*binding, roc_host);
     }
     bindings.decref(roc_host);
     release_sqlite_stmt(handle, roc_host);

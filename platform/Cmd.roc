@@ -1,11 +1,12 @@
 import IOErr exposing [IOErr]
 import Host
+import OsStr exposing [OsStr]
 
 Cmd :: {
-    args : List(Str),
+    args : List(OsStr),
     clear_envs : Bool,
-    envs : List((Str, Str)),
-    program : Str,
+    envs : List((OsStr, OsStr)),
+    program : OsStr,
 }.{
     ## Simplest way to execute a command by name with arguments.
     ## Stdin, stdout, and stderr are inherited from the parent process.
@@ -15,9 +16,9 @@ Cmd :: {
     ## ```roc
     ## Cmd.exec!("echo", ["hello world"])?
     ## ```
-    exec! : Str, List(Str) => Try({}, [ExecFailed({ command : Str, exit_code : I32 }), FailedToGetExitCode({ command : Str, err : IOErr }), ..])
+    exec! : OsStr, List(OsStr) => Try({}, [ExecFailed({ command : Str, exit_code : I32 }), FailedToGetExitCode({ command : Str, err : IOErr }), ..])
     exec! = |program, arguments| {
-        command = "${program} ${Str.join_with(arguments, " ")}"
+        command = "${OsStr.display(program)} ${Str.join_with(arguments.map(OsStr.display), " ")}"
 
         exit_code =
             new(program)
@@ -166,7 +167,7 @@ Cmd :: {
     ## ```roc
     ## cmd = Cmd.new("ls")
     ## ```
-    new : Str -> Cmd
+    new : OsStr -> Cmd
     new = |program| {
         args: [],
         clear_envs: Bool.False,
@@ -174,17 +175,25 @@ Cmd :: {
         program,
     }
 
+    ## Create a new command from a Roc string.
+    new_str : Str -> Cmd
+    new_str = |program| new(OsStr.from_str(program))
+
     ## Add a single argument to the command.
     ## ❗ Shell features like variable subsitition (e.g. `$FOO`), glob patterns (e.g. `*.txt`), ... are not available.
     ##
     ## ```roc
     ## cmd = Cmd.new("ls").arg("-l")
     ## ```
-    arg : Cmd, Str -> Cmd
+    arg : Cmd, OsStr -> Cmd
     arg = |cmd, a| {
         ..cmd,
         args: cmd.args.append(a),
     }
+
+    ## Add a single string argument to the command.
+    arg_str : Cmd, Str -> Cmd
+    arg_str = |cmd, a| arg(cmd, OsStr.from_str(a))
 
     ## Add multiple arguments to the command.
     ## ❗ Shell features like variable subsitition (e.g. `$FOO`), glob patterns (e.g. `*.txt`), ... are not available.
@@ -192,11 +201,15 @@ Cmd :: {
     ## ```roc
     ## cmd = Cmd.new("ls").args(["-l", "-a"])
     ## ```
-    args : Cmd, List(Str) -> Cmd
+    args : Cmd, List(OsStr) -> Cmd
     args = |cmd, new_args| {
         ..cmd,
         args: cmd.args.concat(new_args),
     }
+
+    ## Add multiple string arguments to the command.
+    args_str : Cmd, List(Str) -> Cmd
+    args_str = |cmd, new_args| args(cmd, new_args.map(OsStr.from_str))
 
     ## Add a single environment variable to the command.
     ##
@@ -204,18 +217,29 @@ Cmd :: {
     ## ```roc
     ## cmd = Cmd.new("env").env("FOO", "bar") # add the environment variable "FOO" with value "bar"
     ## ```
-    env : Cmd, Str, Str -> Cmd
+    env : Cmd, OsStr, OsStr -> Cmd
     env = |cmd, key, value| {
         { ..cmd, envs: cmd.envs.append((key, value)) }
     }
+
+    ## Add a single string environment variable to the command.
+    env_str : Cmd, Str, Str -> Cmd
+    env_str = |cmd, key, value| env(cmd, OsStr.from_str(key), OsStr.from_str(value))
 
     ## Add multiple environment variables to the command.
     ##
     ## ```roc
     ## cmd = Cmd.new("env").envs([("FOO", "bar"), ("BAZ", "qux")])
     ## ```
-    envs : Cmd, List((Str, Str)) -> Cmd
+    envs : Cmd, List((OsStr, OsStr)) -> Cmd
     envs = |cmd, pairs| { ..cmd, envs: cmd.envs.concat(pairs) }
+
+    ## Add multiple string environment variables to the command.
+    envs_str : Cmd, List((Str, Str)) -> Cmd
+    envs_str = |cmd, pairs| {
+        arg_pairs = pairs.map(|(key, value)| (OsStr.from_str(key), OsStr.from_str(value)))
+        envs(cmd, arg_pairs)
+    }
 
     ## Clear all environment variables before running the command.
     ## Only environment variables added via `env` or `envs` will be available.
@@ -231,14 +255,14 @@ Cmd :: {
     clear_envs = |cmd| { ..cmd, clear_envs: Bool.True }
 }
 
-flatten_str_pairs : List((Str, Str)), List(Str), U64 -> List(Str)
-flatten_str_pairs = |pairs, acc, idx| {
+flatten_arg_pairs : List((OsStr, OsStr)), List(OsStr), U64 -> List(OsStr)
+flatten_arg_pairs = |pairs, acc, idx| {
     if idx >= pairs.len() {
         acc
     } else {
         match pairs.get(idx) {
             Ok(pair) =>
-                flatten_str_pairs(pairs, acc.append(pair.0).append(pair.1), idx + 1)
+                flatten_arg_pairs(pairs, acc.append(pair.0).append(pair.1), idx + 1)
             Err(_) =>
                 acc
         }
@@ -255,20 +279,20 @@ to_str = |cmd| {
         }
 
     envs_str = {
-        envs = cmd.envs.map(|(key, value)| "${key}=${value}")
+        envs = cmd.envs.map(|(key, value)| "${OsStr.display(key)}=${OsStr.display(value)}")
         my_trim(Str.trim(Str.join_with(envs, " ")))
     }
 
     clear_envs_str = if cmd.clear_envs { ", clear_envs: true" } else { "" }
-    args_str = Str.join_with(cmd.args, " ")
+    args_str = Str.join_with(cmd.args.map(OsStr.display), " ")
 
-    "{ cmd: ${cmd.program}, args: ${args_str}${envs_str}${clear_envs_str} }"
+    "{ cmd: ${OsStr.display(cmd.program)}, args: ${args_str}${envs_str}${clear_envs_str} }"
 }
 
 to_host_cmd : Cmd -> Host.Cmd
 to_host_cmd = |cmd| {
-    args: cmd.args,
+    args: cmd.args.map(OsStr.to_raw),
     clear_envs: cmd.clear_envs,
-    envs: flatten_str_pairs(cmd.envs, [], 0),
-    program: cmd.program,
+    envs: flatten_arg_pairs(cmd.envs, [], 0).map(OsStr.to_raw),
+    program: OsStr.to_raw(cmd.program),
 }

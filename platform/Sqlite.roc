@@ -1,5 +1,6 @@
 import InternalSqlite
 import Host
+import path.Path as PackagePath
 
 # Porting notes for the new (zig) compiler: the decoder combinator API is written
 # with fully-literal nested lambdas (`|name| |cols| |stmt| ...`) and relies on
@@ -69,7 +70,7 @@ Sqlite := [].{
 
     ## Prepare a `Stmt` for execution at a later time.
     prepare! = |{ path, query: q }|
-        Host.sqlite_prepare!(path, q)
+        Host.sqlite_prepare!(PackagePath.to_raw(path), q)
             .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
 
     ## Bind named parameters to a prepared statement.

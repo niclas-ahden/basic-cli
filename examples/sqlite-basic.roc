@@ -1,8 +1,10 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Env
 import pf.Stdout
 import pf.Sqlite
+import pf.Path
 
 # To run this example: check the README.md in this folder and set `export DB_PATH=./examples/todos.db`
 
@@ -15,14 +17,14 @@ import pf.Sqlite
 #     status TEXT NOT NULL
 # );
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| run!()
 
 run! : () => Try({}, _)
 run! = || {
     db_path =
         match Env.var!("DB_PATH") {
-            Ok(p) => p
+            Ok(p) => Path.from_os_str(p)
             Err(_) => "./examples/todos.db"
         }
 

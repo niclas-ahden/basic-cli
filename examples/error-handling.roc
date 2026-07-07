@@ -1,13 +1,16 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.File
+import pf.Path
 
 # Demonstrates error handling patterns
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     file_name = "test-file.txt"
+    file_display = Path.display(file_name)
 
     # Try to read a file that doesn't exist - should error
     result = File.read_utf8!("nonexistent-file.txt")
@@ -34,6 +37,6 @@ main! = |_args| {
     # Cleanup
     File.delete!(file_name) ? |err| FileDeleteFailed(err)
 
-    Stdout.line!("${file_name} contains: ${content}")?
+    Stdout.line!("${file_display} contains: ${content}")?
     Ok({})
 }

@@ -1,12 +1,13 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.Utc
 import pf.Sleep
 
 # Demo Utc and Sleep functions
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |_args| {
     start = Utc.now!()
 

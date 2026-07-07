@@ -20,7 +20,7 @@ API wishlist items, and post-merge refactors should not live here.
   - Current workaround: `ci/all_tests.sh` keeps `cmd-test` in
     `SKIPPED_EXPECT_NAMES`; `tests/cmd-test.roc` and
     `ci/expect_scripts/cmd-test.exp` remain in the repo but are not active in
-    the expect suite.
+    the check/build/expect suite.
   - Required resolution: add `cmd-test` back to `TEST_EXPECT_NAMES` once the Roc
     compiler can build/run this coverage path, or replace it with a smaller
     active regression test that preserves the command error behavior without
@@ -39,10 +39,9 @@ API wishlist items, and post-merge refactors should not live here.
 - Decide whether to restore old typed env/arg helper APIs or keep the current
   observable behavior only.
   - `examples/env-var.roc` restores the old `LETTERS=a,c,e,j` output using
-    `Env.var!`, but does not restore typed `Env.decode!`.
+    `Env.var_str!`, but does not restore typed `Env.decode!`.
   - `examples/command-line-args.roc` restores the old bytes and round-trip
-    output using the current `List(Str)` argv shape, but does not restore the
-    old nominal `Arg` wrapper API.
+    output using the current `List(OsStr)` argv shape.
   - Required resolution: restore these helper APIs, or document that the current
     examples intentionally preserve behavior without preserving the old API
     surface.

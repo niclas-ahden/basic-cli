@@ -1,5 +1,6 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Stdin
 import pf.Stdout
 import pf.Tty
@@ -47,10 +48,10 @@ right = { dx: 1, dy: 0 }
 init_snake_len : U64
 init_snake_len = snake_len(initial_state.snake)
 
-main! : List(Str) => Try({}, _)
+main! : List(OsStr) => Try({}, _)
 main! = |args| {
     Tty.enable_raw_mode!()
-    game_result = game_loop!(initial_state_from_args(args))
+    game_result = game_loop!(initial_state_from_os_strs(args))
     Tty.disable_raw_mode!()
 
     game_result?
@@ -58,8 +59,8 @@ main! = |args| {
     Ok({})
 }
 
-initial_state_from_args : List(Str) -> GameState
-initial_state_from_args = |args| {
+initial_state_from_os_strs : List(OsStr) -> GameState
+initial_state_from_os_strs = |args| {
     # Avoid specializing the renderer with a fully known initial state; the
     # current compiler postcheck panics on that path.
     has_args = args.len() > 0

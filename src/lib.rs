@@ -3,7 +3,7 @@
 #![allow(improper_ctypes_definitions)]
 
 use core::mem::ManuallyDrop;
-use std::ffi::{c_char, c_void, CStr};
+use std::ffi::{c_char, c_void, CStr, OsStr as StdOsStr, OsString};
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -80,12 +80,28 @@ type StdoutBytesResult = HostStdoutWriteBytesResult;
 type StdoutBytesResultPayload = HostStdoutWriteBytesResultPayload;
 type StdoutBytesResultTag = HostStdoutWriteBytesResultTag;
 
+pub(crate) type NativeOsStr = UnixBytesOrUtf8OrWindowsU16sType6;
+type NativeOsStrPayload = UnixBytesOrUtf8OrWindowsU16sType6Payload;
+type NativeOsStrTag = UnixBytesOrUtf8OrWindowsU16sType6Tag;
+
+type UnixBytesOrUtf8OrWindowsU16s = UnixBytesOrUtf8OrWindowsU16sType19;
+type UnixBytesOrUtf8OrWindowsU16sPayload = UnixBytesOrUtf8OrWindowsU16sType19Payload;
+type UnixBytesOrUtf8OrWindowsU16sTag = UnixBytesOrUtf8OrWindowsU16sType19Tag;
+
 pub(crate) fn roc_u8_list_from_slice(slice: &[u8], roc_host: &RocHost) -> RocListWith<u8, false> {
-    unsafe { RocListWith::<u8, false>::from_slice(slice, roc_host) }
+    RocListWith::<u8, false>::from_slice(slice, roc_host)
+}
+
+#[cfg(windows)]
+pub(crate) fn roc_u16_list_from_slice(
+    slice: &[u16],
+    roc_host: &RocHost,
+) -> RocListWith<u16, false> {
+    RocListWith::<u16, false>::from_slice(slice, roc_host)
 }
 
 extern "C" {
-    fn roc_main(args: RocList<RocStr>) -> i32;
+    fn roc_main(args: RocList<OsStr>) -> i32;
 }
 
 static DEBUG_OR_EXPECT_CALLED: AtomicBool = AtomicBool::new(false);
@@ -168,6 +184,13 @@ define_common_io_err!(
     HostIOErrPayload
 );
 define_common_io_err!(
+    env_io_err_from_io,
+    env_io_err_other,
+    HostIOErr,
+    HostIOErrTag,
+    HostIOErrPayload
+);
+define_common_io_err!(
     file_io_err_from_io,
     file_io_err_other,
     HostIOErr,
@@ -228,7 +251,7 @@ fn try_dir_unit_err(error: HostIOErr) -> DirUnitResult {
     }
 }
 
-fn try_dir_list_ok(value: RocList<RocListWith<u8, false>>) -> HostDirListResult {
+fn try_dir_list_ok(value: RocList<UnixBytesOrUtf8OrWindowsU16s>) -> HostDirListResult {
     HostDirListResult {
         payload: HostDirListResultPayload {
             ok: ManuallyDrop::new(value),
@@ -246,7 +269,7 @@ fn try_dir_list_err(error: HostIOErr) -> HostDirListResult {
     }
 }
 
-fn try_env_str_ok(value: RocStr) -> HostEnvVarResult {
+fn try_env_var_ok(value: NativeOsStr) -> HostEnvVarResult {
     HostEnvVarResult {
         payload: HostEnvVarResultPayload {
             ok: ManuallyDrop::new(value),
@@ -255,7 +278,7 @@ fn try_env_str_ok(value: RocStr) -> HostEnvVarResult {
     }
 }
 
-fn try_env_str_err(error: RocStr) -> HostEnvVarResult {
+fn try_env_var_err(error: EnvErrOrVarNotFound) -> HostEnvVarResult {
     HostEnvVarResult {
         payload: HostEnvVarResultPayload {
             err: ManuallyDrop::new(error),
@@ -264,7 +287,25 @@ fn try_env_str_err(error: RocStr) -> HostEnvVarResult {
     }
 }
 
-fn try_env_cwd_ok(value: RocListWith<u8, false>) -> HostEnvCwdResult {
+fn env_var_not_found(name: NativeOsStr) -> EnvErrOrVarNotFound {
+    EnvErrOrVarNotFound {
+        payload: EnvErrOrVarNotFoundPayload {
+            var_not_found: ManuallyDrop::new(name),
+        },
+        tag: EnvErrOrVarNotFoundTag::VarNotFound,
+    }
+}
+
+fn env_var_env_err(error: HostIOErr) -> EnvErrOrVarNotFound {
+    EnvErrOrVarNotFound {
+        payload: EnvErrOrVarNotFoundPayload {
+            env_err: ManuallyDrop::new(error),
+        },
+        tag: EnvErrOrVarNotFoundTag::EnvErr,
+    }
+}
+
+fn try_env_cwd_ok(value: UnixBytesOrUtf8OrWindowsU16s) -> HostEnvCwdResult {
     HostEnvCwdResult {
         payload: HostEnvCwdResultPayload {
             ok: ManuallyDrop::new(value),
@@ -282,7 +323,7 @@ fn try_env_cwd_err() -> HostEnvCwdResult {
     }
 }
 
-fn try_env_exe_path_ok(value: RocListWith<u8, false>) -> HostEnvExePathResult {
+fn try_env_exe_path_ok(value: UnixBytesOrUtf8OrWindowsU16s) -> HostEnvExePathResult {
     HostEnvExePathResult {
         payload: HostEnvExePathResultPayload {
             ok: ManuallyDrop::new(value),
@@ -701,78 +742,324 @@ fn try_stdout_bytes_err(error: HostIOErr) -> StdoutBytesResult {
     }
 }
 
-fn path_from_roc_str(path: RocStr, roc_host: &RocHost) -> String {
-    let path_string = path.as_str().to_owned();
-    unsafe {
-        path.decref(roc_host);
-    }
-    path_string
+fn unsupported_native_variant(expected: &str, got: &str) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::Unsupported,
+        format!("expected {expected} native value on this platform, got {got}"),
+    )
 }
 
-fn path_bytes_from_path(path: &std::path::Path, roc_host: &RocHost) -> RocListWith<u8, false> {
+fn path_from_native(
+    path: UnixBytesOrUtf8OrWindowsU16s,
+    roc_host: &RocHost,
+) -> io::Result<std::path::PathBuf> {
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt;
-        roc_u8_list_from_slice(path.as_os_str().as_bytes(), roc_host)
+
+        match path.tag {
+            UnixBytesOrUtf8OrWindowsU16sTag::UnixBytes => unsafe {
+                let bytes = ManuallyDrop::into_inner(path.payload.unix_bytes);
+                let path_buf =
+                    std::path::PathBuf::from(std::ffi::OsStr::from_bytes(bytes.as_slice()));
+                bytes.decref(roc_host);
+                Ok(path_buf)
+            },
+            UnixBytesOrUtf8OrWindowsU16sTag::Utf8 => unsafe {
+                let text = ManuallyDrop::into_inner(path.payload.utf8);
+                let path_buf =
+                    std::path::PathBuf::from(std::ffi::OsStr::from_bytes(text.as_str().as_bytes()));
+                text.decref(roc_host);
+                Ok(path_buf)
+            },
+            UnixBytesOrUtf8OrWindowsU16sTag::WindowsU16s => unsafe {
+                let u16s = ManuallyDrop::into_inner(path.payload.windows_u16s);
+                u16s.decref(roc_host);
+                Err(unsupported_native_variant("UnixBytes", "WindowsU16s"))
+            },
+        }
     }
 
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
-        roc_u8_list_from_slice(path.to_string_lossy().as_bytes(), roc_host)
+        use std::os::windows::ffi::OsStringExt;
+
+        match path.tag {
+            UnixBytesOrUtf8OrWindowsU16sTag::UnixBytes => unsafe {
+                let bytes = ManuallyDrop::into_inner(path.payload.unix_bytes);
+                bytes.decref(roc_host);
+                Err(unsupported_native_variant("WindowsU16s", "UnixBytes"))
+            },
+            UnixBytesOrUtf8OrWindowsU16sTag::Utf8 => unsafe {
+                let text = ManuallyDrop::into_inner(path.payload.utf8);
+                let path_buf = std::path::PathBuf::from(OsString::from(text.as_str()));
+                text.decref(roc_host);
+                Ok(path_buf)
+            },
+            UnixBytesOrUtf8OrWindowsU16sTag::WindowsU16s => unsafe {
+                let u16s = ManuallyDrop::into_inner(path.payload.windows_u16s);
+                let path_buf = std::path::PathBuf::from(OsString::from_wide(u16s.as_slice()));
+                u16s.decref(roc_host);
+                Ok(path_buf)
+            },
+        }
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        decref_unix_bytes_or_utf8or_windows_u16s(path, roc_host);
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "native paths are not implemented on this platform",
+        ))
+    }
+}
+
+pub(crate) fn os_string_from_native(
+    os_str: NativeOsStr,
+    roc_host: &RocHost,
+) -> io::Result<OsString> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStringExt;
+
+        match os_str.tag {
+            NativeOsStrTag::UnixBytes => unsafe {
+                let bytes = ManuallyDrop::into_inner(os_str.payload.unix_bytes);
+                let value = OsString::from_vec(bytes.as_slice().to_vec());
+                bytes.decref(roc_host);
+                Ok(value)
+            },
+            NativeOsStrTag::Utf8 => unsafe {
+                let text = ManuallyDrop::into_inner(os_str.payload.utf8);
+                let value = OsString::from_vec(text.as_str().as_bytes().to_vec());
+                text.decref(roc_host);
+                Ok(value)
+            },
+            NativeOsStrTag::WindowsU16s => unsafe {
+                let u16s = ManuallyDrop::into_inner(os_str.payload.windows_u16s);
+                u16s.decref(roc_host);
+                Err(unsupported_native_variant("UnixBytes", "WindowsU16s"))
+            },
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStringExt;
+
+        match os_str.tag {
+            NativeOsStrTag::UnixBytes => unsafe {
+                let bytes = ManuallyDrop::into_inner(os_str.payload.unix_bytes);
+                bytes.decref(roc_host);
+                Err(unsupported_native_variant("WindowsU16s", "UnixBytes"))
+            },
+            NativeOsStrTag::Utf8 => unsafe {
+                let text = ManuallyDrop::into_inner(os_str.payload.utf8);
+                let value = OsString::from(text.as_str());
+                text.decref(roc_host);
+                Ok(value)
+            },
+            NativeOsStrTag::WindowsU16s => unsafe {
+                let u16s = ManuallyDrop::into_inner(os_str.payload.windows_u16s);
+                let value = OsString::from_wide(u16s.as_slice());
+                u16s.decref(roc_host);
+                Ok(value)
+            },
+        }
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        decref_unix_bytes_or_utf8or_windows_u16s_type6(os_str, roc_host);
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "native OS strings are not implemented on this platform",
+        ))
+    }
+}
+
+fn native_os_str_from_os_str(value: &StdOsStr, roc_host: &RocHost) -> NativeOsStr {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+
+        NativeOsStr {
+            payload: NativeOsStrPayload {
+                unix_bytes: ManuallyDrop::new(roc_u8_list_from_slice(value.as_bytes(), roc_host)),
+            },
+            tag: NativeOsStrTag::UnixBytes,
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+
+        let units: Vec<u16> = value.encode_wide().collect();
+        NativeOsStr {
+            payload: NativeOsStrPayload {
+                windows_u16s: ManuallyDrop::new(roc_u16_list_from_slice(&units, roc_host)),
+            },
+            tag: NativeOsStrTag::WindowsU16s,
+        }
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = value;
+        NativeOsStr {
+            payload: NativeOsStrPayload {
+                utf8: ManuallyDrop::new(RocStr::empty()),
+            },
+            tag: NativeOsStrTag::Utf8,
+        }
+    }
+}
+
+fn validate_env_key(key: &StdOsStr) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+
+        let bytes = key.as_bytes();
+        if bytes.is_empty() || bytes.contains(&0) || bytes.contains(&b'=') {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "environment variable names cannot be empty or contain nul bytes or '='",
+            ));
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+
+        let units: Vec<u16> = key.encode_wide().collect();
+        if units.is_empty() || units.contains(&0) || units.contains(&(b'=' as u16)) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "environment variable names cannot be empty or contain nul code units or '='",
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn native_path_from_path(
+    path: &std::path::Path,
+    roc_host: &RocHost,
+) -> UnixBytesOrUtf8OrWindowsU16s {
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+
+        UnixBytesOrUtf8OrWindowsU16s {
+            payload: UnixBytesOrUtf8OrWindowsU16sPayload {
+                unix_bytes: ManuallyDrop::new(roc_u8_list_from_slice(
+                    path.as_os_str().as_bytes(),
+                    roc_host,
+                )),
+            },
+            tag: UnixBytesOrUtf8OrWindowsU16sTag::UnixBytes,
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+
+        let units: Vec<u16> = path.as_os_str().encode_wide().collect();
+        UnixBytesOrUtf8OrWindowsU16s {
+            payload: UnixBytesOrUtf8OrWindowsU16sPayload {
+                windows_u16s: ManuallyDrop::new(roc_u16_list_from_slice(&units, roc_host)),
+            },
+            tag: UnixBytesOrUtf8OrWindowsU16sTag::WindowsU16s,
+        }
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        UnixBytesOrUtf8OrWindowsU16s {
+            payload: UnixBytesOrUtf8OrWindowsU16sPayload {
+                unix_bytes: ManuallyDrop::new(RocListWith::<u8, false>::empty()),
+            },
+            tag: UnixBytesOrUtf8OrWindowsU16sTag::UnixBytes,
+        }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_dir_create(path: RocStr) -> DirUnitResult {
+pub extern "C" fn hosted_dir_create(path: UnixBytesOrUtf8OrWindowsU16s) -> DirUnitResult {
     let roc_host = roc_host();
-    match fs::create_dir(path_from_roc_str(path, roc_host)) {
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
+    };
+    match fs::create_dir(path) {
         Ok(()) => try_dir_unit_ok(),
         Err(error) => try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_dir_create_all(path: RocStr) -> DirUnitResult {
+pub extern "C" fn hosted_dir_create_all(path: UnixBytesOrUtf8OrWindowsU16s) -> DirUnitResult {
     let roc_host = roc_host();
-    match fs::create_dir_all(path_from_roc_str(path, roc_host)) {
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
+    };
+    match fs::create_dir_all(path) {
         Ok(()) => try_dir_unit_ok(),
         Err(error) => try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_dir_delete_all(path: RocStr) -> DirUnitResult {
+pub extern "C" fn hosted_dir_delete_all(path: UnixBytesOrUtf8OrWindowsU16s) -> DirUnitResult {
     let roc_host = roc_host();
-    match fs::remove_dir_all(path_from_roc_str(path, roc_host)) {
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
+    };
+    match fs::remove_dir_all(path) {
         Ok(()) => try_dir_unit_ok(),
         Err(error) => try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_dir_delete_empty(path: RocStr) -> DirUnitResult {
+pub extern "C" fn hosted_dir_delete_empty(path: UnixBytesOrUtf8OrWindowsU16s) -> DirUnitResult {
     let roc_host = roc_host();
-    match fs::remove_dir(path_from_roc_str(path, roc_host)) {
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
+    };
+    match fs::remove_dir(path) {
         Ok(()) => try_dir_unit_ok(),
         Err(error) => try_dir_unit_err(dir_io_err_from_io(&error, roc_host)),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_dir_list(path: RocStr) -> HostDirListResult {
+pub extern "C" fn hosted_dir_list(path: UnixBytesOrUtf8OrWindowsU16s) -> HostDirListResult {
     let roc_host = roc_host();
-    match fs::read_dir(path_from_roc_str(path, roc_host)) {
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_dir_list_err(dir_io_err_from_io(&error, roc_host)),
+    };
+    match fs::read_dir(path) {
         Ok(read_dir) => {
             let entries: Vec<std::path::PathBuf> = read_dir
                 .filter_map(|entry| entry.ok().map(|entry| entry.path()))
                 .collect();
-            let list =
-                unsafe { RocList::<RocListWith<u8, false>>::allocate(entries.len(), roc_host) };
+            let list = RocList::<UnixBytesOrUtf8OrWindowsU16s>::allocate(entries.len(), roc_host);
             for (index, entry) in entries.iter().enumerate() {
                 unsafe {
                     list.elements
                         .add(index)
-                        .write(path_bytes_from_path(entry.as_path(), roc_host));
+                        .write(native_path_from_path(entry.as_path(), roc_host));
                 }
             }
             try_dir_list_ok(list)
@@ -785,7 +1072,7 @@ pub extern "C" fn hosted_dir_list(path: RocStr) -> HostDirListResult {
 pub extern "C" fn hosted_env_cwd() -> HostEnvCwdResult {
     let roc_host = roc_host();
     match std::env::current_dir() {
-        Ok(path) => try_env_cwd_ok(path_bytes_from_path(path.as_path(), roc_host)),
+        Ok(path) => try_env_cwd_ok(native_path_from_path(path.as_path(), roc_host)),
         Err(_) => try_env_cwd_err(),
     }
 }
@@ -794,46 +1081,67 @@ pub extern "C" fn hosted_env_cwd() -> HostEnvCwdResult {
 pub extern "C" fn hosted_env_exe_path() -> HostEnvExePathResult {
     let roc_host = roc_host();
     match std::env::current_exe() {
-        Ok(path) => try_env_exe_path_ok(path_bytes_from_path(path.as_path(), roc_host)),
+        Ok(path) => try_env_exe_path_ok(native_path_from_path(path.as_path(), roc_host)),
         Err(_) => try_env_exe_path_err(),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_env_temp_dir() -> RocListWith<u8, false> {
+pub extern "C" fn hosted_env_temp_dir() -> UnixBytesOrUtf8OrWindowsU16s {
     let roc_host = roc_host();
-    path_bytes_from_path(std::env::temp_dir().as_path(), roc_host)
+    native_path_from_path(std::env::temp_dir().as_path(), roc_host)
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_env_var(name: RocStr) -> HostEnvVarResult {
+pub extern "C" fn hosted_env_var(name: NativeOsStr) -> HostEnvVarResult {
     let roc_host = roc_host();
-    let key = name.as_str().to_owned();
-    match std::env::var_os(&key) {
-        Some(value) => {
-            unsafe {
-                name.decref(roc_host);
-            }
-            try_env_str_ok(RocStr::from_str(value.to_string_lossy().as_ref(), roc_host))
+    let key = match os_string_from_native(name, roc_host) {
+        Ok(key) => key,
+        Err(error) => {
+            return try_env_var_err(env_var_env_err(env_io_err_from_io(&error, roc_host)));
         }
-        None => try_env_str_err(name),
+    };
+
+    if let Err(error) = validate_env_key(key.as_os_str()) {
+        return try_env_var_err(env_var_env_err(env_io_err_from_io(&error, roc_host)));
+    }
+
+    match std::env::var_os(&key) {
+        Some(value) => try_env_var_ok(native_os_str_from_os_str(value.as_os_str(), roc_host)),
+        None => try_env_var_err(env_var_not_found(native_os_str_from_os_str(
+            key.as_os_str(),
+            roc_host,
+        ))),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_delete(path: RocStr) -> HostFileDeleteResult {
+pub extern "C" fn hosted_file_delete(path: UnixBytesOrUtf8OrWindowsU16s) -> HostFileDeleteResult {
     let roc_host = roc_host();
-    match fs::remove_file(path_from_roc_str(path, roc_host)) {
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_file_delete_err(file_io_err_from_io(&error, roc_host)),
+    };
+    match fs::remove_file(path) {
         Ok(()) => try_file_delete_ok(),
         Err(error) => try_file_delete_err(file_io_err_from_io(&error, roc_host)),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_hard_link(original: RocStr, link: RocStr) -> HostFileHardLinkResult {
+pub extern "C" fn hosted_file_hard_link(
+    original: UnixBytesOrUtf8OrWindowsU16s,
+    link: UnixBytesOrUtf8OrWindowsU16s,
+) -> HostFileHardLinkResult {
     let roc_host = roc_host();
-    let original_path = path_from_roc_str(original, roc_host);
-    let link_path = path_from_roc_str(link, roc_host);
+    let original_path = match path_from_native(original, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_file_delete_err(file_io_err_from_io(&error, roc_host)),
+    };
+    let link_path = match path_from_native(link, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_file_delete_err(file_io_err_from_io(&error, roc_host)),
+    };
 
     match fs::hard_link(original_path, link_path) {
         Ok(()) => try_file_delete_ok(),
@@ -842,10 +1150,19 @@ pub extern "C" fn hosted_file_hard_link(original: RocStr, link: RocStr) -> HostF
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_rename(from: RocStr, to: RocStr) -> HostFileRenameResult {
+pub extern "C" fn hosted_file_rename(
+    from: UnixBytesOrUtf8OrWindowsU16s,
+    to: UnixBytesOrUtf8OrWindowsU16s,
+) -> HostFileRenameResult {
     let roc_host = roc_host();
-    let from_path = path_from_roc_str(from, roc_host);
-    let to_path = path_from_roc_str(to, roc_host);
+    let from_path = match path_from_native(from, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_file_delete_err(file_io_err_from_io(&error, roc_host)),
+    };
+    let to_path = match path_from_native(to, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_file_delete_err(file_io_err_from_io(&error, roc_host)),
+    };
 
     match fs::rename(from_path, to_path) {
         Ok(()) => try_file_delete_ok(),
@@ -854,18 +1171,26 @@ pub extern "C" fn hosted_file_rename(from: RocStr, to: RocStr) -> HostFileRename
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_read_bytes(path: RocStr) -> FileBytesResult {
+pub extern "C" fn hosted_file_read_bytes(path: UnixBytesOrUtf8OrWindowsU16s) -> FileBytesResult {
     let roc_host = roc_host();
-    match fs::read(path_from_roc_str(path, roc_host)) {
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_file_bytes_err(file_io_err_from_io(&error, roc_host)),
+    };
+    match fs::read(path) {
         Ok(bytes) => try_file_bytes_ok(roc_u8_list_from_slice(&bytes, roc_host)),
         Err(error) => try_file_bytes_err(file_io_err_from_io(&error, roc_host)),
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_read_utf8(path: RocStr) -> FileStrResult {
+pub extern "C" fn hosted_file_read_utf8(path: UnixBytesOrUtf8OrWindowsU16s) -> FileStrResult {
     let roc_host = roc_host();
-    match fs::read_to_string(path_from_roc_str(path, roc_host)) {
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_file_str_err(file_io_err_from_io(&error, roc_host)),
+    };
+    match fs::read_to_string(path) {
         Ok(content) => try_file_str_ok(RocStr::from_str(&content, roc_host)),
         Err(error) => try_file_str_err(file_io_err_from_io(&error, roc_host)),
     }
@@ -884,14 +1209,12 @@ const FILE_READER_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
 fn box_file_reader(reader: BufReader<fs::File>, roc_host: &RocHost) -> *mut u64 {
     let raw: *mut BufReader<fs::File> = Box::into_raw(Box::new(reader));
-    let boxed = unsafe {
-        allocate_box(
-            core::mem::size_of::<u64>(),
-            FILE_READER_BOX_ALIGN,
-            false,
-            roc_host,
-        )
-    };
+    let boxed = allocate_box(
+        core::mem::size_of::<u64>(),
+        FILE_READER_BOX_ALIGN,
+        false,
+        roc_host,
+    );
     unsafe {
         *(boxed as *mut u64) = raw as u64;
     }
@@ -912,21 +1235,26 @@ extern "C" fn drop_file_reader(data_ptr: *mut c_void, _roc_host: *mut RocHost) {
 }
 
 fn release_file_reader(handle: *mut u64, roc_host: &RocHost) {
-    unsafe {
-        decref_box_with(
-            handle as RocBox,
-            FILE_READER_BOX_ALIGN,
-            false,
-            Some(drop_file_reader),
-            roc_host,
-        );
-    }
+    decref_box_with(
+        handle as RocBox,
+        FILE_READER_BOX_ALIGN,
+        false,
+        Some(drop_file_reader),
+        roc_host,
+    );
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_open_reader(path: RocStr, capacity: u64) -> FileReaderOpenResult {
+pub extern "C" fn hosted_file_open_reader(
+    path: UnixBytesOrUtf8OrWindowsU16s,
+    capacity: u64,
+) -> FileReaderOpenResult {
     let roc_host = roc_host();
-    match fs::File::open(path_from_roc_str(path, roc_host)) {
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_file_reader_err(file_io_err_from_io(&error, roc_host)),
+    };
+    match fs::File::open(path) {
         Ok(file) => {
             let reader = if capacity == 0 {
                 BufReader::new(file)
@@ -954,12 +1282,15 @@ pub extern "C" fn hosted_file_read_line(handle: *mut u64) -> FileReaderLineResul
     result
 }
 
-fn file_metadata(path: RocStr, roc_host: &RocHost) -> io::Result<fs::Metadata> {
-    fs::metadata(path_from_roc_str(path, roc_host))
+fn file_metadata(
+    path: UnixBytesOrUtf8OrWindowsU16s,
+    roc_host: &RocHost,
+) -> io::Result<fs::Metadata> {
+    fs::metadata(path_from_native(path, roc_host)?)
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_size_in_bytes(path: RocStr) -> FileSizeResult {
+pub extern "C" fn hosted_file_size_in_bytes(path: UnixBytesOrUtf8OrWindowsU16s) -> FileSizeResult {
     let roc_host = roc_host();
     match file_metadata(path, roc_host) {
         Ok(metadata) => try_file_size_ok(metadata.len()),
@@ -975,7 +1306,11 @@ fn unsupported_file_permission_error() -> io::Error {
     )
 }
 
-fn file_permission_bit(path: RocStr, roc_host: &RocHost, bit: u32) -> io::Result<bool> {
+fn file_permission_bit(
+    path: UnixBytesOrUtf8OrWindowsU16s,
+    roc_host: &RocHost,
+    bit: u32,
+) -> io::Result<bool> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -986,14 +1321,14 @@ fn file_permission_bit(path: RocStr, roc_host: &RocHost, bit: u32) -> io::Result
 
     #[cfg(not(unix))]
     {
-        let _ = path_from_roc_str(path, roc_host);
+        let _ = path_from_native(path, roc_host);
         let _ = bit;
         Err(unsupported_file_permission_error())
     }
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_is_executable(path: RocStr) -> FileBoolResult {
+pub extern "C" fn hosted_file_is_executable(path: UnixBytesOrUtf8OrWindowsU16s) -> FileBoolResult {
     let roc_host = roc_host();
     match file_permission_bit(path, roc_host, 0o111) {
         Ok(value) => try_file_bool_ok(value),
@@ -1002,7 +1337,7 @@ pub extern "C" fn hosted_file_is_executable(path: RocStr) -> FileBoolResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_is_readable(path: RocStr) -> FileBoolResult {
+pub extern "C" fn hosted_file_is_readable(path: UnixBytesOrUtf8OrWindowsU16s) -> FileBoolResult {
     let roc_host = roc_host();
     match file_permission_bit(path, roc_host, 0o400) {
         Ok(value) => try_file_bool_ok(value),
@@ -1011,7 +1346,7 @@ pub extern "C" fn hosted_file_is_readable(path: RocStr) -> FileBoolResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_is_writable(path: RocStr) -> FileBoolResult {
+pub extern "C" fn hosted_file_is_writable(path: UnixBytesOrUtf8OrWindowsU16s) -> FileBoolResult {
     let roc_host = roc_host();
     match file_permission_bit(path, roc_host, 0o200) {
         Ok(value) => try_file_bool_ok(value),
@@ -1026,7 +1361,7 @@ fn nanos_since_epoch(time: std::time::SystemTime) -> io::Result<u128> {
 }
 
 fn file_time(
-    path: RocStr,
+    path: UnixBytesOrUtf8OrWindowsU16s,
     roc_host: &RocHost,
     read_time: fn(&fs::Metadata) -> io::Result<std::time::SystemTime>,
 ) -> io::Result<u128> {
@@ -1035,7 +1370,7 @@ fn file_time(
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_time_accessed(path: RocStr) -> FileTimeResult {
+pub extern "C" fn hosted_file_time_accessed(path: UnixBytesOrUtf8OrWindowsU16s) -> FileTimeResult {
     let roc_host = roc_host();
     match file_time(path, roc_host, fs::Metadata::accessed) {
         Ok(value) => try_file_time_ok(value),
@@ -1044,7 +1379,7 @@ pub extern "C" fn hosted_file_time_accessed(path: RocStr) -> FileTimeResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_time_created(path: RocStr) -> FileTimeResult {
+pub extern "C" fn hosted_file_time_created(path: UnixBytesOrUtf8OrWindowsU16s) -> FileTimeResult {
     let roc_host = roc_host();
     match file_time(path, roc_host, fs::Metadata::created) {
         Ok(value) => try_file_time_ok(value),
@@ -1053,7 +1388,7 @@ pub extern "C" fn hosted_file_time_created(path: RocStr) -> FileTimeResult {
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_time_modified(path: RocStr) -> FileTimeResult {
+pub extern "C" fn hosted_file_time_modified(path: UnixBytesOrUtf8OrWindowsU16s) -> FileTimeResult {
     let roc_host = roc_host();
     match file_time(path, roc_host, fs::Metadata::modified) {
         Ok(value) => try_file_time_ok(value),
@@ -1063,15 +1398,19 @@ pub extern "C" fn hosted_file_time_modified(path: RocStr) -> FileTimeResult {
 
 #[no_mangle]
 pub extern "C" fn hosted_file_write_bytes(
-    path: RocStr,
+    path: UnixBytesOrUtf8OrWindowsU16s,
     bytes: RocListWith<u8, false>,
 ) -> HostFileWriteBytesResult {
     let roc_host = roc_host();
-    let path_string = path_from_roc_str(path, roc_host);
-    let result = fs::write(path_string, bytes.as_slice());
-    unsafe {
-        bytes.decref(roc_host);
-    }
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => {
+            bytes.decref(roc_host);
+            return try_file_write_bytes_err(file_io_err_from_io(&error, roc_host));
+        }
+    };
+    let result = fs::write(path, bytes.as_slice());
+    bytes.decref(roc_host);
 
     match result {
         Ok(()) => try_file_write_bytes_ok(),
@@ -1080,15 +1419,22 @@ pub extern "C" fn hosted_file_write_bytes(
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_file_write_utf8(path: RocStr, content: RocStr) -> HostFileWriteUtf8Result {
+pub extern "C" fn hosted_file_write_utf8(
+    path: UnixBytesOrUtf8OrWindowsU16s,
+    content: RocStr,
+) -> HostFileWriteUtf8Result {
     let roc_host = roc_host();
-    let path_string = path_from_roc_str(path, roc_host);
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => {
+            content.decref(roc_host);
+            return try_file_write_utf8_err(file_io_err_from_io(&error, roc_host));
+        }
+    };
     let content_string = content.as_str().to_owned();
-    unsafe {
-        content.decref(roc_host);
-    }
+    content.decref(roc_host);
 
-    match fs::write(path_string, content_string) {
+    match fs::write(path, content_string) {
         Ok(()) => try_file_write_utf8_ok(),
         Err(error) => try_file_write_utf8_err(file_io_err_from_io(&error, roc_host)),
     }
@@ -1150,7 +1496,7 @@ fn locale_all_strings() -> Vec<String> {
 pub extern "C" fn hosted_locale_all() -> RocList<RocStr> {
     let roc_host = roc_host();
     let locales = locale_all_strings();
-    let list = unsafe { RocList::<RocStr>::allocate(locales.len(), roc_host) };
+    let list = RocList::<RocStr>::allocate(locales.len(), roc_host);
 
     for (index, locale) in locales.iter().enumerate() {
         unsafe {
@@ -1169,32 +1515,13 @@ pub extern "C" fn hosted_locale_get() -> HostLocaleGetResult {
     try_locale_get_ok(RocStr::from_str(&locale_get_string(), roc_host))
 }
 
-fn path_buf_from_bytes(path: RocListWith<u8, false>, roc_host: &RocHost) -> std::path::PathBuf {
-    #[cfg(unix)]
-    {
-        use std::os::unix::ffi::OsStrExt;
-
-        let path_buf = std::path::PathBuf::from(std::ffi::OsStr::from_bytes(path.as_slice()));
-        unsafe {
-            path.decref(roc_host);
-        }
-        path_buf
-    }
-
-    #[cfg(not(unix))]
-    {
-        let path_buf = std::path::PathBuf::from(String::from_utf8_lossy(path.as_slice()).as_ref());
-        unsafe {
-            path.decref(roc_host);
-        }
-        path_buf
-    }
-}
-
 #[no_mangle]
-pub extern "C" fn hosted_path_type(path: RocListWith<u8, false>) -> HostPathTypeResult {
+pub extern "C" fn hosted_path_type(path: UnixBytesOrUtf8OrWindowsU16s) -> HostPathTypeResult {
     let roc_host = roc_host();
-    let path = path_buf_from_bytes(path, roc_host);
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_path_type_err(path_io_err_from_io(&error, roc_host)),
+    };
 
     match path.symlink_metadata() {
         Ok(metadata) => {
@@ -1247,9 +1574,7 @@ pub extern "C" fn hosted_stderr_line(message: RocStr) -> StderrUnitResult {
         let mut stderr = io::stderr().lock();
         writeln!(stderr, "{}", message.as_str())
     };
-    unsafe {
-        message.decref(roc_host);
-    }
+    message.decref(roc_host);
 
     match result {
         Ok(()) => try_stderr_unit_ok(),
@@ -1264,9 +1589,7 @@ pub extern "C" fn hosted_stderr_write(message: RocStr) -> StderrUnitResult {
         let mut stderr = io::stderr().lock();
         write!(stderr, "{}", message.as_str()).and_then(|()| stderr.flush())
     };
-    unsafe {
-        message.decref(roc_host);
-    }
+    message.decref(roc_host);
 
     match result {
         Ok(()) => try_stderr_unit_ok(),
@@ -1283,9 +1606,7 @@ pub extern "C" fn hosted_stderr_write_bytes(bytes: RocListWith<u8, false>) -> St
             .write_all(bytes.as_slice())
             .and_then(|()| stderr.flush())
     };
-    unsafe {
-        bytes.decref(roc_host);
-    }
+    bytes.decref(roc_host);
 
     match result {
         Ok(()) => try_stderr_bytes_ok(),
@@ -1341,9 +1662,7 @@ pub extern "C" fn hosted_stdout_line(message: RocStr) -> StdoutUnitResult {
         let mut stdout = io::stdout().lock();
         writeln!(stdout, "{}", message.as_str())
     };
-    unsafe {
-        message.decref(roc_host);
-    }
+    message.decref(roc_host);
 
     match result {
         Ok(()) => try_stdout_unit_ok(),
@@ -1358,9 +1677,7 @@ pub extern "C" fn hosted_stdout_write(message: RocStr) -> StdoutUnitResult {
         let mut stdout = io::stdout().lock();
         write!(stdout, "{}", message.as_str()).and_then(|()| stdout.flush())
     };
-    unsafe {
-        message.decref(roc_host);
-    }
+    message.decref(roc_host);
 
     match result {
         Ok(()) => try_stdout_unit_ok(),
@@ -1377,9 +1694,7 @@ pub extern "C" fn hosted_stdout_write_bytes(bytes: RocListWith<u8, false>) -> St
             .write_all(bytes.as_slice())
             .and_then(|()| stdout.flush())
     };
-    unsafe {
-        bytes.decref(roc_host);
-    }
+    bytes.decref(roc_host);
 
     match result {
         Ok(()) => try_stdout_bytes_ok(),
@@ -1441,25 +1756,54 @@ pub extern "C" fn roc_crashed(bytes: *const u8, len: usize) {
     DefaultHandlers::roc_crashed(roc_host_ptr(), bytes, len);
 }
 
-fn build_args_list(argc: i32, argv: *const *const c_char, roc_host: &RocHost) -> RocList<RocStr> {
+#[cfg(unix)]
+fn build_args_list(argc: i32, argv: *const *const c_char, roc_host: &RocHost) -> RocList<OsStr> {
     if argc <= 0 || argv.is_null() {
         return RocList::empty();
     }
 
-    let list = unsafe { RocList::<RocStr>::allocate(argc as usize, roc_host) };
+    let list = RocList::<OsStr>::allocate(argc as usize, roc_host);
     for index in 0..argc as isize {
         unsafe {
             let arg_ptr = *argv.offset(index);
             if arg_ptr.is_null() {
                 break;
             }
-            let arg = CStr::from_ptr(arg_ptr).to_string_lossy();
-            list.elements
-                .offset(index)
-                .write(RocStr::from_str(&arg, roc_host));
+            let arg = CStr::from_ptr(arg_ptr).to_bytes();
+            list.elements.offset(index).write(OsStr {
+                payload: OsStrPayload {
+                    unix_bytes: ManuallyDrop::new(roc_u8_list_from_slice(arg, roc_host)),
+                },
+                tag: OsStrTag::UnixBytes,
+            });
         }
     }
     list
+}
+
+#[cfg(windows)]
+fn build_args_list(_argc: i32, _argv: *const *const c_char, roc_host: &RocHost) -> RocList<OsStr> {
+    use std::os::windows::ffi::OsStrExt;
+
+    let args = std::env::args_os().collect::<Vec<_>>();
+    let list = RocList::<OsStr>::allocate(args.len(), roc_host);
+    for (index, arg) in args.iter().enumerate() {
+        let units = arg.encode_wide().collect::<Vec<_>>();
+        unsafe {
+            list.elements.add(index).write(OsStr {
+                payload: OsStrPayload {
+                    windows_u16s: ManuallyDrop::new(roc_u16_list_from_slice(&units, roc_host)),
+                },
+                tag: OsStrTag::WindowsU16s,
+            });
+        }
+    }
+    list
+}
+
+#[cfg(not(any(unix, windows)))]
+fn build_args_list(_argc: i32, _argv: *const *const c_char, _roc_host: &RocHost) -> RocList<OsStr> {
+    RocList::empty()
 }
 
 #[cfg(not(test))]

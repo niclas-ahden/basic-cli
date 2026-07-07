@@ -266,6 +266,11 @@ fi
 echo ""
 echo "=== Checking tests ==="
 for test in "${TEST_NAMES[@]}"; do
+    if name_in_array "$test" "${SKIPPED_EXPECT_NAMES[@]}"; then
+        echo "Skipping check: ${test}.roc (known upstream blocker)"
+        continue
+    fi
+
     echo "Checking: ${test}.roc"
     roc check "tests/${test}.roc"
 done

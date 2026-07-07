@@ -1,10 +1,12 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Env
 import pf.Sqlite
+import pf.Path
 import pf.Stdout
 
-main! : List(Str) => Try({}, [Exit(I32), ..])
+main! : List(OsStr) => Try({}, [Exit(I32), ..])
 main! = |_args|
     match run!() {
         Ok({}) => Ok({})
@@ -16,7 +18,7 @@ main! = |_args|
 
 run! : () => Try({}, _)
 run! = || {
-    db_path = Env.var!("DB_PATH")?
+    db_path = Path.from_os_str(Env.var!("DB_PATH")?)
 
     setup_db!(db_path)?
 
@@ -147,7 +149,6 @@ run! = || {
     Ok({})
 }
 
-setup_db! : Str => Try({}, _)
 setup_db! = |db_path| {
     Sqlite.execute!(
         {

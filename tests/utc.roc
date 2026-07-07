@@ -1,10 +1,11 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr exposing [OsStr]
 import pf.Sleep
 import pf.Stdout
 import pf.Utc
 
-main! : List(Str) => Try({}, [Exit(I32), ..])
+main! : List(OsStr) => Try({}, [Exit(I32), ..])
 main! = |_args|
     match run_tests!() {
         Ok({}) => Ok({})
