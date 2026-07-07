@@ -47,11 +47,11 @@ trap cleanup EXIT
 echo "=== basic-cli CI ==="
 echo ""
 
-# Roc is provided on PATH by ci/install_roc.sh in CI (the current nightly from
-# roc-lang/nightlies). For local runs any `roc` on PATH is used.
+# Roc is provided on PATH by roc-lang/setup-roc in CI. For local runs any `roc`
+# on PATH is used.
 if ! command -v roc &>/dev/null; then
     echo "Error: 'roc' was not found on PATH." >&2
-    echo "Install it with ./ci/install_roc.sh or put a recent roc binary on PATH." >&2
+    echo "Install a recent roc binary and put it on PATH." >&2
     exit 1
 fi
 
