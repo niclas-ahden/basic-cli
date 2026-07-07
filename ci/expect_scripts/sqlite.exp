@@ -7,7 +7,7 @@ set timeout 7
 
 source ./ci/expect_scripts/shared-code.exp
 
-set env(DB_PATH) $env(TESTS_DIR)test.db
+set env(DB_PATH) $env(TESTS_DIR)sqlite.e2e.db
 
 spawn $env(TESTS_DIR)sqlite
 

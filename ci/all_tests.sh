@@ -12,6 +12,7 @@ TEST_EXPECT_NAMES=(
     "env"
     "file"
     "path-test"
+    "sqlite"
     "tcp"
 )
 
@@ -43,6 +44,7 @@ cleanup() {
 
     # Remove temporary databases created by expect tests.
     rm -f examples/*.e2e.db
+    rm -f tests/*.e2e.db
 
     # Remove bundle file
     if [ -n "${BUNDLE_FILE:-}" ] && [ -f "$BUNDLE_FILE" ]; then

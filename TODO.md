@@ -49,7 +49,6 @@
 
 - Port the old standalone test programs back to the new compiler/platform API
   and re-enable their restored expect scripts.
-  - `tests/sqlite.roc` -> `ci/expect_scripts/sqlite.exp`
   - `tests/utc.roc` -> `ci/expect_scripts/utc.exp`
   - `tests/url.roc` and `ci/expect_scripts/url.exp` need a product decision:
     either restore/port `platform/Url.roc` or delete both with that rationale.
@@ -76,4 +75,5 @@
       restored: `Env.platform!`, `Env.dict!`, and `Env.set_cwd!`.
   - `tests/file.roc` -> `ci/expect_scripts/file.exp`
   - `tests/path-test.roc` -> `ci/expect_scripts/path-test.exp`
+  - `tests/sqlite.roc` -> `ci/expect_scripts/sqlite.exp`
   - `tests/tcp.roc` -> `ci/expect_scripts/tcp.exp`
