@@ -188,6 +188,7 @@ jobs:
         run: |
           set -euo pipefail
 
+          # TODO: use platform/main.roc when roc-lang/roc#10002 is fixed.
           ROC_DOCS_URL_ROOT="$DOCS_URL_ROOT" roc docs --output=generated-docs docs/basic-cli.roc
           tar -czf docs.tar.gz generated-docs
 

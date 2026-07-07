@@ -17,6 +17,8 @@ Cmd :: {
     ## ```
     exec! : Str, List(Str) => Try({}, [ExecFailed({ command : Str, exit_code : I32 }), FailedToGetExitCode({ command : Str, err : IOErr }), ..])
     exec! = |program, arguments| {
+        command = "${program} ${Str.join_with(arguments, " ")}"
+
         exit_code =
             new(program)
             .args(arguments)
@@ -25,7 +27,6 @@ Cmd :: {
         if exit_code == 0 {
             Ok({})
         } else {
-            command = "${program} ${Str.join_with(arguments, " ")}"
             Err(ExecFailed({ command, exit_code }))
         }
     }
@@ -44,12 +45,13 @@ Cmd :: {
     ## ```
     exec_cmd! : Cmd => Try({}, [ExecCmdFailed({ command : Str, exit_code : I32 }), FailedToGetExitCode({ command : Str, err : IOErr }), ..])
     exec_cmd! = |cmd| {
+        command = to_str(cmd)
         exit_code = exec_exit_code!(cmd)?
 
         if exit_code == 0 {
             Ok({})
         } else {
-            Err(ExecCmdFailed({ command: to_str(cmd), exit_code }))
+            Err(ExecCmdFailed({ command, exit_code }))
         }
     }
 
@@ -77,31 +79,28 @@ Cmd :: {
         ]
     )
     exec_output! = |cmd| {
+        cmd_str = to_str(cmd)
         exec_try = Host.cmd_exec_output!(to_host_cmd(cmd))
 
        match exec_try {
             Ok({ stderr_bytes, stdout_bytes }) => {
                 stdout_utf8 =
                     Str.from_utf8(stdout_bytes)
-                        .map_err(|err| StdoutContainsInvalidUtf8({ cmd_str: to_str(cmd), err }))?
+                        .map_err(|err| StdoutContainsInvalidUtf8({ cmd_str, err }))?
 
                 stderr_utf8_lossy = Str.from_utf8_lossy(stderr_bytes)
 
                 Ok({ stdout_utf8, stderr_utf8_lossy })
             }
-            Err(inside_try) => {
-                match inside_try {
-                    Ok({ exit_code, stderr_bytes, stdout_bytes }) => {
-                        stdout_utf8_lossy = Str.from_utf8_lossy(stdout_bytes)
-                        stderr_utf8_lossy = Str.from_utf8_lossy(stderr_bytes)
 
-                        Err(NonZeroExitCode({ command: to_str(cmd), exit_code, stdout_utf8_lossy, stderr_utf8_lossy }))
-                    }
-                    Err(err) => {
-                        Err(FailedToGetExitCode({ command: to_str(cmd), err }))
-                    }
-                }
+            Err(NonZeroExitCode({ exit_code, stderr_bytes, stdout_bytes })) => {
+                stdout_utf8_lossy = Str.from_utf8_lossy(stdout_bytes)
+                stderr_utf8_lossy = Str.from_utf8_lossy(stderr_bytes)
+
+                Err(NonZeroExitCode({ command: cmd_str, exit_code, stdout_utf8_lossy, stderr_utf8_lossy }))
             }
+
+            Err(FailedToGetExitCode(err)) => Err(FailedToGetExitCode({ command: cmd_str, err }))
         }
     }
 
@@ -132,16 +131,13 @@ Cmd :: {
             Ok({ stderr_bytes, stdout_bytes }) =>
                 Ok({ stdout_bytes, stderr_bytes })
 
-            Err(inside_try) =>
-                match inside_try {
-                    Ok({ exit_code, stderr_bytes, stdout_bytes }) => {
-                        Err(NonZeroExitCodeB({ exit_code, stdout_bytes, stderr_bytes }))
-                    }
+            Err(NonZeroExitCode({ exit_code, stderr_bytes, stdout_bytes })) => {
+                Err(NonZeroExitCodeB({ exit_code, stdout_bytes, stderr_bytes }))
+            }
 
-                    Err(err) => {
-                        Err(FailedToGetExitCodeB(err))
-                    }
-                }
+            Err(FailedToGetExitCode(err)) => {
+                Err(FailedToGetExitCodeB(err))
+            }
         }
     }
 
@@ -157,9 +153,11 @@ Cmd :: {
     ## ```
     exec_exit_code! : Cmd => Try(I32, [FailedToGetExitCode({ command : Str, err : IOErr }), ..])
     exec_exit_code! = |cmd| {
+        command = to_str(cmd)
+
         match Host.cmd_exec_exit_code!(to_host_cmd(cmd)) {
             Ok(num) => Ok(num)
-            Err(io_err) => Err(FailedToGetExitCode({ command : to_str(cmd), err: io_err }))
+            Err(io_err) => Err(FailedToGetExitCode({ command, err: io_err }))
         }
     }
 

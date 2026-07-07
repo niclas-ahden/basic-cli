@@ -29,10 +29,10 @@ type CmdExitResultTag = HostCmdExecExitCodeResultTag;
 type CmdOutputResult = HostCmdExecOutputResult;
 type CmdOutputResultPayload = HostCmdExecOutputResultPayload;
 type CmdOutputResultTag = HostCmdExecOutputResultTag;
-type CmdOutputFailureResult = HostCmdExecOutputErrResult;
-type CmdOutputFailureResultPayload = HostCmdExecOutputErrResultPayload;
-type CmdOutputFailureResultTag = HostCmdExecOutputErrResultTag;
-type CmdOutputFailure = HostCmdExecOutputErrOk;
+type CmdOutputError = FailedToGetExitCodeOrNonZeroExitCode;
+type CmdOutputErrorPayload = FailedToGetExitCodeOrNonZeroExitCodePayload;
+type CmdOutputErrorTag = FailedToGetExitCodeOrNonZeroExitCodeTag;
+type CmdOutputFailure = HostCmdExecOutputErrNonZeroExitCode;
 type CmdOutputSuccess = HostCmdExecOutputOk;
 type Cmd = HostCmdExecExitCodeArgs;
 
@@ -1313,7 +1313,7 @@ fn try_cmd_output_ok(value: CmdOutputSuccess) -> CmdOutputResult {
     }
 }
 
-fn try_cmd_output_err(error: CmdOutputFailureResult) -> CmdOutputResult {
+fn try_cmd_output_err(error: CmdOutputError) -> CmdOutputResult {
     CmdOutputResult {
         payload: CmdOutputResultPayload {
             err: ManuallyDrop::new(error),
@@ -1322,21 +1322,21 @@ fn try_cmd_output_err(error: CmdOutputFailureResult) -> CmdOutputResult {
     }
 }
 
-fn try_cmd_output_failure_ok(value: CmdOutputFailure) -> CmdOutputFailureResult {
-    CmdOutputFailureResult {
-        payload: CmdOutputFailureResultPayload {
-            ok: ManuallyDrop::new(value),
+fn cmd_output_nonzero_error(value: CmdOutputFailure) -> CmdOutputError {
+    CmdOutputError {
+        payload: CmdOutputErrorPayload {
+            non_zero_exit_code: ManuallyDrop::new(value),
         },
-        tag: CmdOutputFailureResultTag::Ok,
+        tag: CmdOutputErrorTag::NonZeroExitCode,
     }
 }
 
-fn try_cmd_output_failure_err(error: HostIOErr) -> CmdOutputFailureResult {
-    CmdOutputFailureResult {
-        payload: CmdOutputFailureResultPayload {
-            err: ManuallyDrop::new(error),
+fn cmd_output_failed_to_get_exit_code(error: HostIOErr) -> CmdOutputError {
+    CmdOutputError {
+        payload: CmdOutputErrorPayload {
+            failed_to_get_exit_code: ManuallyDrop::new(error),
         },
-        tag: CmdOutputFailureResultTag::Err,
+        tag: CmdOutputErrorTag::FailedToGetExitCode,
     }
 }
 
@@ -1862,13 +1862,11 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
                     stderr_bytes,
                     stdout_bytes,
                 }),
-                Some(exit_code) => {
-                    try_cmd_output_err(try_cmd_output_failure_ok(CmdOutputFailure {
-                        stderr_bytes,
-                        stdout_bytes,
-                        exit_code,
-                    }))
-                }
+                Some(exit_code) => try_cmd_output_err(cmd_output_nonzero_error(CmdOutputFailure {
+                    stderr_bytes,
+                    stdout_bytes,
+                    exit_code,
+                })),
                 None => {
                     unsafe {
                         stdout_bytes.decref(roc_host);
@@ -1876,14 +1874,14 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
                     unsafe {
                         stderr_bytes.decref(roc_host);
                     }
-                    try_cmd_output_err(try_cmd_output_failure_err(cmd_io_err_other(
+                    try_cmd_output_err(cmd_output_failed_to_get_exit_code(cmd_io_err_other(
                         "Process was killed by signal",
                         roc_host,
                     )))
                 }
             }
         }
-        Err(error) => try_cmd_output_err(try_cmd_output_failure_err(cmd_io_err_from_io(
+        Err(error) => try_cmd_output_err(cmd_output_failed_to_get_exit_code(cmd_io_err_from_io(
             &error, roc_host,
         ))),
     }

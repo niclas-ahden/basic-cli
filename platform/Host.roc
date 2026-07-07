@@ -34,7 +34,7 @@ Host := [].{
     TcpStream :: Box(U64)
 
     cmd_exec_exit_code! : Cmd => Try(I32, IOErr)
-    cmd_exec_output! : Cmd => Try(CmdOutputSuccess, Try(CmdOutputFailure, IOErr))
+    cmd_exec_output! : Cmd => Try(CmdOutputSuccess, [NonZeroExitCode(CmdOutputFailure), FailedToGetExitCode(IOErr)])
 
     dir_create! : Str => Try({}, [DirErr(IOErr)])
     dir_create_all! : Str => Try({}, [DirErr(IOErr)])

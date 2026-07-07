@@ -905,38 +905,38 @@ pub struct TryType7 {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union TryType7Payload {
-    pub err: core::mem::ManuallyDrop<TryType8>,
+    pub err: core::mem::ManuallyDrop<FailedToGetExitCodeOrNonZeroExitCode>,
     pub ok: core::mem::ManuallyDrop<AnonStruct12>,
 }
 
 const _: () = assert!(core::mem::size_of::<TryType7>() == 72, "TryType7 size mismatch");
 const _: () = assert!(core::mem::align_of::<TryType7>() == 8, "TryType7 alignment mismatch");
 
-/// Tag discriminant for Try.
+/// Tag discriminant for FailedToGetExitCodeOrNonZeroExitCode.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TryType8Tag {
-    Err = 0,
-    Ok = 1,
+pub enum FailedToGetExitCodeOrNonZeroExitCodeTag {
+    FailedToGetExitCode = 0,
+    NonZeroExitCode = 1,
 }
 
-/// Tag union: Try
+/// Tag union: FailedToGetExitCodeOrNonZeroExitCode
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct TryType8 {
-    pub payload: TryType8Payload,
-    pub tag: TryType8Tag,
+pub struct FailedToGetExitCodeOrNonZeroExitCode {
+    pub payload: FailedToGetExitCodeOrNonZeroExitCodePayload,
+    pub tag: FailedToGetExitCodeOrNonZeroExitCodeTag,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub union TryType8Payload {
-    pub err: core::mem::ManuallyDrop<IOErr>,
-    pub ok: core::mem::ManuallyDrop<AnonStruct9>,
+pub union FailedToGetExitCodeOrNonZeroExitCodePayload {
+    pub failed_to_get_exit_code: core::mem::ManuallyDrop<IOErr>,
+    pub non_zero_exit_code: core::mem::ManuallyDrop<AnonStruct9>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType8>() == 64, "TryType8 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType8>() == 8, "TryType8 alignment mismatch");
+const _: () = assert!(core::mem::size_of::<FailedToGetExitCodeOrNonZeroExitCode>() == 64, "FailedToGetExitCodeOrNonZeroExitCode size mismatch");
+const _: () = assert!(core::mem::align_of::<FailedToGetExitCodeOrNonZeroExitCode>() == 8, "FailedToGetExitCodeOrNonZeroExitCode alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1822,7 +1822,7 @@ const _: () = assert!(core::mem::size_of::<HostCmdExecExitCodeArgs>() == 80, "Ho
 const _: () = assert!(core::mem::align_of::<HostCmdExecExitCodeArgs>() == 8, "HostCmdExecExitCodeArgs alignment mismatch");
 
 /// Arguments for Host.cmd_exec_output!
-/// Roc signature: { args : List(Str), clear_envs : Bool, envs : List(Str), program : Str } => Try({ stderr_bytes : List(U8), stdout_bytes : List(U8) }, Try({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }, IOErr))
+/// Roc signature: { args : List(Str), clear_envs : Bool, envs : List(Str), program : Str } => Try({ stderr_bytes : List(U8), stdout_bytes : List(U8) }, [FailedToGetExitCode(IOErr), NonZeroExitCode({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) })])
 /// Refcounted fields are owned by the hosted function.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -2228,10 +2228,7 @@ pub type HostIOErrTag = IOErrTag;
 pub type HostCmdExecOutputResult = TryType7;
 pub type HostCmdExecOutputResultPayload = TryType7Payload;
 pub type HostCmdExecOutputResultTag = TryType7Tag;
-pub type HostCmdExecOutputErrResult = TryType8;
-pub type HostCmdExecOutputErrResultPayload = TryType8Payload;
-pub type HostCmdExecOutputErrResultTag = TryType8Tag;
-pub type HostCmdExecOutputErrOk = AnonStruct9;
+pub type HostCmdExecOutputErrNonZeroExitCode = AnonStruct9;
 pub type HostCmdExecOutputOk = AnonStruct12;
 pub type HostDirCreateResult = TryType13;
 pub type HostDirCreateResultPayload = TryType13Payload;
@@ -2481,7 +2478,7 @@ pub fn decref_try_type7(value: TryType7, roc_host: &RocHost) {
     match value.tag {
         TryType7Tag::Err => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
-            decref_try_type8(payload, roc_host);
+            decref_failed_to_get_exit_code_or_non_zero_exit_code(payload, roc_host);
         },
         TryType7Tag::Ok => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
@@ -2496,7 +2493,7 @@ pub fn incref_try_type7(value: TryType7, amount: isize) {
     match value.tag {
         TryType7Tag::Err => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
-            incref_try_type8(payload, amount);
+            incref_failed_to_get_exit_code_or_non_zero_exit_code(payload, amount);
         },
         TryType7Tag::Ok => unsafe {
             let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
@@ -2505,31 +2502,31 @@ pub fn incref_try_type7(value: TryType7, amount: isize) {
     }
 }
 
-/// Recursively decrement Roc-owned payloads in TryType8.
-pub fn decref_try_type8(value: TryType8, roc_host: &RocHost) {
+/// Recursively decrement Roc-owned payloads in FailedToGetExitCodeOrNonZeroExitCode.
+pub fn decref_failed_to_get_exit_code_or_non_zero_exit_code(value: FailedToGetExitCodeOrNonZeroExitCode, roc_host: &RocHost) {
     let _ = roc_host;
     match value.tag {
-        TryType8Tag::Err => unsafe {
-            let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
+        FailedToGetExitCodeOrNonZeroExitCodeTag::FailedToGetExitCode => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.failed_to_get_exit_code);
             decref_ioerr(payload, roc_host);
         },
-        TryType8Tag::Ok => unsafe {
-            let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
+        FailedToGetExitCodeOrNonZeroExitCodeTag::NonZeroExitCode => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.non_zero_exit_code);
             decref_anon_struct9(payload, roc_host);
         },
     }
 }
 
-/// Increment Roc-owned payloads in TryType8.
-pub fn incref_try_type8(value: TryType8, amount: isize) {
+/// Increment Roc-owned payloads in FailedToGetExitCodeOrNonZeroExitCode.
+pub fn incref_failed_to_get_exit_code_or_non_zero_exit_code(value: FailedToGetExitCodeOrNonZeroExitCode, amount: isize) {
     let _ = amount;
     match value.tag {
-        TryType8Tag::Err => unsafe {
-            let payload = core::mem::ManuallyDrop::into_inner(value.payload.err);
+        FailedToGetExitCodeOrNonZeroExitCodeTag::FailedToGetExitCode => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.failed_to_get_exit_code);
             incref_ioerr(payload, amount);
         },
-        TryType8Tag::Ok => unsafe {
-            let payload = core::mem::ManuallyDrop::into_inner(value.payload.ok);
+        FailedToGetExitCodeOrNonZeroExitCodeTag::NonZeroExitCode => unsafe {
+            let payload = core::mem::ManuallyDrop::into_inner(value.payload.non_zero_exit_code);
             incref_anon_struct9(payload, amount);
         },
     }
@@ -3577,7 +3574,7 @@ unsafe extern "C" {
     pub fn hosted_cmd_host_exec_exit_code(arg0: HostCmdExecExitCodeArgs) -> TryType0;
 
     /// Hosted symbol for Host.cmd_exec_output!
-    /// Roc signature: { args : List(Str), clear_envs : Bool, envs : List(Str), program : Str } => Try({ stderr_bytes : List(U8), stdout_bytes : List(U8) }, Try({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }, IOErr))
+    /// Roc signature: { args : List(Str), clear_envs : Bool, envs : List(Str), program : Str } => Try({ stderr_bytes : List(U8), stdout_bytes : List(U8) }, [FailedToGetExitCode(IOErr), NonZeroExitCode({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) })])
     pub fn hosted_cmd_host_exec_output(arg0: HostCmdExecOutputArgs) -> TryType7;
 
     /// Hosted symbol for Host.dir_create!

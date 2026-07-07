@@ -7,6 +7,7 @@ ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$ROOT_DIR"
 
 EXAMPLE_NAMES=()
+TEST_NAMES=()
 
 # Cleanup function to restore examples and stop HTTP server
 cleanup() {
@@ -28,6 +29,10 @@ cleanup() {
     # Remove built binaries
     for example in "${EXAMPLE_NAMES[@]}"; do
         rm -f "examples/${example}"
+    done
+
+    for test in "${TEST_NAMES[@]}"; do
+        rm -f "tests/${test}"
     done
 
     # Remove bundle file
@@ -182,14 +187,13 @@ for example in "${EXAMPLE_NAMES[@]}"; do
     roc test "examples/${example}.roc"
 done
 
-TESTS_FILES=()
 for roc_file in "${TESTS_DIR}"*.roc; do
-    [ -f "$roc_file" ] && TESTS_FILES+=("$(basename "${roc_file%.roc}")")
+    [ -f "$roc_file" ] && TEST_NAMES+=("$(basename "${roc_file%.roc}")")
 done
 
 echo ""
 echo "=== Checking tests ==="
-for test in "${TESTS_FILES[@]}"; do
+for test in "${TEST_NAMES[@]}"; do
     echo "Checking: ${test}.roc"
     roc check "tests/${test}.roc"
 done
