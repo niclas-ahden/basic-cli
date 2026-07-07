@@ -18,6 +18,30 @@ TEST_EXPECT_NAMES=(
     "utc"
 )
 
+SKIPPED_EXPECT_NAMES=(
+    # roc build tests/cmd-test.roc currently segfaults in the compiler.
+    # Tracked upstream: https://github.com/roc-lang/roc/issues/10003
+    "cmd-test"
+)
+
+EXPECT_HELPER_NAMES=(
+    "shared-code"
+)
+
+name_in_array() {
+    local needle="$1"
+    shift
+
+    local item
+    for item in "$@"; do
+        if [ "$item" = "$needle" ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 # Cleanup function to restore examples and stop HTTP server
 cleanup() {
     echo ""
@@ -205,6 +229,40 @@ for test in "${TEST_EXPECT_NAMES[@]}"; do
     fi
 done
 
+for test in "${SKIPPED_EXPECT_NAMES[@]}"; do
+    if [ ! -f "tests/${test}.roc" ]; then
+        echo "Error: skipped expect test tests/${test}.roc does not exist" >&2
+        exit 1
+    fi
+    if [ ! -f "ci/expect_scripts/${test}.exp" ]; then
+        echo "Error: skipped expect script ci/expect_scripts/${test}.exp does not exist" >&2
+        exit 1
+    fi
+done
+
+UNTRACKED_EXPECT=0
+for expect_file in ci/expect_scripts/*.exp; do
+    expect_name="$(basename "${expect_file%.exp}")"
+    if name_in_array "$expect_name" "${EXAMPLE_NAMES[@]}"; then
+        continue
+    fi
+    if name_in_array "$expect_name" "${TEST_EXPECT_NAMES[@]}"; then
+        continue
+    fi
+    if name_in_array "$expect_name" "${SKIPPED_EXPECT_NAMES[@]}"; then
+        continue
+    fi
+    if name_in_array "$expect_name" "${EXPECT_HELPER_NAMES[@]}"; then
+        continue
+    fi
+
+    echo "Error: ci/expect_scripts/${expect_name}.exp is not active or explicitly skipped" >&2
+    UNTRACKED_EXPECT=1
+done
+if [ "$UNTRACKED_EXPECT" -ne 0 ]; then
+    exit 1
+fi
+
 echo ""
 echo "=== Checking tests ==="
 for test in "${TEST_NAMES[@]}"; do
@@ -234,8 +292,8 @@ for test in "${TEST_EXPECT_NAMES[@]}"; do
     mv "./${test}" "tests/"
 done
 
-# The http-client expect test drives a local HTTP server; build it up front.
-if printf '%s\n' "${EXAMPLE_NAMES[@]}" | grep -qx "http-client"; then
+# The HTTP expect tests drive a local HTTP server; build it up front.
+if printf '%s\n' "${EXAMPLE_NAMES[@]}" | grep -Eqx "http|http-client"; then
     echo ""
     echo "=== Building HTTP test server ==="
     (cd ci/rust_http_server && cargo build --release)

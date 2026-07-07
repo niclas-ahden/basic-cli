@@ -5,6 +5,8 @@
 
 set timeout 7
 
+source ./ci/expect_scripts/shared-code.exp
+
 # Resolve the directory this script lives in so we can find the echo server.
 set script_dir [file dirname [info script]]
 
@@ -21,7 +23,12 @@ expect {
         expect -i $client_id "> " {
             send -i $client_id -- "Hi\r"
             expect -i $client_id "< Hi\r\n" {
-                exit 0
+                expect -i $client_id "> " {
+                    send -i $client_id "\004"
+                    expect -i $client_id eof {
+                        check_exit_and_segfault $client_id
+                    }
+                }
             }
         }
     }

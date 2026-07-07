@@ -9,7 +9,13 @@ source ./ci/expect_scripts/shared-code.exp
 
 spawn $env(EXAMPLES_DIR)/command-line-args foo
 
-expect "received argument: foo\r\n" {
+set expected_output [normalize_output {
+received argument: foo
+Unix argument, bytes: [102, 111, 111]
+back to Arg: "foo"
+}]
+
+expect -exact $expected_output {
     expect eof {
         check_exit_and_segfault
     }

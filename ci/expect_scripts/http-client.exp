@@ -5,6 +5,8 @@
 
 set timeout 15
 
+source ./ci/expect_scripts/shared-code.exp
+
 # Start the local test server (built by ci/all_tests.sh) in the background.
 set server_pid [exec ./ci/rust_http_server/target/release/rust_http_server &]
 sleep 2
@@ -16,15 +18,17 @@ expect "I received 'Hello utf8' from the server.\r\n" {
         expect "send! returned status 200.\r\n" {
             expect "invalid JSON was rejected.\r\n" {
                 expect "invalid UTF-8 was rejected.\r\n" {
-                    exec kill $server_pid
-                    exit 0
+                    catch {exec kill $server_pid}
+                    expect eof {
+                        check_exit_and_segfault
+                    }
                 }
             }
         }
     }
 }
 
-exec kill $server_pid
+catch {exec kill $server_pid}
 
 puts stderr "\nExpect script failed: output was different from expected value. uncomment `exp_internal 1` to debug."
 exit 1

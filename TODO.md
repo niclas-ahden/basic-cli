@@ -36,12 +36,17 @@
     a matching `ci/expect_scripts/*.exp` file.
   - Restored example coverage:
     - `bytes-stdin-stdout.exp`
+    - `command-line-args.exp`
+    - `env-var.exp`
     - `error-handling.exp`
     - `file-accessed-modified-created-time.exp`
     - `file-permissions.exp`
     - `file-size.exp`
     - `hello.exp`
+    - `http.exp`
+    - `http-client.exp`
     - `print.exp`
+    - `random.exp`
     - `sqlite-everything.exp`
     - `stdin-pipe.exp`
     - `temp-dir.exp`
@@ -49,13 +54,8 @@
 
 - Port the old standalone test programs back to the new compiler/platform API
   and re-enable their restored expect scripts.
-  - `ci/expect_scripts/http.exp` is kept as an archived restored script for the
-    deleted old `examples/http.roc` external-response demo. The maintained
-    `examples/http-client.roc` + `ci/expect_scripts/http-client.exp` coverage
-    now exercises the platform HTTP APIs against a self-contained local server:
-    `Http.get_utf8!`, `Http.get!`, `Http.send!`, invalid JSON, and invalid
-    UTF-8. Before release, either delete `http.exp` with that rationale or port
-    any deliberately desired external-response behavior into `http-client`.
+  - `ci/all_tests.sh` should fail if an expect script is neither active nor
+    explicitly skipped for a tracked blocker.
 
 - Restore runtime execution for `tests/cmd-test.roc` after command-test runtime
   blockers are fixed.
@@ -75,6 +75,14 @@
       `Env.temp_dir!`.
     - Old removed APIs still need a product/API decision before they can be
       restored: `Env.platform!`, `Env.dict!`, and `Env.set_cwd!`.
+    - Old `Env.decode!`-style typed environment decoding is not part of the
+      migrated platform API. `examples/env-var.roc` restores the observable
+      comma-list behavior with `Env.var!`; decide separately whether typed env
+      decoding belongs in this platform again.
+    - The old `Arg` wrapper type is not part of the migrated platform API.
+      `examples/command-line-args.roc` restores the observable argument bytes
+      and round-trip display behavior using the current `List(Str)` argv shape;
+      decide separately whether a nominal argv wrapper belongs here again.
   - `tests/file.roc` -> `ci/expect_scripts/file.exp`
   - `tests/path-test.roc` -> `ci/expect_scripts/path-test.exp`
   - `tests/sqlite.roc` -> `ci/expect_scripts/sqlite.exp`

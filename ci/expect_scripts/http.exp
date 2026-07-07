@@ -13,23 +13,27 @@ sleep 3
 
 spawn $env(EXAMPLES_DIR)http
 
-expect "I received 'Hello utf8' from the server.\r\n" {
-    expect "The json I received was: { foo: \"Hello Json!\" }\r\n" {
+set expected_output [normalize_output {
+I received 'Hello utf8' from the server.
+The json I received was: { foo: "Hello Json!" }
+Response body:
+<html>
+<body>Basic CLI HTTP test</body>
+</html>
+Response body 2:
+<html>
+<body>Basic CLI HTTP test</body>
+</html>
+}]
 
-        # we can kill our rust server now
-        exec kill $server_pid
-
-        expect "</html>\r\n" {
-            expect "</html>\r\n" {
-                expect eof {
-                    check_exit_and_segfault
-                }
-            }
-        }
+expect $expected_output {
+    catch {exec kill $server_pid}
+    expect eof {
+        check_exit_and_segfault
     }
 }
 
-exec kill $server_pid
+catch {exec kill $server_pid}
 
 puts stderr "\nExpect script failed: output was different from expected value. uncomment `exp_internal 1` to debug."
 exit 1

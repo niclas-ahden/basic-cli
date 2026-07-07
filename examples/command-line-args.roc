@@ -8,6 +8,10 @@ main! = |args| {
     match args.drop_first(1) {
         [first_arg, ..] => {
             Stdout.line!("received argument: ${first_arg}") ? |_| Exit(1)
+            arg_bytes = Str.to_utf8(first_arg)
+            Stdout.line!("Unix argument, bytes: ${Str.inspect(arg_bytes)}") ? |_| Exit(1)
+            round_tripped_arg = Str.from_utf8(arg_bytes) ? |_| Exit(1)
+            Stdout.line!("back to Arg: ${Str.inspect(round_tripped_arg)}") ? |_| Exit(1)
             Ok({})
         }
         [] => {
