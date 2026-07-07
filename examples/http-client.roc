@@ -43,8 +43,14 @@ run_demo! = || {
     decoded : { foo : Str }
     decoded = Http.get!("http://localhost:9000") ? |_| "GET / failed"
 
+    echo_request = Request.from_method(POST).with_uri("http://localhost:9000/echo-json")
+    echo_response = Http.send_json!(echo_request, { foo: "Hello Json!" }) ? |_| "send_json! failed"
+    echoed : { foo : Str }
+    echoed = Http.decode_json_response(echo_response) ? |_| "send_json! echoed invalid JSON"
+
     write_line!("The json I received was: { foo: \"${decoded.foo}\" }")?
     write_line!("send! returned status ${status}.")?
+    write_line!("send_json! echoed: { foo: \"${echoed.foo}\" }.")?
     reject_invalid_json!()?
     reject_invalid_utf8!()?
 

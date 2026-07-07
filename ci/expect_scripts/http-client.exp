@@ -16,11 +16,13 @@ spawn $env(EXAMPLES_DIR)http-client
 expect "I received 'Hello utf8' from the server.\r\n" {
     expect "The json I received was: { foo: \"Hello Json!\" }\r\n" {
         expect "send! returned status 200.\r\n" {
-            expect "invalid JSON was rejected.\r\n" {
-                expect "invalid UTF-8 was rejected.\r\n" {
-                    catch {exec kill $server_pid}
-                    expect eof {
-                        check_exit_and_segfault
+            expect "send_json! echoed: { foo: \"Hello Json!\" }.\r\n" {
+                expect "invalid JSON was rejected.\r\n" {
+                    expect "invalid UTF-8 was rejected.\r\n" {
+                        catch {exec kill $server_pid}
+                        expect eof {
+                            check_exit_and_segfault
+                        }
                     }
                 }
             }

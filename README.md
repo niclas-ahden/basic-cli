@@ -15,7 +15,8 @@ The [examples](examples/) directory shows small CLI programs for common tasks li
 
 If you want to run an example without building `basic-cli` from source, use a released bundle URL in place of `"../platform/main.roc"`. To run examples from a local checkout, build the platform first; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-HTTP examples use Roc's builtin `Json` parser directly through `Http.get!`.
+HTTP examples use Roc's builtin `Json` parser and encoder directly through
+`Http.get!` and `Http.send_json!`.
 
 ## Documentation
 

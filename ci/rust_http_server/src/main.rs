@@ -45,6 +45,14 @@ async fn handle_request(req: Request<Incoming>) -> Result<Response<BoxBody>, Gen
             .status(StatusCode::OK)
             .header("Content-Type", "application/octet-stream")
             .body(full(Bytes::from_static(&[0xff])))?,
+        (&Method::POST, "/echo-json") => {
+            let body = req.into_body().collect().await?.to_bytes();
+
+            Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "application/json")
+                .body(full(body))?
+        }
         _ => {
             // Default JSON response for `{ foo: "Hello Json!" }`.
             let json_bytes: Vec<u8> = vec![
