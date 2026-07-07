@@ -49,10 +49,13 @@
 
 - Port the old standalone test programs back to the new compiler/platform API
   and re-enable their restored expect scripts.
-  - `ci/expect_scripts/http.exp` needs a product decision: either port the old
-    deleted `examples/http.roc` external-response coverage into
-    `examples/http-client.roc`, or delete it with the rationale that
-    `http-client.exp` supersedes it with self-contained local-server coverage.
+  - `ci/expect_scripts/http.exp` is kept as an archived restored script for the
+    deleted old `examples/http.roc` external-response demo. The maintained
+    `examples/http-client.roc` + `ci/expect_scripts/http-client.exp` coverage
+    now exercises the platform HTTP APIs against a self-contained local server:
+    `Http.get_utf8!`, `Http.get!`, `Http.send!`, invalid JSON, and invalid
+    UTF-8. Before release, either delete `http.exp` with that rationale or port
+    any deliberately desired external-response behavior into `http-client`.
 
 - Restore runtime execution for `tests/cmd-test.roc` after command-test runtime
   blockers are fixed.
@@ -60,9 +63,11 @@
   - The maintained `examples/command.roc` expect test covers the stable command
     happy-path and non-zero-exit behavior today.
   - `cmd-test.roc` keeps checking the broader command-error assertions, but the
-    current nightly cannot build the optimized coverage path due to
-    https://github.com/roc-lang/roc/issues/10003 and still segfaults after
-    dev/direct runs complete their assertions.
+    current nightly cannot build the optimized coverage path: `roc build
+    tests/cmd-test.roc` segfaults in the compiler on
+    release-fast-17d11975. This is tracked by
+    https://github.com/roc-lang/roc/issues/10003; dev/direct runs still
+    segfault after completing their assertions.
 
 - Re-enabled standalone expect coverage:
   - `tests/env.roc` -> `ci/expect_scripts/env.exp`
