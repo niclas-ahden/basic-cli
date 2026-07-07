@@ -715,6 +715,7 @@ impl<T: core::fmt::Debug, const ELEMENTS_REFCOUNTED: bool> core::fmt::Debug for 
 }
 
 /// Element type for __AnonStruct4
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct4 {
@@ -724,10 +725,18 @@ pub struct AnonStruct4 {
     pub clear_envs: bool,
 }
 
-const _: () = assert!(core::mem::size_of::<AnonStruct4>() == 80, "AnonStruct4 size mismatch");
-const _: () = assert!(core::mem::align_of::<AnonStruct4>() == 8, "AnonStruct4 alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStruct4 {
+    pub args: RocList<RocStr>,
+    pub envs: RocList<RocStr>,
+    pub program: RocStr,
+    pub clear_envs: bool,
+}
 
 /// Element type for __AnonStruct9
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct9 {
@@ -736,10 +745,17 @@ pub struct AnonStruct9 {
     pub exit_code: i32,
 }
 
-const _: () = assert!(core::mem::size_of::<AnonStruct9>() == 56, "AnonStruct9 size mismatch");
-const _: () = assert!(core::mem::align_of::<AnonStruct9>() == 8, "AnonStruct9 alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStruct9 {
+    pub stderr_bytes: RocListWith<u8, false>,
+    pub stdout_bytes: RocListWith<u8, false>,
+    pub exit_code: i32,
+}
 
 /// Element type for __AnonStruct12
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct12 {
@@ -747,10 +763,16 @@ pub struct AnonStruct12 {
     pub stdout_bytes: RocListWith<u8, false>,
 }
 
-const _: () = assert!(core::mem::size_of::<AnonStruct12>() == 48, "AnonStruct12 size mismatch");
-const _: () = assert!(core::mem::align_of::<AnonStruct12>() == 8, "AnonStruct12 alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStruct12 {
+    pub stderr_bytes: RocListWith<u8, false>,
+    pub stdout_bytes: RocListWith<u8, false>,
+}
 
 /// Element type for __AnonStruct37
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct37 {
@@ -759,10 +781,17 @@ pub struct AnonStruct37 {
     pub status: u16,
 }
 
-const _: () = assert!(core::mem::size_of::<AnonStruct37>() == 56, "AnonStruct37 size mismatch");
-const _: () = assert!(core::mem::align_of::<AnonStruct37>() == 8, "AnonStruct37 alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStruct37 {
+    pub body: RocListWith<u8, false>,
+    pub headers: RocList<AnonStruct39>,
+    pub status: u16,
+}
 
 /// Element type for __AnonStruct39
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct39 {
@@ -770,10 +799,16 @@ pub struct AnonStruct39 {
     pub _1: RocStr,
 }
 
-const _: () = assert!(core::mem::size_of::<AnonStruct39>() == 48, "AnonStruct39 size mismatch");
-const _: () = assert!(core::mem::align_of::<AnonStruct39>() == 8, "AnonStruct39 alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStruct39 {
+    pub _0: RocStr,
+    pub _1: RocStr,
+}
 
 /// Element type for __AnonStruct41
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct41 {
@@ -785,10 +820,20 @@ pub struct AnonStruct41 {
     pub method: u8,
 }
 
-const _: () = assert!(core::mem::size_of::<AnonStruct41>() == 112, "AnonStruct41 size mismatch");
-const _: () = assert!(core::mem::align_of::<AnonStruct41>() == 8, "AnonStruct41 alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStruct41 {
+    pub timeout_ms: u64,
+    pub body: RocListWith<u8, false>,
+    pub headers: RocList<AnonStruct39>,
+    pub method_ext: RocStr,
+    pub uri: RocStr,
+    pub method: u8,
+}
 
 /// Element type for __AnonStruct45
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct45 {
@@ -797,10 +842,17 @@ pub struct AnonStruct45 {
     pub is_sym_link: bool,
 }
 
-const _: () = assert!(core::mem::size_of::<AnonStruct45>() == 3, "AnonStruct45 size mismatch");
-const _: () = assert!(core::mem::align_of::<AnonStruct45>() == 1, "AnonStruct45 alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStruct45 {
+    pub is_dir: bool,
+    pub is_file: bool,
+    pub is_sym_link: bool,
+}
 
 /// Element type for __AnonStruct51
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct51 {
@@ -808,10 +860,16 @@ pub struct AnonStruct51 {
     pub message: RocStr,
 }
 
-const _: () = assert!(core::mem::size_of::<AnonStruct51>() == 32, "AnonStruct51 size mismatch");
-const _: () = assert!(core::mem::align_of::<AnonStruct51>() == 8, "AnonStruct51 alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStruct51 {
+    pub code: i64,
+    pub message: RocStr,
+}
 
 /// Element type for __AnonStruct56
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct AnonStruct56 {
@@ -819,8 +877,13 @@ pub struct AnonStruct56 {
     pub name: RocStr,
 }
 
-const _: () = assert!(core::mem::size_of::<AnonStruct56>() == 56, "AnonStruct56 size mismatch");
-const _: () = assert!(core::mem::align_of::<AnonStruct56>() == 8, "AnonStruct56 alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStruct56 {
+    pub value: BytesOrIntegerOrNullOrRealOrString,
+    pub name: RocStr,
+}
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -844,9 +907,6 @@ pub union TryType0Payload {
     pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<i32>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType0>() == 40, "TryType0 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType0>() == 8, "TryType0 alignment mismatch");
 
 /// Tag discriminant for IOErr.
 #[repr(u8)]
@@ -883,9 +943,6 @@ pub union IOErrPayload {
     pub unsupported: [u8; 0],
 }
 
-const _: () = assert!(core::mem::size_of::<IOErr>() == 32, "IOErr size mismatch");
-const _: () = assert!(core::mem::align_of::<IOErr>() == 8, "IOErr alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -908,9 +965,6 @@ pub union TryType7Payload {
     pub err: core::mem::ManuallyDrop<FailedToGetExitCodeOrNonZeroExitCode>,
     pub ok: core::mem::ManuallyDrop<AnonStruct12>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType7>() == 72, "TryType7 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType7>() == 8, "TryType7 alignment mismatch");
 
 /// Tag discriminant for FailedToGetExitCodeOrNonZeroExitCode.
 #[repr(u8)]
@@ -935,9 +989,6 @@ pub union FailedToGetExitCodeOrNonZeroExitCodePayload {
     pub non_zero_exit_code: core::mem::ManuallyDrop<AnonStruct9>,
 }
 
-const _: () = assert!(core::mem::size_of::<FailedToGetExitCodeOrNonZeroExitCode>() == 64, "FailedToGetExitCodeOrNonZeroExitCode size mismatch");
-const _: () = assert!(core::mem::align_of::<FailedToGetExitCodeOrNonZeroExitCode>() == 8, "FailedToGetExitCodeOrNonZeroExitCode alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -960,9 +1011,6 @@ pub union TryType13Payload {
     pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<()>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType13>() == 40, "TryType13 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType13>() == 8, "TryType13 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -987,9 +1035,6 @@ pub union TryType16Payload {
     pub ok: core::mem::ManuallyDrop<RocList<RocListWith<u8, false>>>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType16>() == 40, "TryType16 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType16>() == 8, "TryType16 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1012,9 +1057,6 @@ pub union TryType18Payload {
     pub err: core::mem::ManuallyDrop<RocStr>,
     pub ok: core::mem::ManuallyDrop<RocStr>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType18>() == 32, "TryType18 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType18>() == 8, "TryType18 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1039,9 +1081,6 @@ pub union TryType20Payload {
     pub ok: core::mem::ManuallyDrop<RocListWith<u8, false>>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType20>() == 32, "TryType20 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType20>() == 8, "TryType20 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1064,9 +1103,6 @@ pub union TryType22Payload {
     pub err: core::mem::ManuallyDrop<*mut c_void>,
     pub ok: core::mem::ManuallyDrop<RocListWith<u8, false>>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType22>() == 32, "TryType22 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType22>() == 8, "TryType22 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1091,9 +1127,6 @@ pub union TryType24Payload {
     pub ok: core::mem::ManuallyDrop<RocListWith<u8, false>>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType24>() == 40, "TryType24 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType24>() == 8, "TryType24 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1116,9 +1149,6 @@ pub union TryType26Payload {
     pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<()>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType26>() == 40, "TryType26 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType26>() == 8, "TryType26 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1143,9 +1173,6 @@ pub union TryType27Payload {
     pub ok: core::mem::ManuallyDrop<RocStr>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType27>() == 40, "TryType27 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType27>() == 8, "TryType27 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1168,9 +1195,6 @@ pub union TryType28Payload {
     pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<*mut u64>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType28>() == 40, "TryType28 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType28>() == 8, "TryType28 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1195,9 +1219,6 @@ pub union TryType31Payload {
     pub ok: core::mem::ManuallyDrop<u64>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType31>() == 40, "TryType31 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType31>() == 8, "TryType31 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1220,9 +1241,6 @@ pub union TryType32Payload {
     pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<bool>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType32>() == 40, "TryType32 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType32>() == 8, "TryType32 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1247,9 +1265,6 @@ pub union TryType33Payload {
     pub ok: core::mem::ManuallyDrop<u128>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType33>() == 48, "TryType33 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType33>() == 16, "TryType33 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1272,9 +1287,6 @@ pub union TryType35Payload {
     pub err: core::mem::ManuallyDrop<BadBodyOrNetworkErrorOrOtherOrTimeout>,
     pub ok: core::mem::ManuallyDrop<AnonStruct37>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType35>() == 64, "TryType35 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType35>() == 8, "TryType35 alignment mismatch");
 
 /// Tag discriminant for BadBodyOrNetworkErrorOrOtherOrTimeout.
 #[repr(u8)]
@@ -1303,9 +1315,6 @@ pub union BadBodyOrNetworkErrorOrOtherOrTimeoutPayload {
     pub timeout: [u8; 0],
 }
 
-const _: () = assert!(core::mem::size_of::<BadBodyOrNetworkErrorOrOtherOrTimeout>() == 32, "BadBodyOrNetworkErrorOrOtherOrTimeout size mismatch");
-const _: () = assert!(core::mem::align_of::<BadBodyOrNetworkErrorOrOtherOrTimeout>() == 8, "BadBodyOrNetworkErrorOrOtherOrTimeout alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1328,9 +1337,6 @@ pub union TryType42Payload {
     pub err: core::mem::ManuallyDrop<*mut c_void>,
     pub ok: core::mem::ManuallyDrop<RocStr>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType42>() == 32, "TryType42 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType42>() == 8, "TryType42 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1355,9 +1361,6 @@ pub union TryType44Payload {
     pub ok: core::mem::ManuallyDrop<AnonStruct45>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType44>() == 40, "TryType44 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType44>() == 8, "TryType44 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1380,9 +1383,6 @@ pub union TryType46Payload {
     pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<u64>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType46>() == 40, "TryType46 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType46>() == 8, "TryType46 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1407,9 +1407,6 @@ pub union TryType48Payload {
     pub ok: core::mem::ManuallyDrop<u32>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType48>() == 40, "TryType48 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType48>() == 8, "TryType48 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1433,9 +1430,6 @@ pub union TryType50Payload {
     pub ok: core::mem::ManuallyDrop<*mut u64>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType50>() == 40, "TryType50 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType50>() == 8, "TryType50 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1458,9 +1452,6 @@ pub union TryType54Payload {
     pub err: core::mem::ManuallyDrop<AnonStruct51>,
     pub ok: core::mem::ManuallyDrop<()>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType54>() == 40, "TryType54 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType54>() == 8, "TryType54 alignment mismatch");
 
 /// Tag discriminant for BytesOrIntegerOrNullOrRealOrString.
 #[repr(u8)]
@@ -1491,9 +1482,6 @@ pub union BytesOrIntegerOrNullOrRealOrStringPayload {
     pub string: core::mem::ManuallyDrop<RocStr>,
 }
 
-const _: () = assert!(core::mem::size_of::<BytesOrIntegerOrNullOrRealOrString>() == 32, "BytesOrIntegerOrNullOrRealOrString size mismatch");
-const _: () = assert!(core::mem::align_of::<BytesOrIntegerOrNullOrRealOrString>() == 8, "BytesOrIntegerOrNullOrRealOrString alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1516,9 +1504,6 @@ pub union TryType59Payload {
     pub err: core::mem::ManuallyDrop<AnonStruct51>,
     pub ok: core::mem::ManuallyDrop<BytesOrIntegerOrNullOrRealOrString>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType59>() == 40, "TryType59 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType59>() == 8, "TryType59 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1543,9 +1528,6 @@ pub union TryType60Payload {
     pub ok: core::mem::ManuallyDrop<bool>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType60>() == 40, "TryType60 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType60>() == 8, "TryType60 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1568,9 +1550,6 @@ pub union TryType61Payload {
     pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<()>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType61>() == 40, "TryType61 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType61>() == 8, "TryType61 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1595,9 +1574,6 @@ pub union TryType63Payload {
     pub ok: core::mem::ManuallyDrop<RocStr>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType63>() == 48, "TryType63 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType63>() == 8, "TryType63 alignment mismatch");
-
 /// Tag discriminant for EndOfFileOrStdinErr.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1620,9 +1596,6 @@ pub union EndOfFileOrStdinErrPayload {
     pub end_of_file: [u8; 0],
     pub stdin_err: core::mem::ManuallyDrop<IOErr>,
 }
-
-const _: () = assert!(core::mem::size_of::<EndOfFileOrStdinErr>() == 40, "EndOfFileOrStdinErr size mismatch");
-const _: () = assert!(core::mem::align_of::<EndOfFileOrStdinErr>() == 8, "EndOfFileOrStdinErr alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1647,9 +1620,6 @@ pub union TryType65Payload {
     pub ok: core::mem::ManuallyDrop<RocListWith<u8, false>>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType65>() == 48, "TryType65 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType65>() == 8, "TryType65 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1672,9 +1642,6 @@ pub union TryType66Payload {
     pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<RocListWith<u8, false>>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType66>() == 40, "TryType66 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType66>() == 8, "TryType66 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1699,9 +1666,6 @@ pub union TryType68Payload {
     pub ok: core::mem::ManuallyDrop<()>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType68>() == 40, "TryType68 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType68>() == 8, "TryType68 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1724,9 +1688,6 @@ pub union TryType70Payload {
     pub err: core::mem::ManuallyDrop<RocStr>,
     pub ok: core::mem::ManuallyDrop<*mut u64>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType70>() == 32, "TryType70 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType70>() == 8, "TryType70 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1751,9 +1712,6 @@ pub union TryType72Payload {
     pub ok: core::mem::ManuallyDrop<RocListWith<u8, false>>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType72>() == 32, "TryType72 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType72>() == 8, "TryType72 alignment mismatch");
-
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1776,9 +1734,6 @@ pub union TryType73Payload {
     pub err: core::mem::ManuallyDrop<RocStr>,
     pub ok: core::mem::ManuallyDrop<()>,
 }
-
-const _: () = assert!(core::mem::size_of::<TryType73>() == 32, "TryType73 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType73>() == 8, "TryType73 alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -1803,12 +1758,10 @@ pub union TryType77Payload {
     pub ok: core::mem::ManuallyDrop<()>,
 }
 
-const _: () = assert!(core::mem::size_of::<TryType77>() == 8, "TryType77 size mismatch");
-const _: () = assert!(core::mem::align_of::<TryType77>() == 4, "TryType77 alignment mismatch");
-
 /// Arguments for Host.cmd_exec_exit_code!
 /// Roc signature: { args : List(Str), clear_envs : Bool, envs : List(Str), program : Str } => Try(I32, IOErr)
 /// Refcounted fields are owned by the hosted function.
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HostCmdExecExitCodeArgs {
@@ -1818,12 +1771,20 @@ pub struct HostCmdExecExitCodeArgs {
     pub clear_envs: bool,
 }
 
-const _: () = assert!(core::mem::size_of::<HostCmdExecExitCodeArgs>() == 80, "HostCmdExecExitCodeArgs size mismatch");
-const _: () = assert!(core::mem::align_of::<HostCmdExecExitCodeArgs>() == 8, "HostCmdExecExitCodeArgs alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdExecExitCodeArgs {
+    pub args: RocList<RocStr>,
+    pub envs: RocList<RocStr>,
+    pub program: RocStr,
+    pub clear_envs: bool,
+}
 
 /// Arguments for Host.cmd_exec_output!
 /// Roc signature: { args : List(Str), clear_envs : Bool, envs : List(Str), program : Str } => Try({ stderr_bytes : List(U8), stdout_bytes : List(U8) }, [FailedToGetExitCode(IOErr), NonZeroExitCode({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) })])
 /// Refcounted fields are owned by the hosted function.
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HostCmdExecOutputArgs {
@@ -1833,8 +1794,15 @@ pub struct HostCmdExecOutputArgs {
     pub clear_envs: bool,
 }
 
-const _: () = assert!(core::mem::size_of::<HostCmdExecOutputArgs>() == 80, "HostCmdExecOutputArgs size mismatch");
-const _: () = assert!(core::mem::align_of::<HostCmdExecOutputArgs>() == 8, "HostCmdExecOutputArgs alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdExecOutputArgs {
+    pub args: RocList<RocStr>,
+    pub envs: RocList<RocStr>,
+    pub program: RocStr,
+    pub clear_envs: bool,
+}
 
 /// Arguments for Host.dir_create!
 /// Roc signature: Str => Try({}, [DirErr(IOErr)])
@@ -1897,6 +1865,16 @@ pub struct HostEnvVarArgs {
 #[derive(Clone, Copy)]
 pub struct HostFileDeleteArgs {
     pub arg0: RocStr,
+}
+
+/// Arguments for Host.file_hard_link!
+/// Roc signature: Str, Str => Try({}, [FileErr(IOErr)])
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostFileHardLinkArgs {
+    pub arg0: RocStr,
+    pub arg1: RocStr,
 }
 
 /// Arguments for Host.file_is_executable!
@@ -1963,6 +1941,16 @@ pub struct HostFileReadUtf8Args {
     pub arg0: RocStr,
 }
 
+/// Arguments for Host.file_rename!
+/// Roc signature: Str, Str => Try({}, [FileErr(IOErr)])
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostFileRenameArgs {
+    pub arg0: RocStr,
+    pub arg1: RocStr,
+}
+
 /// Arguments for Host.file_size_in_bytes!
 /// Roc signature: Str => Try(U64, [FileErr(IOErr)])
 /// Refcounted fields are owned by the hosted function.
@@ -2022,6 +2010,7 @@ pub struct HostFileWriteUtf8Args {
 /// Arguments for Host.http_send_request!
 /// Roc signature: { body : List(U8), headers : List((Str, Str)), method : U8, method_ext : Str, timeout_ms : U64, uri : Str } => Try({ body : List(U8), headers : List((Str, Str)), status : U16 }, [BadBody, NetworkError, Other(List(U8)), Timeout])
 /// Refcounted fields are owned by the hosted function.
+#[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HostHttpSendRequestArgs {
@@ -2033,8 +2022,17 @@ pub struct HostHttpSendRequestArgs {
     pub method: u8,
 }
 
-const _: () = assert!(core::mem::size_of::<HostHttpSendRequestArgs>() == 112, "HostHttpSendRequestArgs size mismatch");
-const _: () = assert!(core::mem::align_of::<HostHttpSendRequestArgs>() == 8, "HostHttpSendRequestArgs alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostHttpSendRequestArgs {
+    pub timeout_ms: u64,
+    pub body: RocListWith<u8, false>,
+    pub headers: RocList<AnonStruct39>,
+    pub method_ext: RocStr,
+    pub uri: RocStr,
+    pub method: u8,
+}
 
 /// Arguments for Host.path_type!
 /// Roc signature: List(U8) => Try({ is_dir : Bool, is_file : Bool, is_sym_link : Bool }, IOErr)
@@ -2257,6 +2255,9 @@ pub type HostEnvVarResultTag = TryType18Tag;
 pub type HostFileDeleteResult = TryType26;
 pub type HostFileDeleteResultPayload = TryType26Payload;
 pub type HostFileDeleteResultTag = TryType26Tag;
+pub type HostFileHardLinkResult = TryType26;
+pub type HostFileHardLinkResultPayload = TryType26Payload;
+pub type HostFileHardLinkResultTag = TryType26Tag;
 pub type HostFileIsExecutableResult = TryType32;
 pub type HostFileIsExecutableResultPayload = TryType32Payload;
 pub type HostFileIsExecutableResultTag = TryType32Tag;
@@ -2278,6 +2279,9 @@ pub type HostFileReadLineResultTag = TryType24Tag;
 pub type HostFileReadUtf8Result = TryType27;
 pub type HostFileReadUtf8ResultPayload = TryType27Payload;
 pub type HostFileReadUtf8ResultTag = TryType27Tag;
+pub type HostFileRenameResult = TryType26;
+pub type HostFileRenameResultPayload = TryType26Payload;
+pub type HostFileRenameResultTag = TryType26Tag;
 pub type HostFileSizeInBytesResult = TryType31;
 pub type HostFileSizeInBytesResultPayload = TryType31Payload;
 pub type HostFileSizeInBytesResultTag = TryType31Tag;
@@ -3617,6 +3621,10 @@ unsafe extern "C" {
     /// Roc signature: Str => Try({}, [FileErr(IOErr)])
     pub fn hosted_file_delete(arg0: RocStr) -> TryType26;
 
+    /// Hosted symbol for Host.file_hard_link!
+    /// Roc signature: Str, Str => Try({}, [FileErr(IOErr)])
+    pub fn hosted_file_hard_link(arg0: RocStr, arg1: RocStr) -> TryType26;
+
     /// Hosted symbol for Host.file_is_executable!
     /// Roc signature: Str => Try(Bool, [FileErr(IOErr)])
     pub fn hosted_file_is_executable(arg0: RocStr) -> TryType32;
@@ -3644,6 +3652,10 @@ unsafe extern "C" {
     /// Hosted symbol for Host.file_read_utf8!
     /// Roc signature: Str => Try(Str, [FileErr(IOErr)])
     pub fn hosted_file_read_utf8(arg0: RocStr) -> TryType27;
+
+    /// Hosted symbol for Host.file_rename!
+    /// Roc signature: Str, Str => Try({}, [FileErr(IOErr)])
+    pub fn hosted_file_rename(arg0: RocStr, arg1: RocStr) -> TryType26;
 
     /// Hosted symbol for Host.file_size_in_bytes!
     /// Roc signature: Str => Try(U64, [FileErr(IOErr)])

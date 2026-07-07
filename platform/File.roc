@@ -28,6 +28,14 @@ File := [].{
     write_utf8! : Str, Str => Try({}, [FileErr(IOErr), ..])
     write_utf8! = |path, content| widen_file_err(Host.file_write_utf8!(path, content))
 
+    ## Create a hard link at `link` pointing to `original`.
+    hard_link! : Str, Str => Try({}, [FileErr(IOErr), ..])
+    hard_link! = |original, link| widen_file_err(Host.file_hard_link!(original, link))
+
+    ## Rename a file from `from` to `to`.
+    rename! : Str, Str => Try({}, [FileErr(IOErr), ..])
+    rename! = |from, to| widen_file_err(Host.file_rename!(from, to))
+
     ## Open a file for buffered reading using the default buffer capacity.
     ##
     ## ```roc
@@ -50,6 +58,51 @@ File := [].{
     ## Delete a file.
     delete! : Str => Try({}, [FileErr(IOErr), ..])
     delete! = |path| widen_file_err(Host.file_delete!(path))
+
+    ## Returns `True` if the path exists on disk.
+    exists! : Str => Try(Bool, [FileErr(IOErr), ..])
+    exists! = |path|
+        match type!(path) {
+            Ok(_) => Ok(Bool.True),
+            Err(FileErr(NotFound)) => Ok(Bool.False),
+            Err(err) => Err(err),
+        }
+
+    ## Returns `True` if the path exists on disk and is a regular file.
+    is_file! : Str => Try(Bool, [FileErr(IOErr), ..])
+    is_file! = |path|
+        match type!(path) {
+            Ok(IsFile) => Ok(Bool.True),
+            Ok(_) => Ok(Bool.False),
+            Err(FileErr(NotFound)) => Ok(Bool.False),
+            Err(err) => Err(err),
+        }
+
+    ## Returns `True` if the path exists on disk and is a symbolic link.
+    is_sym_link! : Str => Try(Bool, [FileErr(IOErr), ..])
+    is_sym_link! = |path|
+        match type!(path) {
+            Ok(IsSymLink) => Ok(Bool.True),
+            Ok(_) => Ok(Bool.False),
+            Err(FileErr(NotFound)) => Ok(Bool.False),
+            Err(err) => Err(err),
+        }
+
+    ## Return the type of the path if it exists on disk.
+    type! : Str => Try([IsFile, IsDir, IsSymLink], [FileErr(IOErr), ..])
+    type! = |path|
+        match Host.path_type!(Str.to_utf8(path)) {
+            Ok(path_type) =>
+                if path_type.is_sym_link {
+                    Ok(IsSymLink)
+                } else if path_type.is_dir {
+                    Ok(IsDir)
+                } else {
+                    Ok(IsFile)
+                }
+
+            Err(err) => Err(FileErr(err)),
+        }
 
     ## Returns the size of a file in bytes.
     size_in_bytes! : Str => Try(U64, [FileErr(IOErr), ..])

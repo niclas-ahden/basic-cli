@@ -55,6 +55,10 @@ platform ""
         "hosted_tty_disable_raw_mode": Host.tty_disable_raw_mode!,
         "hosted_tty_enable_raw_mode": Host.tty_enable_raw_mode!,
         "hosted_utc_now": Host.utc_now!,
+        # New file hosted functions are kept at the end so adding them does not
+        # renumber the generated glue types for existing modules.
+        "hosted_file_hard_link": Host.file_hard_link!,
+        "hosted_file_rename": Host.file_rename!,
         # SQLite hosted functions are kept at the end so adding them does not
         # renumber the generated glue types for the modules declared above.
         "hosted_sqlite_prepare": Host.sqlite_prepare!,

@@ -10,6 +10,7 @@ EXAMPLE_NAMES=()
 TEST_NAMES=()
 TEST_EXPECT_NAMES=(
     "env"
+    "file"
     "tcp"
 )
 

@@ -830,6 +830,30 @@ pub extern "C" fn hosted_file_delete(path: RocStr) -> HostFileDeleteResult {
 }
 
 #[no_mangle]
+pub extern "C" fn hosted_file_hard_link(original: RocStr, link: RocStr) -> HostFileHardLinkResult {
+    let roc_host = roc_host();
+    let original_path = path_from_roc_str(original, roc_host);
+    let link_path = path_from_roc_str(link, roc_host);
+
+    match fs::hard_link(original_path, link_path) {
+        Ok(()) => try_file_delete_ok(),
+        Err(error) => try_file_delete_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_file_rename(from: RocStr, to: RocStr) -> HostFileRenameResult {
+    let roc_host = roc_host();
+    let from_path = path_from_roc_str(from, roc_host);
+    let to_path = path_from_roc_str(to, roc_host);
+
+    match fs::rename(from_path, to_path) {
+        Ok(()) => try_file_delete_ok(),
+        Err(error) => try_file_delete_err(file_io_err_from_io(&error, roc_host)),
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn hosted_file_read_bytes(path: RocStr) -> FileBytesResult {
     let roc_host = roc_host();
     match fs::read(path_from_roc_str(path, roc_host)) {

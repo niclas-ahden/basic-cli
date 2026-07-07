@@ -103,4 +103,9 @@ Host := [].{
     tty_disable_raw_mode! : () => {}
 
     utc_now! : () => U128
+
+    # New hosted functions are kept at the end to avoid renumbering existing
+    # generated glue more than necessary.
+    file_hard_link! : Str, Str => Try({}, [FileErr(IOErr)])
+    file_rename! : Str, Str => Try({}, [FileErr(IOErr)])
 }
