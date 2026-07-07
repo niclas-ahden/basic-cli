@@ -35,6 +35,9 @@ cleanup() {
         rm -f "tests/${test}"
     done
 
+    # Remove temporary databases created by expect tests.
+    rm -f examples/*.e2e.db
+
     # Remove bundle file
     if [ -n "${BUNDLE_FILE:-}" ] && [ -f "$BUNDLE_FILE" ]; then
         rm -f "$BUNDLE_FILE"
@@ -88,30 +91,20 @@ export EXAMPLES_DIR
 TESTS_DIR="${ROOT_DIR}/tests/"
 export TESTS_DIR
 
-# Examples with maintained expect tests. All examples are checked and built
-# below; this list only controls which built binaries are executed.
-EXPECT_EXAMPLES=(
-    "command-line-args"
-    "hello-world"
-    "stdin-basic"
-    "path"
-    "command"
-    "file-read-write"
-    "file-read-buffered"
-    "time"
-    "random"
-    "locale"
-    "tty"
-    "dir"
-    "env-var"
-    "sqlite-basic"
-    "tcp-client"
-    "http-client"
-)
-
 for roc_file in "${EXAMPLES_DIR}"*.roc; do
     [ -f "$roc_file" ] && EXAMPLE_NAMES+=("$(basename "${roc_file%.roc}")")
 done
+
+MISSING_EXPECT=0
+for example in "${EXAMPLE_NAMES[@]}"; do
+    if [ ! -f "ci/expect_scripts/${example}.exp" ]; then
+        echo "Error: missing expect script for examples/${example}.roc" >&2
+        MISSING_EXPECT=1
+    fi
+done
+if [ "$MISSING_EXPECT" -ne 0 ]; then
+    exit 1
+fi
 
 # Check if all target libraries exist for bundling
 ALL_TARGETS_EXIST=true
@@ -211,24 +204,19 @@ for example in "${EXAMPLE_NAMES[@]}"; do
 done
 
 # The http-client expect test drives a local HTTP server; build it up front.
-if printf '%s\n' "${EXPECT_EXAMPLES[@]}" | grep -qx "http-client"; then
+if printf '%s\n' "${EXAMPLE_NAMES[@]}" | grep -qx "http-client"; then
     echo ""
     echo "=== Building HTTP test server ==="
     (cd ci/rust_http_server && cargo build --release)
 fi
 
-# Run expect tests
+# Run each example's expect test. Every shipped example is expected to have one.
 echo ""
-echo "=== Running expect tests ==="
+echo "=== Running example expect tests ==="
 FAILED=0
-for example in "${EXPECT_EXAMPLES[@]}"; do
+for example in "${EXAMPLE_NAMES[@]}"; do
     echo ""
     echo "--- Testing: $example ---"
-    if [ ! -f "ci/expect_scripts/${example}.exp" ]; then
-        echo "FAIL: missing expect script for $example"
-        FAILED=1
-        continue
-    fi
     set +e
     expect "ci/expect_scripts/${example}.exp"
     EXIT_CODE=$?

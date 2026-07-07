@@ -16,13 +16,19 @@ main! = |_args| {
 
     time_modified = Utc.to_millis_since_epoch(File.time_modified!(file)?)
     time_accessed = Utc.to_millis_since_epoch(File.time_accessed!(file)?)
-    time_created = Utc.to_millis_since_epoch(File.time_created!(file)?)
+    created_line = match File.time_created!(file) {
+        Ok(time_created) =>
+            "    Created: ${Utc.to_millis_since_epoch(time_created).to_str()} ms since epoch"
+
+        Err(FileErr(Unsupported)) => "    Created: unsupported"
+        Err(err) => Err(err)?,
+    }
 
     Stdout.line!(
         \\${file} file time metadata:
         \\    Modified: ${time_modified.to_str()} ms since epoch
         \\    Accessed: ${time_accessed.to_str()} ms since epoch
-        \\    Created: ${time_created.to_str()} ms since epoch
+        \\${created_line}
     )?
 
     Ok({})

@@ -9,7 +9,7 @@ Stdin := [].{
     ## program having gotten stuck. It's often helpful to print a prompt first, so
     ## the user knows it's necessary to enter something before the program will continue.
     line! : () => Try(Str, [EndOfFile, StdinErr(IOErr), ..])
-    line! = || Ok(Host.stdin_line!()?)
+    line! = || widen_stdin_eof_err(Host.stdin_line!())
 
     ## Read bytes from [standard input](https://en.wikipedia.org/wiki/Standard_streams#Standard_input_(stdin)).
     ## This function can read no more than 16,384 bytes at a time. Use [read_to_end!] if you need more.
@@ -18,10 +18,25 @@ Stdin := [].{
     ## which disables defaults terminal bevahiour and allows reading input
     ## without buffering until Enter key is pressed.
     bytes! : () => Try(List(U8), [EndOfFile, StdinErr(IOErr), ..])
-    bytes! = || Ok(Host.stdin_bytes!()?)
+    bytes! = || widen_stdin_eof_err(Host.stdin_bytes!())
 
     ## Read all bytes from [standard input](https://en.wikipedia.org/wiki/Standard_streams#Standard_input_(stdin))
     ## until [EOF](https://en.wikipedia.org/wiki/End-of-file) in this source.
     read_to_end! : () => Try(List(U8), [StdinErr(IOErr), ..])
-    read_to_end! = || Ok(Host.stdin_read_to_end!()?)
+    read_to_end! = || widen_stdin_err(Host.stdin_read_to_end!())
 }
+
+widen_stdin_eof_err : Try(a, [EndOfFile, StdinErr(IOErr)]) -> Try(a, [EndOfFile, StdinErr(IOErr), ..])
+widen_stdin_eof_err = |result|
+    match result {
+        Ok(value) => Ok(value),
+        Err(EndOfFile) => Err(EndOfFile),
+        Err(StdinErr(err)) => Err(StdinErr(err)),
+    }
+
+widen_stdin_err : Try(a, [StdinErr(IOErr)]) -> Try(a, [StdinErr(IOErr), ..])
+widen_stdin_err = |result|
+    match result {
+        Ok(value) => Ok(value),
+        Err(StdinErr(err)) => Err(StdinErr(err)),
+    }

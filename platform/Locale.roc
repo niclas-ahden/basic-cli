@@ -7,7 +7,7 @@ Locale := [].{
     ##
     ## Returns `Err(NotAvailable)` if the locale cannot be determined.
     get! : () => Try(Str, [NotAvailable, ..])
-    get! = || Ok(Host.locale_get!()?)
+    get! = || widen_locale_err(Host.locale_get!())
 
     ## Returns the preferred locales for the system or application.
     ##
@@ -15,3 +15,10 @@ Locale := [].{
     all! : () => List(Str)
     all! = || Host.locale_all!()
 }
+
+widen_locale_err : Try(a, [NotAvailable]) -> Try(a, [NotAvailable, ..])
+widen_locale_err = |result|
+    match result {
+        Ok(value) => Ok(value),
+        Err(NotAvailable) => Err(NotAvailable),
+    }

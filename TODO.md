@@ -31,8 +31,40 @@
 
 ## Test Coverage
 
+- Keep one expect-based end-to-end behavior test for every shipped example.
+  - `ci/all_tests.sh` should fail if a new `examples/*.roc` file does not have
+    a matching `ci/expect_scripts/*.exp` file.
+  - Restored example coverage:
+    - `bytes-stdin-stdout.exp`
+    - `error-handling.exp`
+    - `file-accessed-modified-created-time.exp`
+    - `file-permissions.exp`
+    - `file-size.exp`
+    - `hello.exp`
+    - `print.exp`
+    - `sqlite-everything.exp`
+    - `stdin-pipe.exp`
+    - `temp-dir.exp`
+    - `terminal-app-snake.exp`
+
+- Port the old standalone test programs back to the new compiler/platform API
+  and re-enable their restored expect scripts.
+  - `tests/env.roc` -> `ci/expect_scripts/env.exp`
+  - `tests/file.roc` -> `ci/expect_scripts/file.exp`
+  - `tests/path-test.roc` -> `ci/expect_scripts/path-test.exp`
+  - `tests/sqlite.roc` -> `ci/expect_scripts/sqlite.exp`
+  - `tests/tcp.roc` -> `ci/expect_scripts/tcp.exp`
+  - `tests/utc.roc` -> `ci/expect_scripts/utc.exp`
+  - `tests/url.roc` and `ci/expect_scripts/url.exp` need a product decision:
+    either restore/port `platform/Url.roc` or delete both with that rationale.
+  - `ci/expect_scripts/http.exp` needs a product decision: either port the old
+    deleted `examples/http.roc` external-response coverage into
+    `examples/http-client.roc`, or delete it with the rationale that
+    `http-client.exp` supersedes it with self-contained local-server coverage.
+
 - Restore runtime execution for `tests/cmd-test.roc` after command-test runtime
   blockers are fixed.
+  - Re-enable the restored `ci/expect_scripts/cmd-test.exp` when this runs.
   - The maintained `examples/command.roc` expect test covers the stable command
     happy-path and non-zero-exit behavior today.
   - `cmd-test.roc` keeps checking the broader command-error assertions, but the
