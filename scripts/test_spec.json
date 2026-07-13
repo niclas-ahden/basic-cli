@@ -25,7 +25,9 @@
           "name": "one-argument",
           "args": ["foo"],
           "contains": ["received argument: foo", "back to OsStr: OsStr(foo)"],
-          "regex": ["(?:Unix|Windows) argument, bytes: \\[102, 111, 111\\]"]
+          "regex": [
+            "(?:Unix argument, bytes|Windows argument, UTF-16 code units): \\[102, 111, 111\\]"
+          ]
         },
         {
           "name": "missing-argument",
@@ -360,6 +362,8 @@
           "name": "wall-collision",
           "pty": true,
           "stdin": "ssssssssss",
+          "input_delay": 0.25,
+          "timeout": 15,
           "contains": ["Game Over"]
         }
       ]

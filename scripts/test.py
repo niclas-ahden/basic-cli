@@ -61,7 +61,8 @@ def command(*args: str | Path, cwd: Path = ROOT) -> None:
 
 
 def roc_extra_args() -> tuple[str, ...]:
-    return ("--no-cache",) if platform.system() == "Windows" else ()
+    args = ("--max-transitive-mb=256",)
+    return (*args, "--no-cache") if platform.system() == "Windows" else args
 
 
 def load_spec() -> tuple[dict[str, bool], list[dict[str, object]]]:
@@ -224,6 +225,7 @@ def pipe_process(
 
 def pty_process(
     args: list[str], cwd: Path, env: dict[str, str], stdin: bytes, timeout: float,
+    input_delay: float,
 ) -> tuple[int, str]:
     if os.name != "posix":
         raise SystemExit("PTY execution is only available on POSIX hosts")
@@ -238,7 +240,7 @@ def pty_process(
         time.sleep(0.25)
         for byte in stdin:
             os.write(master, bytes([byte]))
-            time.sleep(0.08)
+            time.sleep(input_delay)
         while process.poll() is None:
             if time.monotonic() >= deadline:
                 process.kill()
@@ -369,7 +371,10 @@ def run_binary(app: dict[str, object], binary: Path, run_spec: dict[str, object]
             if run_spec.get("pty"):
                 if not isinstance(env, dict) or any(isinstance(key, bytes) for key in env):
                     raise SystemExit(f"{source}: PTY tests require a text environment")
-                exit_code, stdout = pty_process(args, cwd, env, stdin, timeout)
+                exit_code, stdout = pty_process(
+                    args, cwd, env, stdin, timeout,
+                    float(run_spec.get("input_delay", 0.08)),
+                )
                 stderr = ""
             else:
                 exit_code, stdout, stderr = pipe_process(args, cwd, env, stdin, timeout)
