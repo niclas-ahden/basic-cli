@@ -253,7 +253,10 @@ def pty_process(
             readable, _, _ = select.select([master], [], [], 0.1)
             if readable:
                 try:
-                    output.extend(os.read(master, 65536))
+                    chunk = os.read(master, 65536)
+                    if not chunk:
+                        break
+                    output.extend(chunk)
                 except OSError:
                     break
         while True:
@@ -261,7 +264,10 @@ def pty_process(
             if not readable:
                 break
             try:
-                output.extend(os.read(master, 65536))
+                chunk = os.read(master, 65536)
+                if not chunk:
+                    break
+                output.extend(chunk)
             except OSError:
                 break
         return process.wait(), output.decode("utf-8", errors="replace")
