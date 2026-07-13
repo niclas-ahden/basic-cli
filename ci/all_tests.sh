@@ -301,7 +301,7 @@ done
 if printf '%s\n' "${EXAMPLE_NAMES[@]}" | grep -Eqx "http|http-client"; then
     echo ""
     echo "=== Building HTTP test server ==="
-    (cd ci/rust_http_server && cargo build --release)
+    (cd ci/rust_http_server && cargo build --locked --release)
 fi
 
 # Run each example's expect test. Every shipped example is expected to have one.

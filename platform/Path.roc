@@ -138,8 +138,6 @@ Path := [].{
     ## > [`File.type`](File#type!) does the same thing.
     type! : PackagePath.Path => Try([IsFile, IsDir, IsSymLink], [PathErr(IOErr), ..])
     type! = |path| {
-        # TODO: once https://github.com/roc-lang/roc/issues/9864 is fixed,
-        # app authors should be able to call this effect as `path.type!()`.
         Host.path_type!(PackagePath.to_raw(path))
             .map_err(|err| PathErr(err))
             .map_ok(|path_type|{

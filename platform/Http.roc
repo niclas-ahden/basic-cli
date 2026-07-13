@@ -8,7 +8,7 @@ Http := [].{
     ## response is available.
     TransportErr : InternalHttp.TransportErr
 
-    ## Send an HTTP request, succeeding with a [Response] or failing with an
+    ## Send an HTTP request, succeeding with a `Response.Response` or failing with an
     ## `HttpErr`.
     ##
     ## ```roc

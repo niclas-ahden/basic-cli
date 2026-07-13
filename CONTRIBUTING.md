@@ -90,16 +90,14 @@ Examples that are intentionally kept out of CI while an API or compiler blocker 
 
 ## Documentation
 
-Generate platform docs from the temporary docs wrapper:
+Generate platform docs from the platform entrypoint:
 
 ```sh
-ROC_DOCS_URL_ROOT=/basic-cli/main roc docs --output=generated-docs docs/basic-cli.roc
+ROC_DOCS_URL_ROOT=/basic-cli/main roc docs --output=generated-docs platform/main.roc
 ```
 
-The correct entrypoint is `platform/main.roc`, but `roc docs platform/main.roc`
-currently fails to resolve package aliases declared by the platform. Track the
-upstream fix in [roc-lang/roc#10002](https://github.com/roc-lang/roc/issues/10002)
-and remove `docs/basic-cli.roc` when that is fixed.
+The documentation entrypoint is `platform/main.roc`, matching the package that
+applications consume.
 
 To preview generated docs locally:
 

@@ -78,7 +78,7 @@ build_target_cross() {
 
     echo "Building for $target_name ($rust_triple)..."
     configure_musl_cc "$rust_triple"
-    cargo build --release --lib --target "$rust_triple"
+    cargo build --locked --release --lib --target "$rust_triple"
 
     mkdir -p "platform/targets/$target_name"
     cp "target/$rust_triple/release/libhost.a" "platform/targets/$target_name/"
@@ -100,12 +100,12 @@ build_target_native() {
         # Linux: need explicit musl target
         rustup target add "$rust_triple" 2>/dev/null || true
         configure_musl_cc "$rust_triple"
-        cargo build --release --lib --target "$rust_triple"
+        cargo build --locked --release --lib --target "$rust_triple"
         mkdir -p "platform/targets/$target_name"
         cp "target/$rust_triple/release/libhost.a" "platform/targets/$target_name/"
     else
         # macOS: native is fine
-        cargo build --release --lib
+        cargo build --locked --release --lib
         mkdir -p "platform/targets/$target_name"
         cp "target/release/libhost.a" "platform/targets/$target_name/"
     fi

@@ -267,6 +267,13 @@ test_path_exists! = || {
         return Err(TestFailed("Path.exists! returned false for a file that exists"))
     }
 
+    # Keep receiver dispatch for platform effects covered by an active test.
+    path_type = filename.type!()?
+    match path_type {
+        IsFile => {}
+        _ => return Err(TestFailed("Path.type! did not identify the file"))
+    }
+
     Path.delete!(filename)?
 
     file_exists_after_delete = Path.exists!(filename)?

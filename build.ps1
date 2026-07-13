@@ -28,7 +28,7 @@ rustup target add $RustTarget
 if ($LASTEXITCODE -ne 0) {
     throw "rustup target add failed with exit code $LASTEXITCODE"
 }
-cargo build --release --lib --target $RustTarget
+cargo build --locked --release --lib --target $RustTarget
 if ($LASTEXITCODE -ne 0) {
     throw "cargo build failed with exit code $LASTEXITCODE"
 }

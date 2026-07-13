@@ -57,8 +57,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          # TODO: use platform/main.roc when roc-lang/roc#10002 is fixed.
-          roc docs --output=temp_docs/main docs/basic-cli.roc
+          roc docs --output=temp_docs/main platform/main.roc
 
       - name: Fix legacy generated URLs
         run: |
