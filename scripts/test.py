@@ -25,6 +25,11 @@ from typing import Iterator
 from build import ROC_TARGETS, detect_native_target
 from update_app_platform_urls import update_apps
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+
 ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = ROOT / "scripts" / "test_spec.json"
 STAGES = ("fmt", "check", "test", "build", "run")
