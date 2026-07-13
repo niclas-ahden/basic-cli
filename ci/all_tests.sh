@@ -62,13 +62,17 @@ cleanup() {
     fi
 
     # Remove built binaries
-    for example in "${EXAMPLE_NAMES[@]}"; do
-        rm -f "examples/${example}"
-    done
+    if ((${#EXAMPLE_NAMES[@]} > 0)); then
+        for example in "${EXAMPLE_NAMES[@]}"; do
+            rm -f "examples/${example}"
+        done
+    fi
 
-    for test in "${TEST_NAMES[@]}"; do
-        rm -f "tests/${test}"
-    done
+    if ((${#TEST_NAMES[@]} > 0)); then
+        for test in "${TEST_NAMES[@]}"; do
+            rm -f "tests/${test}"
+        done
+    fi
 
     # Remove temporary databases created by expect tests.
     rm -f examples/*.e2e.db

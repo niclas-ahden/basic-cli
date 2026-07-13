@@ -61,5 +61,10 @@ echo ""
 cp "$root_dir/THIRD_PARTY_LICENSES.md" .
 trap 'rm -f THIRD_PARTY_LICENSES.md' EXIT
 
-roc bundle "${roc_files[@]}" "${lib_files[@]}" THIRD_PARTY_LICENSES.md \
-    --output-dir "$output_dir" "${args[@]}"
+if ((${#args[@]} > 0)); then
+    roc bundle "${roc_files[@]}" "${lib_files[@]}" THIRD_PARTY_LICENSES.md \
+        --output-dir "$output_dir" "${args[@]}"
+else
+    roc bundle "${roc_files[@]}" "${lib_files[@]}" THIRD_PARTY_LICENSES.md \
+        --output-dir "$output_dir"
+fi
