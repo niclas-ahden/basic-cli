@@ -24,17 +24,17 @@ main! = |_args| run_demo!()
 
 run_demo! : () => Try({}, _)
 run_demo! = || {
-	utf8 = Http.get_utf8!("http://localhost:9000/utf8test") ? |err| GetUtf8Failed(err)
+	utf8 = Http.get_utf8!("http://127.0.0.1:9000/utf8test") ? |err| GetUtf8Failed(err)
 	write_line!("I received '${utf8}' from the server.")?
 
-	request = Request.from_method(GET).with_uri("http://localhost:9000/utf8test")
+	request = Request.from_method(GET).with_uri("http://127.0.0.1:9000/utf8test")
 	response = Http.send!(request) ? |err| SendFailed(err)
 	status = U16.to_str(Response.status(response))
 
 	decoded : { foo : Str }
-	decoded = Http.get!("http://localhost:9000") ? |err| GetJsonFailed(err)
+	decoded = Http.get!("http://127.0.0.1:9000") ? |err| GetJsonFailed(err)
 
-	echo_request = Request.from_method(POST).with_uri("http://localhost:9000/echo-json")
+	echo_request = Request.from_method(POST).with_uri("http://127.0.0.1:9000/echo-json")
 	echo_response = Http.send_json!(echo_request, { foo: "Hello Json!" }) ? |err| SendJsonFailed(err)
 	echoed : { foo : Str }
 	echoed = Http.decode_json_response(echo_response) ? |err| EchoedJsonDecodeFailed(err)
@@ -51,7 +51,7 @@ run_demo! = || {
 reject_invalid_json! : () => Try({}, _)
 reject_invalid_json! = || {
 	result : Try({ foo : Str }, _)
-	result = Http.get!("http://localhost:9000/invalid-json")
+	result = Http.get!("http://127.0.0.1:9000/invalid-json")
 
 	match result {
 		Err(JsonErr(_)) => write_line!("invalid JSON was rejected.")
@@ -62,7 +62,7 @@ reject_invalid_json! = || {
 
 reject_invalid_utf8! : () => Try({}, _)
 reject_invalid_utf8! = || {
-	result = Http.get_utf8!("http://localhost:9000/invalid-utf8")
+	result = Http.get_utf8!("http://127.0.0.1:9000/invalid-utf8")
 
 	match result {
 		Err(BadBody(_)) => write_line!("invalid UTF-8 was rejected.")
