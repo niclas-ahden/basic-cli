@@ -43,13 +43,13 @@ Run the full local check before opening release or CI-facing changes:
 python3 scripts/test.py
 ```
 
-The script builds and bundles the host, serves the bundle from localhost, then
-runs `roc fmt --check`, `roc check`, `roc test`, `roc build`, and the compiled
-app for every enabled example and standalone test. Process input, environment,
-fixtures, helper servers, and output assertions work on Unix and Windows.
+The default command builds and bundles the native host, serves the bundle from
+localhost, then formats, checks, tests, builds, and runs every example. Process
+input, environment, fixtures, helper servers, exit codes, and separate stdout
+and stderr assertions work on Unix and Windows.
 
 The data in `scripts/test_spec.json` is the source of truth for the test matrix.
-Every `.roc` app must have exactly one entry. Set its `enabled` flag to `false`
+Every example must have exactly one entry. Set its `enabled` flag to `false`
 to skip the app, or set a stage flag to `false` under `stages` or
 `platforms.windows` to skip only a broken stage without changing the runner.
 Add named objects to an app's `cases` array to run the same compiled binary
@@ -57,16 +57,30 @@ with different arguments, stdin, environment, fixtures, helper servers,
 expected exit codes, or output assertions. `happy` is only a naming convention;
 an app can have any number of successful and failing cases.
 
+CI separates source validation, cross-target compilation, and native execution.
+Every example is compiled for each target declared in `platform/main.roc`:
+`x64mac`, `arm64mac`, `x64win`, `x64musl`, and `arm64musl`. Target-specific
+binary artifacts are then downloaded and executed on matching native runners;
+`arm64musl` remains compile-only until an arm64 Linux runner is available.
+
+The operations can also be run independently:
+
+```sh
+python3 scripts/test.py --operation validate
+python3 scripts/test.py --operation build --target x64musl --artifact-dir dist/example-binaries
+python3 scripts/test.py --operation run --target x64musl --artifact-dir dist/example-binaries
+```
+
 For faster local iterations when the platform host is already built:
 
 ```sh
 python3 scripts/test.py --no-build
 ```
 
-The test script always bundles the current platform and temporarily rewrites
-the example and standalone-test app headers to use its localhost URL. Checked-in
-examples may therefore keep using the latest published release URL while local
-work and pull requests exercise the WIP platform.
+Build and validation operations bundle the current platform and temporarily
+rewrite example headers to use its localhost URL. Checked-in examples may
+therefore keep using the latest published release URL while local work and pull
+requests exercise the WIP platform.
 
 ## Rust Glue
 
@@ -93,6 +107,9 @@ Do not edit generated glue by hand.
 
 Every checked-in example should pass `roc check`, `roc test`, and `roc build`
 with the current nightly.
+
+Examples are executable documentation for representative, realistic workflows;
+they are not intended to exhaustively exercise every public API function.
 
 Examples should include a top-level `main!` annotation. When the full platform error row would distract from the example, map low-level errors into a small example-domain error or use `_` for the error type. Prefer postfix `?`, infix `?`, or `??` for effect results instead of ignoring them.
 

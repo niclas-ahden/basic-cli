@@ -11,7 +11,9 @@ A Roc [platform](https://github.com/roc-lang/roc/wiki/Roc-concepts-explained#pla
 
 ## Examples
 
-The [examples](examples/) directory shows small CLI programs for common tasks like reading files, running commands, making HTTP requests, working with SQLite, and reading stdin.
+The [examples](examples/) directory contains executable, application-shaped CLI
+programs for common tasks like reading files, running commands, constructing
+URLs, making HTTP requests, working with SQLite, and reading stdin.
 
 If you want to run an example without building `basic-cli` from source, use a released bundle URL in place of `"../platform/main.roc"`. To run examples from a local checkout, build the platform first; see [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -5,37 +5,36 @@ import pf.Stdout
 import pf.Dir
 import pf.Path
 
-# Demo of all Dir functions.
+# Create and inspect a small project workspace.
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
 	# Best-effort cleanup from a previous interrupted run.
-	Dir.delete_all!("empty-dir") ?? {}
-	Dir.delete_all!("nested-dir") ?? {}
+	Dir.delete_all!("demo-workspace") ?? {}
 
 	# Create a directory
-	Dir.create!("empty-dir")?
+	Dir.create!("demo-workspace")?
 
 	# Create a directory and its parents
-	Dir.create_all!("nested-dir/a/b/c")?
+	Dir.create_all!("demo-workspace/src/components")?
 
 	# Create a child directory
-	Dir.create!("nested-dir/child")?
+	Dir.create!("demo-workspace/assets")?
 
 	# List the contents of a directory
-	paths = Dir.list!("nested-dir")?
+	paths = Dir.list!("demo-workspace")?
+	displayed = paths.map(Path.display)
 
 	# Check the contents of the directory
 	expect paths.len() == 2
-	expect List.contains(paths.map(Path.display), "nested-dir/a")
-	expect List.contains(paths.map(Path.display), "nested-dir/child")
+	expect List.contains(displayed, "demo-workspace/src")
+	expect List.contains(displayed, "demo-workspace/assets")
 
-	# Delete an empty directory
-	Dir.delete_empty!("empty-dir")?
+	Stdout.line!("Workspace entries: ${Str.join_with(displayed, ", ")}")?
 
 	# Delete all directories recursively
-	Dir.delete_all!("nested-dir")?
+	Dir.delete_all!("demo-workspace")?
 
-	Stdout.line!("Success!")?
+	Stdout.line!("Workspace cleaned up.")?
 	Ok({})
 }

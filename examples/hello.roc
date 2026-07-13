@@ -4,7 +4,14 @@ import pf.OsStr exposing [OsStr]
 import pf.Stdout
 
 main! : List(OsStr) => Try({}, _)
-main! = |_args| {
-	Stdout.line!("Hello from basic-cli!")?
+main! = |args| {
+	name = greeting_name(args)
+	Stdout.line!("Hello, ${name}, from basic-cli!")?
 	Ok({})
 }
+
+greeting_name = |args|
+	match args.drop_first(1) {
+		[first, ..] => OsStr.display(first)
+		[] => "friend"
+	}

@@ -7,16 +7,24 @@ import pf.Path
 # Demo of basic-cli Path functions
 
 main! : List(OsStr) => Try({}, _)
-main! = |_args| {
-	path = "path.roc"
+main! = |args| {
+	path = path_argument(args)?
+	filename = Path.filename(path).map_ok(Path.display) ?? "<none>"
+	extension = Path.ext(path).map_ok(Path.display) ?? "<none>"
 
 	Stdout.line!(
-		\\is_file: ${Str.inspect(Path.is_file!(path))}
-		\\is_dir: ${Str.inspect(Path.is_dir!(path))}
-		\\is_sym_link: ${Str.inspect(Path.is_sym_link!(path))}
-		\\display: ${Path.display(path)}
+		\\Path: ${Path.display(path)}
+		\\Filename: ${filename}
+		\\Extension: ${extension}
+		\\Type: ${Str.inspect(Path.type!(path)?)}
 		,
 	)?
 
 	Ok({})
 }
+
+path_argument = |args|
+	match args.drop_first(1) {
+		[first, ..] => Ok(Path.from_os_str(first))
+		[] => Err(MissingPathArgument)
+	}

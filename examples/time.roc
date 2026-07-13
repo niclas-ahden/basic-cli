@@ -10,6 +10,7 @@ import pf.Sleep
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
 	start = Utc.now!()
+	Stdout.line!("Started at ${Utc.to_iso_8601(start)}")?
 
 	# 1000 ms = 1 second
 	Sleep.millis!(1000)

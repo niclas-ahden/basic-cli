@@ -9,8 +9,8 @@ import pf.Utc
 # To run this example: check the README.md in this folder
 
 main! : List(OsStr) => Try({}, _)
-main! = |_args| {
-	file = "LICENSE"
+main! = |args| {
+	file = path_argument(args)?
 
 	# NOTE: these functions are checked and built in CI, but not run in release
 	# smoke tests because normal musl bundle builds do not support them
@@ -36,3 +36,9 @@ main! = |_args| {
 
 	Ok({})
 }
+
+path_argument = |args|
+	match args.drop_first(1) {
+		[first, ..] => Ok(Path.from_os_str(first))
+		[] => Err(MissingPathArgument)
+	}

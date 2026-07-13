@@ -17,6 +17,7 @@ TARGETS = {
     "arm64musl": "aarch64-unknown-linux-musl",
 }
 ALL_TARGETS = tuple(TARGETS)
+ROC_TARGETS = (*ALL_TARGETS, "x64win")
 WINDOWS_TARGET = "x86_64-pc-windows-msvc"
 WINDOWS_SYSTEM_LIBRARIES = (
     "advapi32.lib",
@@ -175,7 +176,26 @@ def main() -> None:
         action="store_true",
         help="cross-compile all macOS and Linux targets",
     )
+    parser.add_argument(
+        "--target",
+        choices=ROC_TARGETS,
+        help="build host inputs for one Roc platform target",
+    )
     args = parser.parse_args()
+
+    if args.all and args.target:
+        parser.error("--all and --target are mutually exclusive")
+
+    if args.target:
+        if args.target == "x64win":
+            if platform.system() != "Windows":
+                parser.error("x64win host inputs must be built on Windows")
+            build_windows()
+        else:
+            install_rust_target(TARGETS[args.target], required=True)
+            build_unix_target(args.target, native=args.target == detect_native_target())
+        print("\nBuild complete!")
+        return
 
     if args.all:
         if platform.system() == "Windows":

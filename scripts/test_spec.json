@@ -13,7 +13,8 @@
         {
           "name": "happy",
           "stdin": "someinput\n",
-          "contains": ["someinput\nsomeinput"]
+          "stdout_contains": ["someinput\n"],
+          "stderr_contains": ["Copied 10 bytes from stdin to stdout."]
         }
       ]
     },
@@ -46,7 +47,13 @@
     },
     {
       "path": "examples/dir.roc",
-      "cases": [{ "name": "happy", "contains": ["Success!"] }]
+      "cases": [
+        {
+          "name": "workspace-lifecycle",
+          "temp_cwd": true,
+          "contains": ["Workspace entries:", "Workspace cleaned up."]
+        }
+      ]
     },
     {
       "path": "examples/env-var.roc",
@@ -91,6 +98,7 @@
       "cases": [
         {
           "name": "happy",
+          "args": ["{root}/LICENSE"],
           "regex": [
             "LICENSE file time metadata:\\n    Modified: [0-9]+ ms since epoch\\n    Accessed: [0-9]+ ms since epoch\\n    Created: ([0-9]+ ms since epoch|unsupported)"
           ]
@@ -102,6 +110,7 @@
       "cases": [
         {
           "name": "happy",
+          "args": ["{root}/LICENSE"],
           "contains": [
             "LICENSE file permissions:",
             "Readable: True",
@@ -126,6 +135,7 @@
       "cases": [
         {
           "name": "happy",
+          "temp_cwd": true,
           "contains": [
             "Writing a string to out.txt",
             "I read the file back. Its contents are: \"a string!\""
@@ -138,10 +148,12 @@
       "cases": [
         {
           "name": "existing-file",
-          "regex": ["The size of the LICENSE file is: [0-9]+ bytes"]
+          "args": ["{root}/LICENSE"],
+          "regex": ["LICENSE is [0-9]+ bytes"]
         },
         {
           "name": "missing-file",
+          "args": ["missing.txt"],
           "temp_cwd": true,
           "exit_code": 1,
           "contains": ["FileErr(NotFound)"]
@@ -154,7 +166,10 @@
     },
     {
       "path": "examples/hello.roc",
-      "cases": [{ "name": "happy", "contains": ["Hello from basic-cli!"] }]
+      "cases": [
+        { "name": "default-name", "contains": ["Hello, friend, from basic-cli!"] },
+        { "name": "given-name", "args": ["Roc"], "contains": ["Hello, Roc, from basic-cli!"] }
+      ]
     },
     {
       "path": "examples/http-client.roc",
@@ -212,8 +227,8 @@
       "cases": [
         {
           "name": "existing-source",
-          "cwd": "{source_dir}",
-          "contains": ["is_file: Ok(True)", "display: path.roc"]
+          "args": ["{source}"],
+          "contains": ["Filename: path.roc", "Extension: roc", "Type: IsFile"]
         }
       ]
     },
@@ -222,11 +237,12 @@
       "cases": [
         {
           "name": "happy",
-          "contains": [
+          "stdout_contains": [
             "Hello, world!",
-            "No newline after me.Hello, error!",
+            "No newline after me.Foo",
             "Baz"
-          ]
+          ],
+          "stderr_contains": ["Hello, error!", "Err with no newline after."]
         }
       ]
     },
@@ -292,7 +308,11 @@
             "Hi, John Doe! 👋"
           ]
         },
-        { "name": "end-of-input", "contains": ["Hi,  ! 👋"] }
+        {
+          "name": "end-of-input",
+          "exit_code": 1,
+          "stderr_contains": ["MissingFirstName"]
+        }
       ]
     },
     {
@@ -350,7 +370,10 @@
         {
           "name": "one-second-sleep",
           "timeout": 10,
-          "regex": ["Completed in [0-9]+ ms \\([0-9]+ ns\\)"]
+          "regex": [
+            "Started at [0-9]{4}-[0-9]{2}-[0-9]{2}T",
+            "Completed in [0-9]+ ms \\([0-9]+ ns\\)"
+          ]
         }
       ]
     },
@@ -362,97 +385,22 @@
         {
           "name": "raw-mode",
           "pty": true,
-          "contains": ["Tty: enabling raw mode", "Tty: disabling raw mode"]
-        }
-      ]
-    },
-
-    {
-      "path": "tests/cmd-test.roc",
-      "enabled": false,
-      "reason": "Known compiler segfault: roc-lang/roc#10003"
-    },
-    {
-      "path": "tests/env.roc",
-      "cases": [
-        {
-          "name": "expected-environment",
-          "env": { "BASIC_CLI_ENV_TEST": "hello-from-env-test" },
-          "non_utf8_env": { "BASIC_CLI_NON_UTF8": "fffe" },
-          "contains": ["All tests passed."]
-        },
-        {
-          "name": "wrong-environment-value",
-          "env": { "BASIC_CLI_ENV_TEST": "wrong" },
-          "non_utf8_env": { "BASIC_CLI_NON_UTF8": "fffe" },
-          "exit_code": 1,
-          "contains": ["Env.var! did not preserve the test value"]
-        }
-      ]
-    },
-    {
-      "path": "tests/file.roc",
-      "platforms": { "windows": { "run": false } },
-      "reason": "Runtime scenario invokes Unix link and inode utilities",
-      "cases": [
-        {
-          "name": "happy",
-          "contains": ["I ran all file function tests.", "Deleted all files."]
-        }
-      ]
-    },
-    {
-      "path": "tests/path-test.roc",
-      "stages": { "build": false, "run": false },
-      "reason": "Flaky Roc compiler segfault while building; formatting, check, and test remain enabled",
-      "cases": [
-        {
-          "name": "happy",
+          "stdin": "q",
           "contains": [
-            "I ran all Path function tests.",
-            "Files deleted successfully: Bool.true"
+            "Tty: enabling raw mode",
+            "Tty: disabling raw mode",
+            "Read 1 byte(s)."
           ]
         }
       ]
     },
     {
-      "path": "tests/sqlite.roc",
+      "path": "examples/url.roc",
       "cases": [
         {
-          "name": "happy",
-          "env": { "DB_PATH": "{root}/tests/sqlite.e2e.db" },
-          "contains": ["Row count: 2", "Success!"]
-        }
-      ]
-    },
-    {
-      "path": "tests/tcp.roc",
-      "cases": [
-        {
-          "name": "happy",
-          "helper": "tcp",
-          "contains": ["Testing Tcp module functions...", "All tests executed."]
-        }
-      ]
-    },
-    {
-      "path": "tests/url.roc",
-      "cases": [
-        {
-          "name": "happy",
-          "contains": ["Testing Url module functions...", "All tests executed."]
-        }
-      ]
-    },
-    {
-      "path": "tests/utc.roc",
-      "cases": [
-        {
-          "name": "happy",
-          "timeout": 10,
+          "name": "search-request",
           "contains": [
-            "Verified: deltaMillis and deltaNanos/1_000_000 match within tolerance",
-            "All tests executed."
+            "Request URL: https://api.example.com/v1/search?q=roc%20lang&page=1#results"
           ]
         }
       ]

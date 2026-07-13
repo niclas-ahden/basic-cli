@@ -9,8 +9,8 @@ import pf.Stderr
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-	data = Stdin.bytes!()?
-	Stderr.write_bytes!(data)?
+	data = Stdin.read_to_end!()?
 	Stdout.write_bytes!(data)?
+	Stderr.line!("Copied ${data.len().to_str()} bytes from stdin to stdout.")?
 	Ok({})
 }
