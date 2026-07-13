@@ -36,7 +36,7 @@ def update_apps(paths: list[Path], platform_url: str) -> list[Path]:
                 f"Expected exactly one platform URL in {roc_file}, found {count}"
             )
         if rewritten != source:
-            roc_file.write_text(rewritten, encoding="utf-8")
+            roc_file.write_text(rewritten, encoding="utf-8", newline="\n")
             updated.append(roc_file)
 
     return updated
