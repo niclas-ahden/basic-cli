@@ -43,7 +43,9 @@ get_rust_triple() {
 }
 
 
-# All supported targets
+# Targets that can be cross-built by the macOS release builder. The Windows
+# host is built natively with build.ps1 and added to the release bundle as an
+# artifact from the build-windows-host job.
 ALL_TARGETS="x64mac arm64mac x64musl arm64musl"
 
 # Detect native target based on current platform

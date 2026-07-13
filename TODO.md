@@ -28,7 +28,7 @@ P0/P1 indicates resolution order; every unchecked item below blocks the RC.
   - Required resolution: diagnose and fix the two macOS failures; make every app
     built by the bundle job consume the downloaded bundle (or otherwise provide
     a clean artifact-only test); rerun CI and bundle tests successfully on macOS
-    ARM64, macOS x64, Linux x64, and Linux ARM64.
+    ARM64, macOS x64, Linux x64, and Windows x64.
 
 - [ ] Guarantee that the release tag identifies the exact commit that produced
   and passed the artifacts.

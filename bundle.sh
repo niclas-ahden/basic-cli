@@ -37,9 +37,10 @@ cd "$root_dir/platform"
 # Collect all .roc files
 roc_files=(*.roc)
 
-# Collect all host libraries and runtime files from targets directories
+# Collect all host libraries and runtime files from targets directories.
+# Windows static libraries use .lib/.obj; Unix targets use .a/.o.
 lib_files=()
-for lib in targets/*/*.a targets/*/*.o; do
+for lib in targets/*/*.a targets/*/*.o targets/*/*.lib targets/*/*.obj; do
     if [[ -f "$lib" ]]; then
         lib_files+=("$lib")
     fi

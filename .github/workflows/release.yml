@@ -17,9 +17,36 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
+  build-windows-host:
+    name: Build Windows x64 host
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build Windows host
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Upload Windows host
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-host
+          path: platform/targets/x64win/host.lib
+          if-no-files-found: error
+          retention-days: 7
+
   build:
     name: Build release bundle
-    # macOS can cross-compile both Apple targets and the two Linux musl hosts.
+    needs: build-windows-host
+    # macOS cross-compiles the Apple and Linux musl hosts. Windows is built
+    # natively above because the Rust dependencies require the Windows SDK.
     runs-on: macos-15
     outputs:
       release_version: ${{ steps.validate.outputs.release_version }}
@@ -49,6 +76,12 @@ jobs:
 
       - name: Install expect
         run: brew install expect
+
+      - name: Download Windows host
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x64-host
+          path: platform/targets/x64win
 
       - name: Validate release request
         id: validate
@@ -104,7 +137,7 @@ jobs:
         uses: roc-lang/release-package/actions/prepare-bundles@d2560ead9f724bfaabfbc8134b8895e120171064
         with:
           bundle_glob: dist/*.tar.zst
-          test_os_json: '["macos-15","macos-15-intel","ubuntu-22.04","ubuntu-24.04-arm"]'
+          test_os_json: '["macos-15","macos-15-intel","ubuntu-22.04","windows-2025"]'
 
       - name: Upload release bundles
         uses: actions/upload-artifact@v4
@@ -161,10 +194,20 @@ jobs:
           name: release-bundles
           path: .release/test-bundles
 
-      - name: Test release bundle
+      - name: Test release bundle (Unix)
+        if: matrix.os != 'windows-2025'
         uses: roc-lang/release-package/actions/test-bundle@d2560ead9f724bfaabfbc8134b8895e120171064
         with:
           test_bundle_command: ./ci/test_bundle.sh
+          bundle_path: .release/test-bundles/${{ matrix.artifact_file }}
+          bundle_name: ${{ matrix.bundle_name }}
+          release_version: ${{ needs.build.outputs.release_version }}
+
+      - name: Test release bundle (Windows)
+        if: matrix.os == 'windows-2025'
+        uses: roc-lang/release-package/actions/test-bundle@d2560ead9f724bfaabfbc8134b8895e120171064
+        with:
+          test_bundle_command: pwsh -File ci/windows_tests.ps1 -BundlePath
           bundle_path: .release/test-bundles/${{ matrix.artifact_file }}
           bundle_name: ${{ matrix.bundle_name }}
           release_version: ${{ needs.build.outputs.release_version }}

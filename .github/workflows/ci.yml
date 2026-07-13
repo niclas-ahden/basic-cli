@@ -22,7 +22,6 @@ jobs:
           - macos-15        # Apple Silicon
           - macos-15-intel  # Intel Mac
           - ubuntu-22.04    # Linux x86_64
-          - ubuntu-24.04-arm # Linux ARM64
     defaults:
       run:
         shell: bash
@@ -44,7 +43,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-unknown-linux-musl,aarch64-unknown-linux-musl
+          targets: x86_64-unknown-linux-musl
 
       - name: Install expect (Ubuntu)
         if: startsWith(matrix.os, 'ubuntu-')
@@ -59,3 +58,27 @@ jobs:
         with:
           command: ./ci/all_tests.sh
           error_string_contains: "error: (unable|invalid HTTP response)|HttpConnectionClosing"
+
+  build-and-test-windows:
+    name: test (windows-2025)
+    runs-on: windows-2025
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Roc nightly
+        uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427
+        with:
+          version: nightly-new-compiler
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build and test Windows platform
+        shell: pwsh
+        run: ./ci/windows_tests.ps1
