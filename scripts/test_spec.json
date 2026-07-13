@@ -1,42 +1,461 @@
 {
-  "stages": {"fmt": true, "check": true, "test": true, "build": true, "run": true},
+  "stages": {
+    "fmt": true,
+    "check": true,
+    "test": true,
+    "build": true,
+    "run": true
+  },
   "apps": [
-    {"path": "examples/bytes-stdin-stdout.roc", "cases": [{"name": "happy", "stdin": "someinput\n", "contains": ["someinput\nsomeinput"]}]},
-    {"path": "examples/command-line-args.roc", "cases": [{"name": "one-argument", "args": ["foo"], "contains": ["received argument: foo", "back to OsStr: OsStr(foo)"], "regex": ["(?:Unix|Windows) argument, bytes: \\[102, 111, 111\\]"]}, {"name": "missing-argument", "exit_code": 1, "contains": ["Program exited with error: MissingArgument"]}]},
-    {"path": "examples/command.roc", "platforms": {"windows": {"run": false}}, "reason": "Runtime scenario invokes Unix commands", "cases": [{"name": "happy", "contains": ["Hello", "Exit code: 1", "stdout_bytes: [72, 105, 10]"]}]},
-    {"path": "examples/dir.roc", "cases": [{"name": "happy", "contains": ["Success!"]}]},
-    {"path": "examples/env-var.roc", "cases": [{"name": "both-variables", "env": {"EDITOR": "nano", "LETTERS": "a,c,e,j"}, "contains": ["Your favorite editor is nano!", "Your favorite letters are: a c e j"]}, {"name": "missing-editor", "unset_env": ["EDITOR", "LETTERS"], "exit_code": 1, "contains": ["VarNotFound(OsStr(EDITOR))"]}, {"name": "missing-letters", "unset_env": ["LETTERS"], "env": {"EDITOR": "nano"}, "exit_code": 1, "contains": ["VarNotFound(OsStr(LETTERS))"]}]},
-    {"path": "examples/error-handling.roc", "cases": [{"name": "handled-not-found", "contains": ["Expected error: File not found (NotFound)", "test-file.txt contains: Hello from error-handling example!"]}]},
-    {"path": "examples/file-accessed-modified-created-time.roc", "cases": [{"name": "happy", "regex": ["LICENSE file time metadata:\\n    Modified: [0-9]+ ms since epoch\\n    Accessed: [0-9]+ ms since epoch\\n    Created: ([0-9]+ ms since epoch|unsupported)"]}]},
-    {"path": "examples/file-permissions.roc", "cases": [{"name": "happy", "contains": ["LICENSE file permissions:", "Readable: True", "Writable: True"]}]},
-    {"path": "examples/file-read-buffered.roc", "cases": [{"name": "happy", "regex": ["Done reading file: \\{ bytes_read: [0-9]+, lines_read: [0-9]+ \\}"]}]},
-    {"path": "examples/file-read-write.roc", "cases": [{"name": "happy", "contains": ["Writing a string to out.txt", "I read the file back. Its contents are: \"a string!\""]}]},
-    {"path": "examples/file-size.roc", "cases": [{"name": "existing-file", "regex": ["The size of the LICENSE file is: [0-9]+ bytes"]}, {"name": "missing-file", "temp_cwd": true, "exit_code": 1, "contains": ["FileErr(NotFound)"]}]},
-    {"path": "examples/hello-world.roc", "cases": [{"name": "happy", "contains": ["Hello, World!"]}]},
-    {"path": "examples/hello.roc", "cases": [{"name": "happy", "contains": ["Hello from basic-cli!"]}]},
-    {"path": "examples/http-client.roc", "cases": [{"name": "server-available", "helper": "http", "timeout": 15, "contains": ["I received 'Hello utf8' from the server.", "send_json! echoed: { foo: \"Hello Json!\" }.", "invalid UTF-8 was rejected."]}, {"name": "connection-refused", "exit_code": 1, "contains": ["GetUtf8Failed"]}]},
-    {"path": "examples/http.roc", "cases": [{"name": "server-available", "helper": "http", "timeout": 15, "contains": ["I received 'Hello utf8' from the server.", "<body>Basic CLI HTTP test</body>"]}, {"name": "connection-refused", "exit_code": 1, "contains": ["GetUtf8Failed"]}]},
-    {"path": "examples/locale.roc", "cases": [{"name": "happy", "regex": ["The most preferred locale for this system or application: .+", "All available locales for this system or application: \\[.*\\]"]}]},
-    {"path": "examples/path.roc", "cases": [{"name": "existing-source", "cwd": "{source_dir}", "contains": ["is_file: Ok(True)", "display: path.roc"]}]},
-    {"path": "examples/print.roc", "cases": [{"name": "happy", "contains": ["Hello, world!", "No newline after me.Hello, error!", "Baz"]}]},
-    {"path": "examples/random.roc", "cases": [{"name": "happy", "regex": ["Random U64 seed is: [0-9]+", "Random U32 seed is: [0-9]+"]}]},
-    {"path": "examples/sqlite-basic.roc", "cases": [{"name": "existing-database", "env": {"DB_PATH": "{root}/examples/todos.db"}, "contains": ["All Todos:", "Share my ❤️  for Roc", "Completed Todos:"]}, {"name": "cannot-open-database", "env": {"DB_PATH": "{root}/missing/sqlite.db"}, "exit_code": 1, "contains": ["QueryTodosFailed(SqliteErr(CanNotOpen"]}]},
-    {"path": "examples/sqlite-everything.roc", "cases": [{"name": "existing-database", "fixtures": [{"source": "examples/todos2.db", "target": "examples/todos2.e2e.db"}], "env": {"DB_PATH": "{root}/examples/todos2.e2e.db"}, "contains": ["Row count: 3", "Todos sorted by length of task description:"]}, {"name": "cannot-open-database", "env": {"DB_PATH": "{root}/missing/sqlite.db"}, "exit_code": 1, "contains": ["QueryAllTodosFailed(SqliteErr(CanNotOpen"]}]},
-    {"path": "examples/stdin-basic.roc", "cases": [{"name": "two-lines", "stdin": "John\nDoe\n", "contains": ["What's your first name?", "What's your last name?", "Hi, John Doe! 👋"]}, {"name": "end-of-input", "contains": ["Hi,  ! 👋"]}]},
-    {"path": "examples/stdin-pipe.roc", "cases": [{"name": "valid-utf8", "stdin": "hey", "contains": ["This is what you piped in: \"hey\""]}, {"name": "invalid-utf8", "stdin_hex": "fffe", "exit_code": 1, "contains": ["BadUtf8({ index: 0, problem: InvalidStartByte })"]}]},
-    {"path": "examples/tcp-client.roc", "cases": [{"name": "server-available", "helper": "tcp", "stdin": "Hi\n", "contains": ["Connected!", "< Hi"]}, {"name": "connection-refused", "exit_code": 1, "contains": ["ConnectFailed"]}]},
-    {"path": "examples/temp-dir.roc", "cases": [{"name": "happy", "regex": ["The temp dir path is .+"]}]},
-    {"path": "examples/terminal-app-snake.roc", "platforms": {"windows": {"run": false}}, "reason": "Python standard library has no Windows ConPTY support", "cases": [{"name": "wall-collision", "pty": true, "stdin": "ssssssssss", "contains": ["Game Over"]}]},
-    {"path": "examples/time.roc", "cases": [{"name": "one-second-sleep", "timeout": 10, "regex": ["Completed in [0-9]+ ms \\([0-9]+ ns\\)"]}]},
-    {"path": "examples/tty.roc", "platforms": {"windows": {"run": false}}, "reason": "Python standard library has no Windows ConPTY support", "cases": [{"name": "raw-mode", "pty": true, "contains": ["Tty: enabling raw mode", "Tty: disabling raw mode"]}]},
+    {
+      "path": "examples/bytes-stdin-stdout.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "stdin": "someinput\n",
+          "contains": ["someinput\nsomeinput"]
+        }
+      ]
+    },
+    {
+      "path": "examples/command-line-args.roc",
+      "cases": [
+        {
+          "name": "one-argument",
+          "args": ["foo"],
+          "contains": ["received argument: foo", "back to OsStr: OsStr(foo)"],
+          "regex": ["(?:Unix|Windows) argument, bytes: \\[102, 111, 111\\]"]
+        },
+        {
+          "name": "missing-argument",
+          "exit_code": 1,
+          "contains": ["Program exited with error: MissingArgument"]
+        }
+      ]
+    },
+    {
+      "path": "examples/command.roc",
+      "platforms": { "windows": { "run": false } },
+      "reason": "Runtime scenario invokes Unix commands",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": ["Hello", "Exit code: 1", "stdout_bytes: [72, 105, 10]"]
+        }
+      ]
+    },
+    {
+      "path": "examples/dir.roc",
+      "cases": [{ "name": "happy", "contains": ["Success!"] }]
+    },
+    {
+      "path": "examples/env-var.roc",
+      "cases": [
+        {
+          "name": "both-variables",
+          "env": { "EDITOR": "nano", "LETTERS": "a,c,e,j" },
+          "contains": [
+            "Your favorite editor is nano!",
+            "Your favorite letters are: a c e j"
+          ]
+        },
+        {
+          "name": "missing-editor",
+          "unset_env": ["EDITOR", "LETTERS"],
+          "exit_code": 1,
+          "contains": ["VarNotFound(OsStr(EDITOR))"]
+        },
+        {
+          "name": "missing-letters",
+          "unset_env": ["LETTERS"],
+          "env": { "EDITOR": "nano" },
+          "exit_code": 1,
+          "contains": ["VarNotFound(OsStr(LETTERS))"]
+        }
+      ]
+    },
+    {
+      "path": "examples/error-handling.roc",
+      "cases": [
+        {
+          "name": "handled-not-found",
+          "contains": [
+            "Expected error: File not found (NotFound)",
+            "test-file.txt contains: Hello from error-handling example!"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "examples/file-accessed-modified-created-time.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "regex": [
+            "LICENSE file time metadata:\\n    Modified: [0-9]+ ms since epoch\\n    Accessed: [0-9]+ ms since epoch\\n    Created: ([0-9]+ ms since epoch|unsupported)"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "examples/file-permissions.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": [
+            "LICENSE file permissions:",
+            "Readable: True",
+            "Writable: True"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "examples/file-read-buffered.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "regex": [
+            "Done reading file: \\{ bytes_read: [0-9]+, lines_read: [0-9]+ \\}"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "examples/file-read-write.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": [
+            "Writing a string to out.txt",
+            "I read the file back. Its contents are: \"a string!\""
+          ]
+        }
+      ]
+    },
+    {
+      "path": "examples/file-size.roc",
+      "cases": [
+        {
+          "name": "existing-file",
+          "regex": ["The size of the LICENSE file is: [0-9]+ bytes"]
+        },
+        {
+          "name": "missing-file",
+          "temp_cwd": true,
+          "exit_code": 1,
+          "contains": ["FileErr(NotFound)"]
+        }
+      ]
+    },
+    {
+      "path": "examples/hello-world.roc",
+      "cases": [{ "name": "happy", "contains": ["Hello, World!"] }]
+    },
+    {
+      "path": "examples/hello.roc",
+      "cases": [{ "name": "happy", "contains": ["Hello from basic-cli!"] }]
+    },
+    {
+      "path": "examples/http-client.roc",
+      "cases": [
+        {
+          "name": "server-available",
+          "helper": "http",
+          "timeout": 15,
+          "contains": [
+            "I received 'Hello utf8' from the server.",
+            "send_json! echoed: { foo: \"Hello Json!\" }.",
+            "invalid UTF-8 was rejected."
+          ]
+        },
+        {
+          "name": "connection-refused",
+          "exit_code": 1,
+          "contains": ["GetUtf8Failed"]
+        }
+      ]
+    },
+    {
+      "path": "examples/http.roc",
+      "cases": [
+        {
+          "name": "server-available",
+          "helper": "http",
+          "timeout": 15,
+          "contains": [
+            "I received 'Hello utf8' from the server.",
+            "<body>Basic CLI HTTP test</body>"
+          ]
+        },
+        {
+          "name": "connection-refused",
+          "exit_code": 1,
+          "contains": ["GetUtf8Failed"]
+        }
+      ]
+    },
+    {
+      "path": "examples/locale.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "regex": [
+            "The most preferred locale for this system or application: .+",
+            "All available locales for this system or application: \\[.*\\]"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "examples/path.roc",
+      "cases": [
+        {
+          "name": "existing-source",
+          "cwd": "{source_dir}",
+          "contains": ["is_file: Ok(True)", "display: path.roc"]
+        }
+      ]
+    },
+    {
+      "path": "examples/print.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": [
+            "Hello, world!",
+            "No newline after me.Hello, error!",
+            "Baz"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "examples/random.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "regex": ["Random U64 seed is: [0-9]+", "Random U32 seed is: [0-9]+"]
+        }
+      ]
+    },
+    {
+      "path": "examples/sqlite-basic.roc",
+      "cases": [
+        {
+          "name": "existing-database",
+          "env": { "DB_PATH": "{root}/examples/todos.db" },
+          "contains": ["All Todos:", "Share my ❤️  for Roc", "Completed Todos:"]
+        },
+        {
+          "name": "cannot-open-database",
+          "env": { "DB_PATH": "{root}/missing/sqlite.db" },
+          "exit_code": 1,
+          "contains": ["QueryTodosFailed(SqliteErr(CanNotOpen"]
+        }
+      ]
+    },
+    {
+      "path": "examples/sqlite-everything.roc",
+      "cases": [
+        {
+          "name": "existing-database",
+          "fixtures": [
+            {
+              "source": "examples/todos2.db",
+              "target": "examples/todos2.e2e.db"
+            }
+          ],
+          "env": { "DB_PATH": "{root}/examples/todos2.e2e.db" },
+          "contains": [
+            "Row count: 3",
+            "Todos sorted by length of task description:"
+          ]
+        },
+        {
+          "name": "cannot-open-database",
+          "env": { "DB_PATH": "{root}/missing/sqlite.db" },
+          "exit_code": 1,
+          "contains": ["QueryAllTodosFailed(SqliteErr(CanNotOpen"]
+        }
+      ]
+    },
+    {
+      "path": "examples/stdin-basic.roc",
+      "cases": [
+        {
+          "name": "two-lines",
+          "stdin": "John\nDoe\n",
+          "contains": [
+            "What's your first name?",
+            "What's your last name?",
+            "Hi, John Doe! 👋"
+          ]
+        },
+        { "name": "end-of-input", "contains": ["Hi,  ! 👋"] }
+      ]
+    },
+    {
+      "path": "examples/stdin-pipe.roc",
+      "cases": [
+        {
+          "name": "valid-utf8",
+          "stdin": "hey",
+          "contains": ["This is what you piped in: \"hey\""]
+        },
+        {
+          "name": "invalid-utf8",
+          "stdin_hex": "fffe",
+          "exit_code": 1,
+          "contains": ["BadUtf8({ index: 0, problem: InvalidStartByte })"]
+        }
+      ]
+    },
+    {
+      "path": "examples/tcp-client.roc",
+      "cases": [
+        {
+          "name": "server-available",
+          "helper": "tcp",
+          "stdin": "Hi\n",
+          "contains": ["Connected!", "< Hi"]
+        },
+        {
+          "name": "connection-refused",
+          "exit_code": 1,
+          "contains": ["ConnectFailed"]
+        }
+      ]
+    },
+    {
+      "path": "examples/temp-dir.roc",
+      "cases": [{ "name": "happy", "regex": ["The temp dir path is .+"] }]
+    },
+    {
+      "path": "examples/terminal-app-snake.roc",
+      "platforms": { "windows": { "run": false } },
+      "reason": "Python standard library has no Windows ConPTY support",
+      "cases": [
+        {
+          "name": "wall-collision",
+          "pty": true,
+          "stdin": "ssssssssss",
+          "contains": ["Game Over"]
+        }
+      ]
+    },
+    {
+      "path": "examples/time.roc",
+      "cases": [
+        {
+          "name": "one-second-sleep",
+          "timeout": 10,
+          "regex": ["Completed in [0-9]+ ms \\([0-9]+ ns\\)"]
+        }
+      ]
+    },
+    {
+      "path": "examples/tty.roc",
+      "platforms": { "windows": { "run": false } },
+      "reason": "Python standard library has no Windows ConPTY support",
+      "cases": [
+        {
+          "name": "raw-mode",
+          "pty": true,
+          "contains": ["Tty: enabling raw mode", "Tty: disabling raw mode"]
+        }
+      ]
+    },
 
-    {"path": "tests/cmd-test.roc", "enabled": false, "reason": "Known compiler segfault: roc-lang/roc#10003"},
-    {"path": "tests/env.roc", "cases": [{"name": "expected-environment", "env": {"BASIC_CLI_ENV_TEST": "hello-from-env-test"}, "non_utf8_env": {"BASIC_CLI_NON_UTF8": "fffe"}, "contains": ["All tests passed."]}, {"name": "wrong-environment-value", "env": {"BASIC_CLI_ENV_TEST": "wrong"}, "non_utf8_env": {"BASIC_CLI_NON_UTF8": "fffe"}, "exit_code": 1, "contains": ["Env.var! did not preserve the test value"]}]},
-    {"path": "tests/file.roc", "platforms": {"windows": {"run": false}}, "reason": "Runtime scenario invokes Unix link and inode utilities", "cases": [{"name": "happy", "contains": ["I ran all file function tests.", "Deleted all files."]}]},
-    {"path": "tests/path-test.roc", "stages": {"build": false, "run": false}, "reason": "Flaky Roc compiler segfault while building; formatting, check, and test remain enabled", "cases": [{"name": "happy", "contains": ["I ran all Path function tests.", "Files deleted successfully: Bool.true"]}]},
-    {"path": "tests/sqlite.roc", "cases": [{"name": "happy", "env": {"DB_PATH": "{root}/tests/sqlite.e2e.db"}, "contains": ["Row count: 2", "Success!"]}]},
-    {"path": "tests/tcp.roc", "cases": [{"name": "happy", "helper": "tcp", "contains": ["Testing Tcp module functions...", "All tests executed."]}]},
-    {"path": "tests/url.roc", "cases": [{"name": "happy", "contains": ["Testing Url module functions...", "All tests executed."]}]},
-    {"path": "tests/utc.roc", "cases": [{"name": "happy", "timeout": 10, "contains": ["Verified: deltaMillis and deltaNanos/1_000_000 match within tolerance", "All tests executed."]}]}
+    {
+      "path": "tests/cmd-test.roc",
+      "enabled": false,
+      "reason": "Known compiler segfault: roc-lang/roc#10003"
+    },
+    {
+      "path": "tests/env.roc",
+      "cases": [
+        {
+          "name": "expected-environment",
+          "env": { "BASIC_CLI_ENV_TEST": "hello-from-env-test" },
+          "non_utf8_env": { "BASIC_CLI_NON_UTF8": "fffe" },
+          "contains": ["All tests passed."]
+        },
+        {
+          "name": "wrong-environment-value",
+          "env": { "BASIC_CLI_ENV_TEST": "wrong" },
+          "non_utf8_env": { "BASIC_CLI_NON_UTF8": "fffe" },
+          "exit_code": 1,
+          "contains": ["Env.var! did not preserve the test value"]
+        }
+      ]
+    },
+    {
+      "path": "tests/file.roc",
+      "platforms": { "windows": { "run": false } },
+      "reason": "Runtime scenario invokes Unix link and inode utilities",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": ["I ran all file function tests.", "Deleted all files."]
+        }
+      ]
+    },
+    {
+      "path": "tests/path-test.roc",
+      "stages": { "build": false, "run": false },
+      "reason": "Flaky Roc compiler segfault while building; formatting, check, and test remain enabled",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": [
+            "I ran all Path function tests.",
+            "Files deleted successfully: Bool.true"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests/sqlite.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "env": { "DB_PATH": "{root}/tests/sqlite.e2e.db" },
+          "contains": ["Row count: 2", "Success!"]
+        }
+      ]
+    },
+    {
+      "path": "tests/tcp.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "helper": "tcp",
+          "contains": ["Testing Tcp module functions...", "All tests executed."]
+        }
+      ]
+    },
+    {
+      "path": "tests/url.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": ["Testing Url module functions...", "All tests executed."]
+        }
+      ]
+    },
+    {
+      "path": "tests/utc.roc",
+      "cases": [
+        {
+          "name": "happy",
+          "timeout": 10,
+          "contains": [
+            "Verified: deltaMillis and deltaNanos/1_000_000 match within tolerance",
+            "All tests executed."
+          ]
+        }
+      ]
+    }
   ]
 }
