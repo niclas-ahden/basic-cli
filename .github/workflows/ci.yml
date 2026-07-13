@@ -45,18 +45,10 @@ jobs:
         with:
           targets: x86_64-unknown-linux-musl
 
-      - name: Install expect (Ubuntu)
-        if: startsWith(matrix.os, 'ubuntu-')
-        run: sudo apt-get install -y expect
-
-      - name: Install expect (macOS)
-        if: startsWith(matrix.os, 'macos-')
-        run: brew install expect
-
       - name: Run all tests
         uses: roc-lang/roc/.github/actions/flaky-retry@main
         with:
-          command: ./ci/all_tests.sh
+          command: python3 scripts/test.py
           error_string_contains: "error: (unable|invalid HTTP response)|HttpConnectionClosing"
 
   build-and-test-windows:
@@ -81,4 +73,4 @@ jobs:
 
       - name: Build and test Windows platform
         shell: pwsh
-        run: ./ci/windows_tests.ps1
+        run: python scripts/test.py

@@ -9,11 +9,11 @@ import pf.Tty
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-    Stdout.line!("Tty: enabling raw mode")?
-    Tty.enable_raw_mode!()
+	Stdout.line!("Tty: enabling raw mode")?
+	Tty.enable_raw_mode!()
 
-    Stdout.line!("Tty: disabling raw mode")?
-    Tty.disable_raw_mode!()
+	Stdout.line!("Tty: disabling raw mode")?
+	Tty.disable_raw_mode!()
 
-    Ok({})
+	Ok({})
 }

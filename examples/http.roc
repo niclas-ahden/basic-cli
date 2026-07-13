@@ -1,6 +1,6 @@
 app [main!] {
-    pf: platform "../platform/main.roc",
-    http: "https://github.com/roc-lang/http/releases/download/1.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",
+	pf: platform "../platform/main.roc",
+	http: "https://github.com/roc-lang/http/releases/download/1.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",
 }
 
 import pf.OsStr exposing [OsStr]
@@ -16,27 +16,27 @@ main! = |_args| run_demo!()
 
 run_demo! : () => Try({}, _)
 run_demo! = || {
-    hello_str = Http.get_utf8!("http://localhost:9000/utf8test") ? |err| GetUtf8Failed(err)
-    write_line!("I received '${hello_str}' from the server.")?
+	hello_str = Http.get_utf8!("http://localhost:9000/utf8test") ? |err| GetUtf8Failed(err)
+	write_line!("I received '${hello_str}' from the server.")?
 
-    decoded : { foo : Str }
-    decoded = Http.get!("http://localhost:9000") ? |err| GetJsonFailed(err)
+	decoded : { foo : Str }
+	decoded = Http.get!("http://localhost:9000") ? |err| GetJsonFailed(err)
 
-    write_line!("The json I received was: { foo: \"${decoded.foo}\" }")?
+	write_line!("The json I received was: { foo: \"${decoded.foo}\" }")?
 
-    response = Http.send!(Request.from_method(GET).with_uri("http://localhost:9000/html")) ? |err| SendHtmlFailed(err)
-    body = Str.from_utf8(Response.body(response)) ? |err| HtmlBodyUtf8Failed(err)
+	response = Http.send!(Request.from_method(GET).with_uri("http://localhost:9000/html")) ? |err| SendHtmlFailed(err)
+	body = Str.from_utf8(Response.body(response)) ? |err| HtmlBodyUtf8Failed(err)
 
-    write_line!("Response body:")?
-    write_line!(body)?
+	write_line!("Response body:")?
+	write_line!(body)?
 
-    response_2 = Http.send!(Request.from_method(GET).with_uri("http://localhost:9000/html")) ? |err| SendSecondHtmlFailed(err)
-    body_2 = Str.from_utf8(Response.body(response_2)) ? |err| SecondHtmlBodyUtf8Failed(err)
+	response_2 = Http.send!(Request.from_method(GET).with_uri("http://localhost:9000/html")) ? |err| SendSecondHtmlFailed(err)
+	body_2 = Str.from_utf8(Response.body(response_2)) ? |err| SecondHtmlBodyUtf8Failed(err)
 
-    write_line!("Response body 2:")?
-    write_line!(body_2)?
+	write_line!("Response body 2:")?
+	write_line!(body_2)?
 
-    Ok({})
+	Ok({})
 }
 
 write_line! : Str => Try({}, _)

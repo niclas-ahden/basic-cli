@@ -11,8 +11,8 @@ import pf.Path
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-    temp_dir_path = Env.temp_dir!()
+	temp_dir_path = Env.temp_dir!()
 
-    Stdout.line!("The temp dir path is ${Path.display(temp_dir_path)}")?
-    Ok({})
+	Stdout.line!("The temp dir path is ${Path.display(temp_dir_path)}")?
+	Ok({})
 }

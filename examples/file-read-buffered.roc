@@ -22,33 +22,33 @@ import pf.Path
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-    reader = File.open_reader!("LICENSE")?
-    read_summary = process_line!(reader, { lines_read: 0, bytes_read: 0 })?
+	reader = File.open_reader!("LICENSE")?
+	read_summary = process_line!(reader, { lines_read: 0, bytes_read: 0 })?
 
-    Stdout.line!("Done reading file: ${Str.inspect(read_summary)}")?
-    Ok({})
+	Stdout.line!("Done reading file: ${Str.inspect(read_summary)}")?
+	Ok({})
 }
 
 ReadSummary : {
-    lines_read : U64,
-    bytes_read : U64,
+	lines_read : U64,
+	bytes_read : U64,
 }
 
 ## Count the number of lines and the number of bytes read.
 process_line! : File.Reader, ReadSummary => Try(ReadSummary, _)
 process_line! = |reader, { lines_read, bytes_read }|
-    match File.read_line!(reader) {
-        Ok(bytes) if bytes.len() == 0 =>
-            Ok({ lines_read, bytes_read })
+	match File.read_line!(reader) {
+		Ok(bytes) if bytes.len() == 0 =>
+			Ok({ lines_read, bytes_read })
 
-        Ok(bytes) =>
-            process_line!(
-                reader,
-                {
-                    lines_read: lines_read + 1,
-                    bytes_read: bytes_read + bytes.len(),
-                },
-            )
+		Ok(bytes) =>
+			process_line!(
+				reader,
+				{
+					lines_read: lines_read + 1,
+					bytes_read: bytes_read + bytes.len(),
+				},
+			)
 
-        Err(err) => Err(err)
-    }
+		Err(err) => Err(err)
+	}

@@ -9,17 +9,17 @@ import pf.Sleep
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-    start = Utc.now!()
+	start = Utc.now!()
 
-    # 1000 ms = 1 second
-    Sleep.millis!(1000)
+	# 1000 ms = 1 second
+	Sleep.millis!(1000)
 
-    finish = Utc.now!()
+	finish = Utc.now!()
 
-    duration_ms = Utc.delta_as_millis(finish, start)
-    duration_nanos = Utc.delta_as_nanos(finish, start)
+	duration_ms = Utc.delta_as_millis(finish, start)
+	duration_nanos = Utc.delta_as_nanos(finish, start)
 
-    Stdout.line!("Completed in ${duration_ms.to_str()} ms (${duration_nanos.to_str()} ns)")?
+	Stdout.line!("Completed in ${duration_ms.to_str()} ms (${duration_nanos.to_str()} ns)")?
 
-    Ok({})
+	Ok({})
 }

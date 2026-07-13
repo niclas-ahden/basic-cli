@@ -8,14 +8,15 @@ import pf.Path
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-    path = "path.roc"
+	path = "path.roc"
 
-    Stdout.line!(
-        \\is_file: ${Str.inspect(Path.is_file!(path))}
-        \\is_dir: ${Str.inspect(Path.is_dir!(path))}
-        \\is_sym_link: ${Str.inspect(Path.is_sym_link!(path))}
-        \\display: ${Path.display(path)}
-    )?
+	Stdout.line!(
+		\\is_file: ${Str.inspect(Path.is_file!(path))}
+		\\is_dir: ${Str.inspect(Path.is_dir!(path))}
+		\\is_sym_link: ${Str.inspect(Path.is_sym_link!(path))}
+		\\display: ${Path.display(path)}
+		,
+	)?
 
-    Ok({})
+	Ok({})
 }

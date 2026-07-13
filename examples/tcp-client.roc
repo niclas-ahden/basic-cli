@@ -17,24 +17,24 @@ import pf.Stdin
 # then run this example.
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-    stream = Tcp.connect!("127.0.0.1", 8085) ? |err| ConnectFailed(err)
-    Stdout.line!("Connected!")?
-    run!(stream)
+	stream = Tcp.connect!("127.0.0.1", 8085) ? |err| ConnectFailed(err)
+	Stdout.line!("Connected!")?
+	run!(stream)
 }
 
 ## Read a line from stdin, send it to the server, print the response, repeat.
 run! : Tcp.Stream => Try({}, _)
 run! = |stream| {
-    Stdout.write!("> ")?
-    match Stdin.line!() {
-        # No more input — exit cleanly.
-        Err(EndOfFile) => Ok({})
-        Err(StdinErr(err)) => Err(StdinReadFailed(err))
-        Ok(out_msg) => {
-            Tcp.write_utf8!(stream, "${out_msg}\n") ? |err| TcpWriteFailed(err)
-            in_msg = Tcp.read_line!(stream) ? |err| TcpReadFailed(err)
-            Stdout.line!("< ${in_msg}")?
-            run!(stream)
-        }
-    }
+	Stdout.write!("> ")?
+	match Stdin.line!() {
+		# No more input — exit cleanly.
+		Err(EndOfFile) => Ok({})
+		Err(StdinErr(err)) => Err(StdinReadFailed(err))
+		Ok(out_msg) => {
+			Tcp.write_utf8!(stream, "${out_msg}\n") ? |err| TcpWriteFailed(err)
+			in_msg = Tcp.read_line!(stream) ? |err| TcpReadFailed(err)
+			Stdout.line!("< ${in_msg}")?
+			run!(stream)
+		}
+	}
 }

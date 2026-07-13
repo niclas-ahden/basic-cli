@@ -6,12 +6,12 @@ import pf.Stdout
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-    Stdout.line!("What's your first name?")?
-    first = Stdin.line!() ?? ""
+	Stdout.line!("What's your first name?")?
+	first = Stdin.line!() ?? ""
 
-    Stdout.line!("What's your last name?")?
-    last = Stdin.line!() ?? ""
+	Stdout.line!("What's your last name?")?
+	last = Stdin.line!() ?? ""
 
-    Stdout.line!("Hi, ${first} ${last}! \u(1F44B)")?
-    Ok({})
+	Stdout.line!("Hi, ${first} ${last}! \u(1F44B)")?
+	Ok({})
 }

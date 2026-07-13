@@ -33,26 +33,38 @@ soon as a new nightly is published. If a nightly changes the host ABI:
 
 1. Run `./ci/regenerate_glue.sh` to refresh `src/roc_platform_abi.rs`.
 2. Reconcile `src/lib.rs` if generated names or layouts changed.
-3. Run `cargo check` and `./ci/all_tests.sh`.
+3. Run `cargo check` and `python3 scripts/test.py`.
 
 ## Verification
 
 Run the full local check before opening release or CI-facing changes:
 
 ```sh
-./ci/all_tests.sh
+python3 scripts/test.py
 ```
 
-The script builds the host, checks and builds every example, checks test apps, and runs expect tests for examples with maintained scripts. When all target host libraries are present, it also bundles the platform, serves it from localhost, and tests examples against that bundle.
+The script builds and bundles the host, serves the bundle from localhost, then
+runs `roc fmt --check`, `roc check`, `roc test`, `roc build`, and the compiled
+app for every enabled example and standalone test. Process input, environment,
+fixtures, helper servers, and output assertions work on Unix and Windows.
+
+The data in `scripts/test_spec.json` is the source of truth for the test matrix.
+Every `.roc` app must have exactly one entry. Set its `enabled` flag to `false`
+to skip the app, or set a stage flag to `false` under `stages` or
+`platforms.windows` to skip only a broken stage without changing the runner.
+Add named objects to an app's `cases` array to run the same compiled binary
+with different arguments, stdin, environment, fixtures, helper servers,
+expected exit codes, or output assertions. `happy` is only a naming convention;
+an app can have any number of successful and failing cases.
 
 For faster local iterations when the platform host is already built:
 
 ```sh
-NO_BUILD=1 ./ci/all_tests.sh
+python3 scripts/test.py --no-build
 ```
 
 The test script always bundles the current platform and temporarily rewrites
-the example and standalone-test app headers to use that bundle. Checked-in
+the example and standalone-test app headers to use its localhost URL. Checked-in
 examples may therefore keep using the latest published release URL while local
 work and pull requests exercise the WIP platform.
 

@@ -15,7 +15,7 @@ run! = || {
 	Cmd.exec!("echo", ["Hello"]) ? |err| ExecEchoFailed(err)
 
 	# To execute and capture the output (stdout and stderr) without inheriting your terminal.
-	cmd_output =
+	cmd_output = 
 		Cmd.new("echo")
 			.args(["Hi"])
 			.exec_output!() ? |err| ExecOutputEchoFailed(err)
@@ -29,7 +29,7 @@ run! = || {
 
 	# To execute and just get the exit code (prints to your terminal).
 	# Prefer using `exec!` or `exec_cmd!`.
-	exit_code =
+	exit_code = 
 		Cmd.new("cat")
 			.args(["non_existent.txt"])
 			.exec_exit_code!() ? |err| ExecExitCodeCatFailed(err)
@@ -38,7 +38,7 @@ run! = || {
 
 	# To execute and capture the output (stdout and stderr) in the original form as bytes without inheriting your terminal.
 	# Prefer using `exec_output!`.
-	cmd_output_bytes =
+	cmd_output_bytes = 
 		Cmd.new("echo")
 			.args(["Hi"])
 			.exec_output_bytes!() ? |err| ExecOutputBytesEchoFailed(err)
