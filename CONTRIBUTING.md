@@ -3,8 +3,9 @@
 Thanks for helping improve `basic-cli`.
 
 CI uses the current Roc nightly from [`roc-lang/nightlies`](https://github.com/roc-lang/nightlies).
-For local work, use any recent `roc` on `PATH`, or run `./ci/install_roc.sh`
-to install the same latest nightly style used by CI.
+For local work, use any recent `roc` on `PATH`, or download the latest archive
+for your operating system from the
+[`roc-lang/nightlies` releases](https://github.com/roc-lang/nightlies/releases/latest).
 
 ## Code of Conduct
 
@@ -18,13 +19,8 @@ Check the compiler available locally:
 roc version
 ```
 
-To install the latest nightly locally:
-
-```sh
-./ci/install_roc.sh
-ROC_BIN_DIR="$(dirname "$(find .roc-bin -type f -name roc | head -1)")"
-export PATH="$(pwd)/$ROC_BIN_DIR:$PATH"
-```
+To install the latest nightly locally, extract the downloaded archive and add
+the directory containing the `roc` executable to your `PATH`.
 
 ## Updating Roc Glue
 

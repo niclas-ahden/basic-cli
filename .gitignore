@@ -96,5 +96,5 @@ dist/
 __pycache__/
 *.pyc
 
-# Roc nightly downloaded by ci/install_roc.sh
+# Locally downloaded Roc nightly
 .roc-bin/

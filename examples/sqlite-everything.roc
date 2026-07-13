@@ -27,21 +27,18 @@ main! = |_args| run!()
 
 run! : () => Try({}, _)
 run! = || {
-	db_path = 
-		match Env.var!("DB_PATH") {
-			Ok(p) => Path.from_os_str(p)
-			Err(_) => "./examples/todos2.db"
-		}
+	db_path = match Env.var!("DB_PATH") {
+		Ok(p) => Path.from_os_str(p)
+		Err(_) => "./examples/todos2.db"
+	}
 
 	# Example: print all rows
-	all_todos = Sqlite.query_many!(
-		{
-			path: db_path,
-			query: "SELECT * FROM todos;",
-			bindings: [],
-			rows: decode_full_todo,
-		},
-	) ? |err| QueryAllTodosFailed(err)
+	all_todos = Sqlite.query_many!({
+		path: db_path,
+		query: "SELECT * FROM todos;",
+		bindings: [],
+		rows: decode_full_todo,
+	}) ? |err| QueryAllTodosFailed(err)
 
 	print_line!("All Todos:")?
 	for t in all_todos {
@@ -49,14 +46,12 @@ run! = || {
 	}
 
 	# Example: filter rows by status (decode a single column)
-	tasks_in_progress = Sqlite.query_many!(
-		{
-			path: db_path,
-			query: "SELECT id, task, status FROM todos WHERE status = :status;",
-			bindings: [{ name: ":status", value: encode_status(InProgress) }],
-			rows: Sqlite.str("task"),
-		},
-	) ? |err| QueryInProgressTasksFailed(err)
+	tasks_in_progress = Sqlite.query_many!({
+		path: db_path,
+		query: "SELECT id, task, status FROM todos WHERE status = :status;",
+		bindings: [{ name: ":status", value: encode_status(InProgress) }],
+		rows: Sqlite.str("task"),
+	}) ? |err| QueryInProgressTasksFailed(err)
 
 	print_line!("")?
 	print_line!("In-progress Todos:")?
@@ -65,17 +60,15 @@ run! = || {
 	}
 
 	# Example: insert a row
-	Sqlite.execute!(
-		{
-			path: db_path,
-			query: "INSERT INTO todos (task, status, edited) VALUES (:task, :status, :edited);",
-			bindings: [
-				{ name: ":task", value: String("Make sql example.") },
-				{ name: ":status", value: encode_status(InProgress) },
-				{ name: ":edited", value: encode_edited(NotEdited) },
-			],
-		},
-	) ? |err| InsertTodoFailed(err)
+	Sqlite.execute!({
+		path: db_path,
+		query: "INSERT INTO todos (task, status, edited) VALUES (:task, :status, :edited);",
+		bindings: [
+			{ name: ":task", value: String("Make sql example.") },
+			{ name: ":status", value: encode_status(InProgress) },
+			{ name: ":edited", value: encode_edited(NotEdited) },
+		],
+	}) ? |err| InsertTodoFailed(err)
 
 	# Example: insert multiple rows from a Roc list
 	todos_list = [
@@ -84,102 +77,85 @@ run! = || {
 		{ task: "Insert Roc list 3", status: Todo, edited: NotEdited },
 	]
 
-	values_str = 
-		Str.join_with(
-			List.map_with_index(
-				todos_list,
-				|_t, indx| {
-					i = U64.to_str(indx)
-					"(:task${i}, :status${i}, :edited${i})"
-				},
-			),
-			", ",
-		)
-
-	binding_groups = 
+	values_str = Str.join_with(
 		List.map_with_index(
 			todos_list,
-			|t, indx| {
+			|_t, indx| {
 				i = U64.to_str(indx)
-				[
-					{ name: ":task${i}", value: String(t.task) },
-					{ name: ":status${i}", value: encode_status(t.status) },
-					{ name: ":edited${i}", value: encode_edited(t.edited) },
-				]
+				"(:task${i}, :status${i}, :edited${i})"
 			},
-		)
+		),
+		", ",
+	)
 
-	all_bindings = 
-		Iter.fold(List.iter(binding_groups), [], |acc, group| List.concat(acc, group))
-
-	Sqlite.execute!(
-		{
-			path: db_path,
-			query: "INSERT INTO todos (task, status, edited) VALUES ${values_str};",
-			bindings: all_bindings,
+	binding_groups = List.map_with_index(
+		todos_list,
+		|t, indx| {
+			i = U64.to_str(indx)
+			[
+				{ name: ":task${i}", value: String(t.task) },
+				{ name: ":status${i}", value: encode_status(t.status) },
+				{ name: ":edited${i}", value: encode_edited(t.edited) },
+			]
 		},
-	) ? |err| InsertTodoListFailed(err)
+	)
+
+	all_bindings = Iter.fold(List.iter(binding_groups), [], |acc, group| List.concat(acc, group))
+
+	Sqlite.execute!({
+		path: db_path,
+		query: "INSERT INTO todos (task, status, edited) VALUES ${values_str};",
+		bindings: all_bindings,
+	}) ? |err| InsertTodoListFailed(err)
 
 	# Example: update a row
-	Sqlite.execute!(
-		{
-			path: db_path,
-			query: "UPDATE todos SET status = :status WHERE task = :task;",
-			bindings: [
-				{ name: ":task", value: String("Make sql example.") },
-				{ name: ":status", value: encode_status(Completed) },
-			],
-		},
-	) ? |err| UpdateTodoFailed(err)
+	Sqlite.execute!({
+		path: db_path,
+		query: "UPDATE todos SET status = :status WHERE task = :task;",
+		bindings: [
+			{ name: ":task", value: String("Make sql example.") },
+			{ name: ":status", value: encode_status(Completed) },
+		],
+	}) ? |err| UpdateTodoFailed(err)
 
 	# Example: delete a row
-	Sqlite.execute!(
-		{
-			path: db_path,
-			query: "DELETE FROM todos WHERE task = :task;",
-			bindings: [{ name: ":task", value: String("Make sql example.") }],
-		},
-	) ? |err| DeleteTodoFailed(err)
+	Sqlite.execute!({
+		path: db_path,
+		query: "DELETE FROM todos WHERE task = :task;",
+		bindings: [{ name: ":task", value: String("Make sql example.") }],
+	}) ? |err| DeleteTodoFailed(err)
 
 	# Example: delete all rows where ID is greater than 3 (cleanup so this example is repeatable)
-	Sqlite.execute!(
-		{
-			path: db_path,
-			query: "DELETE FROM todos WHERE id > :id;",
-			bindings: [{ name: ":id", value: Integer(3) }],
-		},
-	) ? |err| CleanupInsertedTodosFailed(err)
+	Sqlite.execute!({
+		path: db_path,
+		query: "DELETE FROM todos WHERE id > :id;",
+		bindings: [{ name: ":id", value: Integer(3) }],
+	}) ? |err| CleanupInsertedTodosFailed(err)
 
 	# Example: count the number of rows
-	count = Sqlite.query!(
-		{
-			path: db_path,
-			query: "SELECT COUNT(*) as \"count\" FROM todos;",
-			bindings: [],
-			row: Sqlite.u64("count"),
-		},
-	) ? |err| CountTodosFailed(err)
+	count = Sqlite.query!({
+		path: db_path,
+		query: "SELECT COUNT(*) as \"count\" FROM todos;",
+		bindings: [],
+		row: Sqlite.u64("count"),
+	}) ? |err| CountTodosFailed(err)
 
 	print_line!("")?
 	print_line!("Row count: ${U64.to_str(count)}")?
 
 	# Example: prepared statements
 	# Note: This is faster if you execute the same prepared statement many times.
-	prepared_query = Sqlite.prepare!(
-		{
-			path: db_path,
-			# sort by the length of the task description
-			query: "SELECT * FROM todos ORDER BY LENGTH(task);",
-		},
-	) ? |err| PrepareSortedTodosFailed(err)
+	prepared_query = Sqlite.prepare!({
+		path: db_path,
+		# sort by the length of the task description
+		query: "SELECT * FROM todos ORDER BY LENGTH(task);",
+	}) ? |err| PrepareSortedTodosFailed(err)
 
-	todos_sorted = Sqlite.query_many_prepared!(
-		{
-			stmt: prepared_query,
-			bindings: [],
-			rows: decode_task_status,
-		},
-	) ? |err| QuerySortedTodosFailed(err)
+	todos_sorted = Sqlite.query_many_prepared!({
+		stmt: prepared_query,
+		bindings: [],
+		rows: decode_task_status,
+	}) ? |err| QuerySortedTodosFailed(err)
 
 	print_line!("")?
 	print_line!("Todos sorted by length of task description:")?

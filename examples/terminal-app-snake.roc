@@ -171,16 +171,15 @@ draw_cells = |state, yy, xx, cells| {
 		Str.join_with(cells, "")
 	} else {
 		pos = { x: xx, y: yy }
-		cell = 
-			if pos == state.snake.first {
-				"O"
-			} else if positions_contains(state.snake.rest, pos) {
-				"o"
-			} else if pos == state.food {
-				"*"
-			} else {
-				"."
-			}
+		cell = if pos == state.snake.first {
+			"O"
+		} else if positions_contains(state.snake.rest, pos) {
+			"o"
+		} else if pos == state.food {
+			"*"
+		} else {
+			"."
+		}
 
 		draw_cells(state, yy, xx + 1, cells.append(cell))
 	}
@@ -212,7 +211,7 @@ snake_len : Snake -> U64
 snake_len = |snake|
 	1 + snake.rest.len()
 
-initial_grid = 
+initial_grid = {
 	\\....................
 	\\....................
 	\\....................
@@ -233,8 +232,9 @@ initial_grid =
 	\\....................
 	\\....................
 	\\....................
+}
 
-moved_down_grid = 
+moved_down_grid = {
 	\\....................
 	\\....................
 	\\....................
@@ -255,3 +255,4 @@ moved_down_grid =
 	\\....................
 	\\....................
 	\\....................
+}
