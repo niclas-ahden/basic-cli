@@ -42,16 +42,18 @@ name_in_array() {
     return 1
 }
 
-# Cleanup function to restore examples and stop HTTP server
+# Cleanup function to restore app headers and stop the local bundle server.
 cleanup() {
     echo ""
     echo "=== Cleaning up ==="
 
-    # Restore examples from backups
-    for f in examples/*.roc.bak; do
-        if [ -f "$f" ]; then
-            mv "$f" "${f%.bak}"
-        fi
+    # Restore examples and standalone tests from backups.
+    for source_dir in examples tests; do
+        for f in "$source_dir"/*.roc.bak; do
+            if [ -f "$f" ]; then
+                mv "$f" "${f%.bak}"
+            fi
+        done
     done
 
     # Stop HTTP server if running
@@ -140,24 +142,16 @@ if [ "$MISSING_EXPECT" -ne 0 ]; then
     exit 1
 fi
 
-# Check if all target libraries exist for bundling
-ALL_TARGETS_EXIST=true
-for target in x64mac arm64mac x64musl arm64musl; do
-    if [ ! -f "platform/targets/$target/libhost.a" ]; then
-        ALL_TARGETS_EXIST=false
-        break
-    fi
-done
-
-# Bundle and set up HTTP server if all targets exist
+# Every app is tested against a package bundle. By default we bundle the local
+# platform and serve it; release artifact tests provide BUNDLE_URL instead.
 BUNDLE_FILE=""
 HTTP_SERVER_PID=""
-USE_BUNDLE=false
 
-if [ "${NO_BUNDLE:-}" = "1" ]; then
+if [ -n "${BUNDLE_URL:-}" ]; then
     echo ""
-    echo "=== Skipping bundle (NO_BUNDLE=1) ==="
-elif [ "$ALL_TARGETS_EXIST" = true ]; then
+    echo "=== Using provided bundle ==="
+    echo "Bundle: $BUNDLE_URL"
+else
     echo ""
     echo "=== Bundling platform ==="
     BUNDLE_OUTPUT=$(./bundle.sh 2>&1)
@@ -167,38 +161,36 @@ elif [ "$ALL_TARGETS_EXIST" = true ]; then
     BUNDLE_PATH=$(echo "$BUNDLE_OUTPUT" | grep "^Created:" | awk '{print $2}')
     BUNDLE_FILE=$(basename "$BUNDLE_PATH")
 
-    if [ -n "$BUNDLE_FILE" ] && [ -f "$BUNDLE_FILE" ]; then
-        echo ""
-        echo "=== Starting HTTP server for bundle testing ==="
-        python3 -m http.server 8000 &
-        HTTP_SERVER_PID=$!
-        sleep 2
-
-        # Verify server is running
-        if curl -f -I "http://localhost:8000/$BUNDLE_FILE" > /dev/null 2>&1; then
-            echo "HTTP server running at http://localhost:8000"
-            echo "Bundle: $BUNDLE_FILE"
-
-            # Modify examples to use bundle URL
-            echo ""
-            echo "=== Configuring examples to use bundle ==="
-            for example in examples/*.roc; do
-                sed -i.bak "s|platform \"../platform/main.roc\"|platform \"http://localhost:8000/$BUNDLE_FILE\"|" "$example"
-            done
-            USE_BUNDLE=true
-        else
-            echo "Warning: HTTP server failed to start, testing with local platform"
-            kill "$HTTP_SERVER_PID" 2>/dev/null || true
-            HTTP_SERVER_PID=""
-        fi
-    else
-        echo "Warning: Bundle creation failed, testing with local platform"
+    if [ -z "$BUNDLE_FILE" ] || [ ! -f "$BUNDLE_FILE" ]; then
+        echo "Error: bundle creation did not produce an archive" >&2
+        exit 1
     fi
-else
+
     echo ""
-    echo "=== Skipping bundle (not all targets built) ==="
-    echo "Run './build.sh --all' first to test with bundled platform"
+    echo "=== Starting HTTP server for bundle testing ==="
+    python3 -m http.server 8000 &
+    HTTP_SERVER_PID=$!
+    sleep 2
+    BUNDLE_URL="http://localhost:8000/$BUNDLE_FILE"
+
+    if ! curl -f -I "$BUNDLE_URL" > /dev/null 2>&1; then
+        echo "Error: bundle server failed to start" >&2
+        exit 1
+    fi
+    echo "HTTP server running at http://localhost:8000"
+    echo "Bundle: $BUNDLE_FILE"
 fi
+
+echo ""
+echo "=== Configuring apps to use bundle ==="
+for source_dir in examples tests; do
+    for roc_file in "$source_dir"/*.roc; do
+        cp "$roc_file" "$roc_file.bak"
+    done
+done
+python3 scripts/update_app_platform_urls.py \
+    --platform-url "$BUNDLE_URL" \
+    examples tests
 
 echo ""
 echo "=== Checking examples ==="
@@ -276,11 +268,7 @@ for test in "${TEST_NAMES[@]}"; do
 done
 
 echo ""
-if [ "$USE_BUNDLE" = true ]; then
-    echo "=== Building examples (using bundle) ==="
-else
-    echo "=== Building examples (using local platform) ==="
-fi
+echo "=== Building examples (using bundle) ==="
 for example in "${EXAMPLE_NAMES[@]}"; do
     echo "Building: ${example}.roc"
     roc build "examples/${example}.roc"
@@ -342,11 +330,7 @@ done
 
 echo ""
 if [ $FAILED -eq 0 ]; then
-    if [ "$USE_BUNDLE" = true ]; then
-        echo "=== All tests passed (with bundle)! ==="
-    else
-        echo "=== All tests passed! ==="
-    fi
+    echo "=== All tests passed (with bundle)! ==="
 else
     echo "=== Some tests failed ==="
     exit 1

@@ -2,6 +2,36 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "$0")" && pwd)"
+output_dir="$root_dir"
+args=()
+
+while (($# > 0)); do
+    case "$1" in
+        --output-dir)
+            if (($# < 2)); then
+                echo "Error: --output-dir requires a value" >&2
+                exit 2
+            fi
+            output_dir="$2"
+            shift 2
+            ;;
+        --output-dir=*)
+            output_dir="${1#--output-dir=}"
+            shift
+            ;;
+        *)
+            args+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [[ "$output_dir" != /* ]]; then
+    output_dir="$root_dir/$output_dir"
+fi
+mkdir -p "$output_dir"
+output_dir="$(cd "$output_dir" && pwd)"
+
 cd "$root_dir/platform"
 
 # Collect all .roc files
@@ -31,4 +61,5 @@ echo ""
 cp "$root_dir/THIRD_PARTY_LICENSES.md" .
 trap 'rm -f THIRD_PARTY_LICENSES.md' EXIT
 
-roc bundle "${roc_files[@]}" "${lib_files[@]}" THIRD_PARTY_LICENSES.md --output-dir "$root_dir" "$@"
+roc bundle "${roc_files[@]}" "${lib_files[@]}" THIRD_PARTY_LICENSES.md \
+    --output-dir "$output_dir" "${args[@]}"

@@ -48,8 +48,13 @@ The script builds the host, checks and builds every example, checks test apps, a
 For faster local iterations when the platform host is already built:
 
 ```sh
-NO_BUILD=1 NO_BUNDLE=1 ./ci/all_tests.sh
+NO_BUILD=1 ./ci/all_tests.sh
 ```
+
+The test script always bundles the current platform and temporarily rewrites
+the example and standalone-test app headers to use that bundle. Checked-in
+examples may therefore keep using the latest published release URL while local
+work and pull requests exercise the WIP platform.
 
 ## Rust Glue
 
@@ -103,4 +108,8 @@ cd generated-docs
 simple-http-server --nocache --index
 ```
 
-CI attaches `docs.tar.gz` to each GitHub Release and deploys release folders plus the current `main` docs to GitHub Pages.
+The release workflow attaches `docs.tar.gz`, updates checked-in examples to the
+new bundle URL, generates versioned docs under `www/`, and opens a follow-up PR
+for those source changes. It also deploys the validated docs immediately. After
+the follow-up PR merges, the Pages workflow deploys the committed release docs
+plus freshly generated `main` docs.

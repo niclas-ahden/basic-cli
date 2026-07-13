@@ -8,11 +8,7 @@ on:
       - ".github/workflows/deploy-docs.yml"
       - "docs/**"
       - "platform/**"
-  workflow_run:
-    workflows:
-      - Release
-    types:
-      - completed
+      - "www/**"
   workflow_dispatch:
 
 concurrency:
@@ -25,8 +21,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy docs
-    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_dispatch')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -34,6 +29,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,53 +37,18 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Install Roc nightly
-        uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427 # ratchet:roc-lang/setup-roc@v0.3.0
+      - name: Install Roc
+        uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
         with:
           version: nightly-new-compiler
 
       - name: Create Pages tree
-        run: mkdir -p ./temp_docs
-
-      - name: Download release docs
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-
-          releases_json="$(gh api "repos/${{ github.repository }}/releases?per_page=100")"
-
-          latest_release="$(printf '%s' "$releases_json" | jq -r '[.[] | select(.draft == false and .prerelease == false)][0].tag_name // empty')"
-          if [ -z "$latest_release" ]; then
-            latest_release="$(printf '%s' "$releases_json" | jq -r '[.[] | select(.draft == false)][0].tag_name // empty')"
-          fi
-          if [ -z "$latest_release" ]; then
-            latest_release="main"
-          fi
-
-          printf '%s' "$releases_json" | jq -r '.[] | select(.draft == false) | .tag_name' | while IFS= read -r release_name; do
-            [ -n "$release_name" ] || continue
-
-            download_dir="./temp_docs/_downloads/$release_name"
-            mkdir -p "$download_dir"
-
-            if gh release download "$release_name" --repo "${{ github.repository }}" --pattern docs.tar.gz --dir "$download_dir" --clobber; then
-              mkdir -p "./temp_docs/$release_name"
-              tar -xzf "$download_dir/docs.tar.gz" -C "./temp_docs/$release_name" --strip-components=1
-              echo "Added docs for release $release_name"
-            else
-              echo "No docs.tar.gz asset found for release $release_name; skipping"
-            fi
-          done
-
-          rm -rf ./temp_docs/_downloads
-
-          if [ -f "./docs/index.html" ]; then
-            sed "s/LATESTVERSION/${latest_release}/g" ./docs/index.html > ./temp_docs/index.html
-            echo "Created root redirect to $latest_release"
+          mkdir -p temp_docs
+          if [ -d www ]; then
+            cp -R www/. temp_docs/
           else
-            echo "Error: docs/index.html not found"
-            exit 1
+            sed 's/LATESTVERSION/main/g' docs/index.html > temp_docs/index.html
           fi
 
       - name: Generate main branch docs
@@ -97,21 +58,18 @@ jobs:
           set -euo pipefail
 
           # TODO: use platform/main.roc when roc-lang/roc#10002 is fixed.
-          roc docs --output=generated-docs docs/basic-cli.roc
-          mkdir -p ./temp_docs/main
-          cp -R ./generated-docs/. ./temp_docs/main/
+          roc docs --output=temp_docs/main docs/basic-cli.roc
 
       - name: Fix legacy generated URLs
         run: |
-          set -euo pipefail
-
-          find ./temp_docs -type f \( -name "*.html" -o -name "*.js" \) -exec sed -i 's|/packages/basic-cli/|/basic-cli/|g' {} +
+          find temp_docs -type f \( -name "*.html" -o -name "*.js" \) \
+            -exec sed -i 's|/packages/basic-cli/|/basic-cli/|g' {} +
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./temp_docs
+          path: temp_docs
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
