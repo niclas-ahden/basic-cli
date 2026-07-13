@@ -1,13 +1,26 @@
+## Build and inspect absolute or relative URLs represented as `Str` values.
+## Construction is intentionally lightweight: `from_str` does not validate a
+## URL, while path and query additions are percent-encoded where documented.
 Url := [].{
+    ## Create a URL from text without validation or percent-encoding.
+    ## Both absolute URLs such as `https://example.com` and relative URLs such
+    ## as `/items` are accepted.
     from_str : Str -> Str
     from_str = |str| str
 
+    ## Return the URL's underlying string representation.
     to_str : Str -> Str
     to_str = |url| url
 
+    ## Reserve capacity for future URL additions.
+    ##
+    ## URLs currently share the representation of `Str`, so this is a
+    ## compatibility no-op.
     reserve : Str, U64 -> Str
     reserve = |url, _capacity| url
 
+    ## Percent-encode and append a path suffix before any query or fragment.
+    ## Exactly one `/` is retained where the existing URL and suffix meet.
     append : Str, Str -> Str
     append = |url, suffix_unencoded| {
         suffix_parts = Str.split_on(suffix_unencoded, "/")
@@ -23,6 +36,8 @@ Url := [].{
         }
     }
 
+    ## Percent-encode a query parameter name and value and append them to the URL.
+    ## Existing parameters and fragments are preserved.
     append_param : Str, Str, Str -> Str
     append_param = |url, key, value| {
         { without_fragment, fragment_suffix } =
@@ -36,12 +51,16 @@ Url := [].{
         "${without_fragment}${separator}${percent_encode(key)}=${percent_encode(value)}${fragment_suffix}"
     }
 
+    ## Return `True` when the URL contains a query marker (`?`).
     has_query : Str -> Bool
     has_query = |url| Str.contains(url, "?")
 
+    ## Return `True` when the URL contains a fragment marker (`#`).
     has_fragment : Str -> Bool
     has_fragment = |url| Str.contains(url, "#")
 
+    ## Return the query text without `?` or a trailing fragment.
+    ## Returns an empty string when no query exists.
     query : Str -> Str
     query = |url| {
         without_fragment =
@@ -56,6 +75,7 @@ Url := [].{
         }
     }
 
+    ## Return the fragment text without `#`, or an empty string when absent.
     fragment : Str -> Str
     fragment = |url|
         match split_last(url, "#") {
@@ -63,6 +83,8 @@ Url := [].{
             NotFound => ""
         }
 
+    ## Replace the current query with unencoded query text.
+    ## Passing an empty string removes the query while preserving the fragment.
     with_query : Str, Str -> Str
     with_query = |url, query_str| {
         { without_fragment, fragment_suffix } =
@@ -84,6 +106,8 @@ Url := [].{
         }
     }
 
+    ## Replace the current fragment with unencoded fragment text.
+    ## Passing an empty string removes the fragment.
     with_fragment : Str, Str -> Str
     with_fragment = |url, fragment_str|
         match split_last(url, "#") {
@@ -101,6 +125,9 @@ Url := [].{
                 }
         }
 
+    ## Parse the query into a dictionary of un-decoded name/value strings.
+    ## A parameter without `=` receives an empty value; repeated names keep the
+    ## final value encountered.
     query_params : Str -> Dict(Str, Str)
     query_params = |url| {
         pairs = Str.split_on(query(url), "&")
@@ -112,6 +139,7 @@ Url := [].{
             })
     }
 
+    ## Return the URL path, excluding scheme/authority, query, and fragment.
     path : Str -> Str
     path = |url| {
         without_authority =

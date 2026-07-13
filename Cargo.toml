@@ -11,6 +11,9 @@ repository = "https://github.com/roc-lang/basic-cli"
 name = "host"
 crate-type = ["staticlib"]
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(no_roc_std_helpers)"] }
+
 [dependencies]
 crossterm = "=0.29.0"
 getrandom = "=0.2.16"

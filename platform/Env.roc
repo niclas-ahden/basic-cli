@@ -3,7 +3,28 @@ import IOErr exposing [IOErr]
 import OsStr exposing [OsStr]
 import path.Path as PackagePath
 
+## Read and modify the process environment without losing native OS strings.
+##
+## Variable names and values use [`OsStr`](OsStr) because Unix environment data
+## is not required to be UTF-8. Use [`var_str!`](#var_str!) when an application
+## specifically requires text. Paths use the shared
+## [`roc-lang/path`](https://github.com/roc-lang/path) `Path` type.
 Env := [].{
+    ## Report the architecture and operating system for which the host was built.
+    platform! : () => {
+        arch : [X86, X64, ARM, AARCH64, OTHER(Str)],
+        os : [LINUX, MACOS, WINDOWS, OTHER(Str)],
+    }
+    platform! = || Host.env_platform!()
+
+    ## Return all environment variables as native name/value pairs.
+    ##
+    ## Native non-Unicode values are preserved. Iteration order is unspecified
+    ## and may differ between calls or operating systems.
+    dict! : () => List((OsStr, OsStr))
+    dict! = ||
+        List.map(Host.env_dict!(), |(name, value)| (OsStr.from_raw(name), OsStr.from_raw(value)))
+
     ## Reads the given environment variable.
     ##
     ## Returns `Err(VarNotFound(name))` if the variable is not set.
@@ -38,6 +59,15 @@ Env := [].{
             Ok(raw) => Ok(PackagePath.from_raw(raw)),
             Err(CwdUnavailable) => Err(CwdUnavailable),
         }
+
+    ## Change the process current working directory.
+    ##
+    ## Returns `Err(InvalidCwd(err))` when the path cannot be used as a working
+    ## directory. The process-wide change remains in effect until changed again.
+    set_cwd! : PackagePath.Path => Try({}, [InvalidCwd(IOErr), ..])
+    set_cwd! = |path|
+        Host.env_set_cwd!(PackagePath.to_raw(path))
+            .map_err(|err| InvalidCwd(err))
 
     ## Gets the path to the currently-running executable.
     ##

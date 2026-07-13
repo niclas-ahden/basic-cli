@@ -5,27 +5,88 @@ import pf.Env
 import pf.Path
 import pf.Stdout
 
-main! : List(OsStr) => Try({}, _)
-main! = |_args| {
-    Stdout.line!("Testing Env module functions...")?
+main! : List(OsStr) => Try({}, [Exit(I32)])
+main! = |_args|
+    match run!() {
+        Ok({}) => Ok({})
+        Err(FailedExpectation(message)) => {
+            Stdout.line!(message) ? |_| Exit(1)
+            Err(Exit(1))
+        }
+        Err(other) => {
+            Stdout.line!("Unexpected test error: ${Str.inspect(other)}") ? |_| Exit(1)
+            Err(Exit(1))
+        }
+    }
 
-    Stdout.line!("\nTesting Env.var!:")?
-    env_var = Env.var!("BASIC_CLI_ENV_TEST")?
-    Stdout.line!("BASIC_CLI_ENV_TEST: ${OsStr.display(env_var)}")?
+run! = || {
+    actual_value = Env.var!(OsStr.from_str("BASIC_CLI_ENV_TEST"))?
+    expect_bool!(OsStr.display(actual_value) == "hello-from-env-test", "Env.var! did not preserve the test value")?
 
-    Stdout.line!("\nTesting Env.cwd!:")?
-    cwd = Env.cwd!()?
-    Stdout.line!("cwd: ${Path.display(cwd)}")?
+    entries = Env.dict!()
+    expect_bool!(
+        contains_text_entry(entries, "BASIC_CLI_ENV_TEST", "hello-from-env-test"),
+        "Env.dict! did not contain the ordinary native environment entry",
+    )?
 
-    Stdout.line!("\nTesting Env.exe_path!:")?
-    exe_path = Env.exe_path!()?
-    Stdout.line!("exe_path: ${Path.display(exe_path)}")?
+    current_platform = Env.platform!()
+    match current_platform.arch {
+        X86 | X64 | ARM | AARCH64 => {}
+        OTHER(name) => fail!("Env.platform! returned unsupported test architecture ${name}")?
+    }
+    match current_platform.os {
+        LINUX | MACOS | WINDOWS => {}
+        OTHER(name) => fail!("Env.platform! returned unsupported test OS ${name}")?
+    }
 
-    Stdout.line!("\nTesting Env.temp_dir!:")?
-    temp_dir = Env.temp_dir!()
-    Stdout.line!("temp_dir: ${Path.display(temp_dir)}")?
+    match current_platform.os {
+        LINUX | MACOS =>
+            expect_bool!(
+                contains_entry(
+                    entries,
+                    OsStr.unix("BASIC_CLI_NON_UTF8"),
+                    OsStr.unix_bytes([255, 254]),
+                ),
+                "Env.dict! did not preserve the non-Unicode Unix value",
+            )?
+        WINDOWS => {}
+        OTHER(_) => {}
+    }
 
-    Stdout.line!("\nAll tests executed.")?
+    original = Env.cwd!()?
+    temporary = Env.temp_dir!()
+    Env.set_cwd!(temporary)?
+    changed = Env.cwd!()
+    restore_result = Env.set_cwd!(original)
+    restored = Env.cwd!()
+    restore_result?
 
+    changed_path = changed?
+    restored_path = restored?
+    expect_bool!(Path.to_os_str(changed_path) == Path.to_os_str(temporary), "Env.set_cwd! did not change cwd")?
+    expect_bool!(Path.to_os_str(restored_path) == Path.to_os_str(original), "Env.set_cwd! did not restore cwd")?
+
+    invalid = Env.exe_path!()?
+    match Env.set_cwd!(invalid) {
+        Err(InvalidCwd(_)) => {}
+        Ok({}) => fail!("Env.set_cwd! unexpectedly accepted a missing directory")?
+    }
+
+    Stdout.line!("All tests passed.")?
     Ok({})
 }
+
+contains_entry = |entries, expected_name, expected_value|
+    List.any(entries, |(name, value)| name == expected_name and value == expected_value)
+
+contains_text_entry = |entries, expected_name, expected_value|
+    List.any(entries, |(name, value)| OsStr.display(name) == expected_name and OsStr.display(value) == expected_value)
+
+expect_bool! = |condition, message|
+    if condition {
+        Ok({})
+    } else {
+        fail!(message)
+    }
+
+fail! = |message| Err(FailedExpectation(message))

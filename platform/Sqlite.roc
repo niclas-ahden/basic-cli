@@ -2,6 +2,12 @@ import InternalSqlite
 import Host
 import path.Path as PackagePath
 
+## Execute SQLite statements and decode rows using either one-shot or reusable
+## prepared APIs. Application code works with the public `Value`, `Binding`,
+## `Stmt`, and `ErrCode` types below; raw host ABI records remain internal.
+##
+## Paths are the shared [`roc-lang/path`](https://github.com/roc-lang/path)
+## `Path` type, so database paths can be exchanged with other packages.
 # Porting notes for the new (zig) compiler: the decoder combinator API is written
 # with fully-literal nested lambdas (`|name| |cols| |stmt| ...`) and relies on
 # structural type inference. This is deliberate — the current compiler (a) treats
@@ -12,6 +18,22 @@ import path.Path as PackagePath
 # the decoders are left unannotated and all decoder errors live in one closed set
 # of tags (see DecodeErr below for the documented shape).
 Sqlite := [].{
+    ## A value accepted by a SQLite binding or returned from a column.
+    Value : [
+        Null,
+        Real(F64),
+        Integer(I64),
+        String(Str),
+        Bytes(List(U8)),
+    ]
+
+    ## A named parameter binding. Include SQLite's parameter prefix in `name`,
+    ## for example `{ name: ":id", value: Integer(42) }`.
+    Binding : {
+        name : Str,
+        value : Value,
+    }
+
     ## Represents a prepared statement that can be executed many times.
     Stmt : Host.SqliteStmt
 
@@ -66,50 +88,24 @@ Sqlite := [].{
     ## ```
     DecodeErr : [NoSuchField(Str), SqliteErr(ErrCode, Str)]
 
-    # ---- Statement lifecycle ---------------------------------------------------
-
-    ## Prepare a `Stmt` for execution at a later time.
+    ## Prepare a `Stmt` for reuse by the prepared execute and query operations.
+    prepare! : { path : PackagePath.Path, query : Str } => Try(Stmt, [SqliteErr(ErrCode, Str), ..])
     prepare! = |{ path, query: q }|
-        Host.sqlite_prepare!(PackagePath.to_raw(path), q)
-            .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
-
-    ## Bind named parameters to a prepared statement.
-    bind! = |stmt, bindings|
-        Host.sqlite_bind!(stmt, bindings)
-            .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
-
-    ## Return the column names for a prepared statement.
-    columns! = |stmt|
-        Host.sqlite_columns!(stmt)
-
-    ## Read the value of a column (by index) from the current row.
-    column_value! = |stmt, i|
-        Host.sqlite_column_value!(stmt, i)
-            .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
-
-    ## Advance a prepared statement. Returns `Row` if a row is available, `Done` otherwise.
-    step! = |stmt|
-        match Host.sqlite_step!(stmt) {
-            Ok(has_row) => if has_row { Ok(Row) } else { Ok(Done) }
-            Err({ code, message }) => Err(SqliteErr(code_from_i64(code), message))
-        }
-
-    ## Reset a prepared statement back to its initial state, ready to be re-executed.
-    reset! = |stmt|
-        Host.sqlite_reset!(stmt)
-            .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
+        sqlite_prepare!(PackagePath.to_raw(path), q)
 
     ## Execute a SQL statement that **doesn't return any rows** (INSERT/UPDATE/DELETE).
+    execute! : { path : PackagePath.Path, query : Str, bindings : List(Binding) } => Try({}, [RowsReturnedUseQueryInstead, SqliteErr(ErrCode, Str), ..])
     execute! = |{ path, query: q, bindings }| {
         stmt = prepare!({ path, query: q })?
         execute_prepared!({ stmt, bindings })
     }
 
     ## Execute a prepared SQL statement that **doesn't return any rows**.
+    execute_prepared! : { stmt : Stmt, bindings : List(Binding) } => Try({}, [RowsReturnedUseQueryInstead, SqliteErr(ErrCode, Str), ..])
     execute_prepared! = |{ stmt, bindings }| {
-        bind!(stmt, bindings)?
-        res = step!(stmt)
-        reset!(stmt)?
+        sqlite_bind!(stmt, bindings)?
+        res = sqlite_step!(stmt)
+        sqlite_reset!(stmt)?
         match res {
             Ok(Done) => Ok({})
             Ok(Row) => Err(RowsReturnedUseQueryInstead)
@@ -117,63 +113,36 @@ Sqlite := [].{
         }
     }
 
-    ## Execute a SQL query and decode exactly one row into a value.
+    ## Execute a SQL query and decode exactly one row into a value. `bindings`
+    ## is a `List(Binding)` and `row` is a decoder built from the functions below.
     query! = |{ path, query: q, bindings, row }| {
         stmt = prepare!({ path, query: q })?
         query_prepared!({ stmt, bindings, row })
     }
 
     ## Execute a prepared SQL query and decode exactly one row into a value.
+    ## Pass the `Stmt` from `prepare!`, a `List(Binding)`, and a row decoder.
     query_prepared! = |{ stmt, bindings, row: decode }| {
-        bind!(stmt, bindings)?
+        sqlite_bind!(stmt, bindings)?
         res = decode_exactly_one_row!(stmt, decode)
-        reset!(stmt)?
+        sqlite_reset!(stmt)?
         res
     }
 
     ## Execute a SQL query and decode multiple rows into a list of values.
+    ## `bindings` is a `List(Binding)` and `rows` is a row decoder.
     query_many! = |{ path, query: q, bindings, rows }| {
         stmt = prepare!({ path, query: q })?
         query_many_prepared!({ stmt, bindings, rows })
     }
 
     ## Execute a prepared SQL query and decode multiple rows into a list of values.
+    ## Pass the `Stmt` from `prepare!`, a `List(Binding)`, and a row decoder.
     query_many_prepared! = |{ stmt, bindings, rows: decode }| {
-        bind!(stmt, bindings)?
+        sqlite_bind!(stmt, bindings)?
         res = decode_rows!(stmt, decode)
-        reset!(stmt)?
+        sqlite_reset!(stmt)?
         res
-    }
-
-    # internal use only
-    decode_exactly_one_row! = |stmt, gen_decode| {
-        cols = columns!(stmt)
-        decode_row! = gen_decode(cols)
-        match step!(stmt)? {
-            Row => {
-                row = decode_row!(stmt)?
-                match step!(stmt)? {
-                    Done => Ok(row)
-                    Row => Err(TooManyRowsReturned)
-                }
-            }
-            Done => Err(NoRowsReturned)
-        }
-    }
-
-    # internal use only
-    decode_rows! = |stmt, gen_decode| {
-        cols = columns!(stmt)
-        decode_row! = gen_decode(cols)
-        helper! = |out|
-            match step!(stmt)? {
-                Done => Ok(out)
-                Row => {
-                    row = decode_row!(stmt)?
-                    helper!(out.append(row))
-                }
-            }
-        helper!([])
     }
 
     # ---- Row decoding combinators ----------------------------------------------
@@ -208,13 +177,6 @@ Sqlite := [].{
                     Ok(val) => mapper(val)
                     Err(e) => Err(e)
                 }
-
-    # internal use only — look the named column's value up in the current row.
-    lookup_value! = |cols, stmt, name|
-        match cols.find_first_index(|x| x == name) {
-            Ok(index) => column_value!(stmt, index)
-            Err(NotFound) => Err(NoSuchField(name))
-        }
 
     # ---- Leaf decoders ---------------------------------------------------------
 
@@ -322,55 +284,6 @@ Sqlite := [].{
     ## Decode a nullable column to `[NotNull(F64), Null]`.
     nullable_f64 = |name| nullable_real_decoder(name, |r| Ok(r))
 
-    # internal use only
-    nullable_int_decoder = |name, cast|
-        |cols|
-            |stmt|
-                match lookup_value!(cols, stmt, name) {
-                    Ok(Integer(n)) =>
-                        match cast(n) {
-                            Ok(v) => Ok(NotNull(v))
-                            Err(e) => Err(e)
-                        }
-                    Ok(Null) => Ok(Null)
-                    Ok(other) => to_unexpected_type_err(other)
-                    Err(e) => Err(e)
-                }
-
-    # internal use only
-    nullable_real_decoder = |name, cast|
-        |cols|
-            |stmt|
-                match lookup_value!(cols, stmt, name) {
-                    Ok(Real(r)) =>
-                        match cast(r) {
-                            Ok(v) => Ok(NotNull(v))
-                            Err(e) => Err(e)
-                        }
-                    Ok(Null) => Ok(Null)
-                    Ok(other) => to_unexpected_type_err(other)
-                    Err(e) => Err(e)
-                }
-
-    # internal use only
-    int_decoder = |name, cast|
-        |cols|
-            |stmt|
-                match lookup_value!(cols, stmt, name) {
-                    Ok(Integer(n)) => cast(n)
-                    Ok(other) => to_unexpected_type_err(other)
-                    Err(e) => Err(e)
-                }
-
-    # internal use only
-    real_decoder = |name, cast|
-        |cols|
-            |stmt|
-                match lookup_value!(cols, stmt, name) {
-                    Ok(Real(r)) => cast(r)
-                    Ok(other) => to_unexpected_type_err(other)
-                    Err(e) => Err(e)
-                }
 
     ## Convert an `ErrCode` to a pretty string for display purposes.
     errcode_to_str = |code|
@@ -410,6 +323,111 @@ Sqlite := [].{
 }
 
 # ---- internal helpers (module-private) -----------------------------------------
+
+sqlite_prepare! = |raw_path, query|
+    Host.sqlite_prepare!(raw_path, query)
+        .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
+
+sqlite_bind! = |stmt, bindings|
+    Host.sqlite_bind!(stmt, bindings)
+        .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
+
+sqlite_columns! = |stmt| Host.sqlite_columns!(stmt)
+
+sqlite_column_value! = |stmt, index|
+    Host.sqlite_column_value!(stmt, index)
+        .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
+
+sqlite_step! = |stmt|
+    match Host.sqlite_step!(stmt) {
+        Ok(has_row) => if has_row { Ok(Row) } else { Ok(Done) }
+        Err({ code, message }) => Err(SqliteErr(code_from_i64(code), message))
+    }
+
+sqlite_reset! = |stmt|
+    Host.sqlite_reset!(stmt)
+        .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
+
+decode_exactly_one_row! = |stmt, gen_decode| {
+    cols = sqlite_columns!(stmt)
+    decode_row! = gen_decode(cols)
+    match sqlite_step!(stmt)? {
+        Row => {
+            row = decode_row!(stmt)?
+            match sqlite_step!(stmt)? {
+                Done => Ok(row)
+                Row => Err(TooManyRowsReturned)
+            }
+        }
+        Done => Err(NoRowsReturned)
+    }
+}
+
+decode_rows! = |stmt, gen_decode| {
+    cols = sqlite_columns!(stmt)
+    decode_row! = gen_decode(cols)
+    helper! = |out|
+        match sqlite_step!(stmt)? {
+            Done => Ok(out)
+            Row => {
+                row = decode_row!(stmt)?
+                helper!(out.append(row))
+            }
+        }
+    helper!([])
+}
+
+lookup_value! = |cols, stmt, name|
+    match cols.find_first_index(|x| x == name) {
+        Ok(index) => sqlite_column_value!(stmt, index)
+        Err(NotFound) => Err(NoSuchField(name))
+    }
+
+nullable_int_decoder = |name, cast|
+    |cols|
+        |stmt|
+            match lookup_value!(cols, stmt, name) {
+                Ok(Integer(n)) =>
+                    match cast(n) {
+                        Ok(v) => Ok(NotNull(v))
+                        Err(e) => Err(e)
+                    }
+                Ok(Null) => Ok(Null)
+                Ok(other) => to_unexpected_type_err(other)
+                Err(e) => Err(e)
+            }
+
+nullable_real_decoder = |name, cast|
+    |cols|
+        |stmt|
+            match lookup_value!(cols, stmt, name) {
+                Ok(Real(r)) =>
+                    match cast(r) {
+                        Ok(v) => Ok(NotNull(v))
+                        Err(e) => Err(e)
+                    }
+                Ok(Null) => Ok(Null)
+                Ok(other) => to_unexpected_type_err(other)
+                Err(e) => Err(e)
+            }
+
+int_decoder = |name, cast|
+    |cols|
+        |stmt|
+            match lookup_value!(cols, stmt, name) {
+                Ok(Integer(n)) => cast(n)
+                Ok(other) => to_unexpected_type_err(other)
+                Err(e) => Err(e)
+            }
+
+real_decoder = |name, cast|
+    |cols|
+        |stmt|
+            match lookup_value!(cols, stmt, name) {
+                Ok(Real(r)) => cast(r)
+                Ok(other) => to_unexpected_type_err(other)
+                Err(e) => Err(e)
+            }
 
 to_unexpected_type_err = |val| {
     type =

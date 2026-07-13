@@ -11,9 +11,6 @@ spawn $env(TESTS_DIR)cmd-test
 
 
 set expected_output [normalize_output {
-cat: non_existent.txt: No such file or directory
-cat: non_existent.txt: No such file or directory
-cat: non_existent.txt: No such file or directory
 All tests passed.
 }]
 

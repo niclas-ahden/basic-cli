@@ -21,12 +21,14 @@ const TCP_STREAM_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
 fn box_tcp_stream(stream: BufReader<TcpStream>, roc_host: &RocHost) -> *mut u64 {
     let raw: *mut BufReader<TcpStream> = Box::into_raw(Box::new(stream));
-    let boxed = allocate_box(
-        core::mem::size_of::<u64>(),
-        TCP_STREAM_BOX_ALIGN,
-        false,
-        roc_host,
-    );
+    let boxed = unsafe {
+        allocate_box(
+            core::mem::size_of::<u64>(),
+            TCP_STREAM_BOX_ALIGN,
+            false,
+            roc_host,
+        )
+    };
     unsafe {
         *(boxed as *mut u64) = raw as u64;
     }
@@ -47,13 +49,15 @@ extern "C" fn drop_tcp_stream(data_ptr: *mut c_void, _roc_host: *mut RocHost) {
 }
 
 fn release_tcp_stream(handle: *mut u64, roc_host: &RocHost) {
-    decref_box_with(
-        handle as RocBox,
-        TCP_STREAM_BOX_ALIGN,
-        false,
-        Some(drop_tcp_stream),
-        roc_host,
-    );
+    unsafe {
+        decref_box_with(
+            handle as RocBox,
+            TCP_STREAM_BOX_ALIGN,
+            false,
+            Some(drop_tcp_stream),
+            roc_host,
+        )
+    };
 }
 
 fn to_tcp_connect_err(err: io::Error, roc_host: &RocHost) -> RocStr {
@@ -151,9 +155,7 @@ fn try_tcp_read_err(error: RocStr) -> HostTcpReadUpToResult {
 
 fn try_tcp_write_ok() -> HostTcpWriteResult {
     HostTcpWriteResult {
-        payload: HostTcpWriteResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: HostTcpWriteResultPayload { ok: [] },
         tag: HostTcpWriteResultTag::Ok,
     }
 }
@@ -171,7 +173,7 @@ fn try_tcp_write_err(error: RocStr) -> HostTcpWriteResult {
 pub extern "C" fn hosted_tcp_connect(host: RocStr, port: u16) -> HostTcpConnectResult {
     let roc_host = roc_host();
     let host_string = host.as_str().to_owned();
-    host.decref(roc_host);
+    unsafe { host.decref(roc_host) };
 
     match TcpStream::connect((host_string.as_str(), port)) {
         Ok(stream) => {
@@ -256,7 +258,7 @@ pub extern "C" fn hosted_tcp_write(
             Err(err) => try_tcp_write_err(to_tcp_stream_err(err, roc_host)),
         }
     };
-    msg.decref(roc_host);
+    unsafe { msg.decref(roc_host) };
     release_tcp_stream(handle, roc_host);
     result
 }

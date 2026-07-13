@@ -62,6 +62,51 @@ fn cmd_io_err_from_io(error: &io::Error, roc_host: &RocHost) -> HostIOErr {
     }
 }
 
+fn cmd_output_io_err_other(message: &str, roc_host: &RocHost) -> IOErr {
+    IOErr {
+        payload: IOErrPayload {
+            other: ManuallyDrop::new(RocStr::from_str(message, roc_host)),
+        },
+        tag: IOErrTag::Other,
+    }
+}
+
+fn cmd_output_io_err_from_io(error: &io::Error, roc_host: &RocHost) -> IOErr {
+    match error.kind() {
+        io::ErrorKind::AlreadyExists => IOErr {
+            payload: IOErrPayload { already_exists: [] },
+            tag: IOErrTag::AlreadyExists,
+        },
+        io::ErrorKind::BrokenPipe => IOErr {
+            payload: IOErrPayload { broken_pipe: [] },
+            tag: IOErrTag::BrokenPipe,
+        },
+        io::ErrorKind::Interrupted => IOErr {
+            payload: IOErrPayload { interrupted: [] },
+            tag: IOErrTag::Interrupted,
+        },
+        io::ErrorKind::NotFound => IOErr {
+            payload: IOErrPayload { not_found: [] },
+            tag: IOErrTag::NotFound,
+        },
+        io::ErrorKind::OutOfMemory => IOErr {
+            payload: IOErrPayload { out_of_memory: [] },
+            tag: IOErrTag::OutOfMemory,
+        },
+        io::ErrorKind::PermissionDenied => IOErr {
+            payload: IOErrPayload {
+                permission_denied: [],
+            },
+            tag: IOErrTag::PermissionDenied,
+        },
+        io::ErrorKind::Unsupported => IOErr {
+            payload: IOErrPayload { unsupported: [] },
+            tag: IOErrTag::Unsupported,
+        },
+        _ => cmd_output_io_err_other(&error.to_string(), roc_host),
+    }
+}
+
 fn take_arg_list(
     list: &RocList<NativeOsStr>,
     roc_host: &RocHost,
@@ -80,7 +125,7 @@ fn take_arg_list(
         }
     }
 
-    list.decref(roc_host);
+    unsafe { list.decref(roc_host) };
 
     match first_error {
         Some(error) => Err(error),
@@ -158,7 +203,7 @@ fn cmd_output_nonzero_error(value: CmdOutputFailure) -> CmdOutputError {
     }
 }
 
-fn cmd_output_failed_to_get_exit_code(error: HostIOErr) -> CmdOutputError {
+fn cmd_output_failed_to_get_exit_code(error: IOErr) -> CmdOutputError {
     CmdOutputError {
         payload: CmdOutputErrorPayload {
             failed_to_get_exit_code: ManuallyDrop::new(error),
@@ -190,9 +235,9 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
     let mut std_cmd = match cmd_to_std(&cmd, roc_host) {
         Ok(cmd) => cmd,
         Err(error) => {
-            return try_cmd_output_err(cmd_output_failed_to_get_exit_code(cmd_io_err_from_io(
-                &error, roc_host,
-            )))
+            return try_cmd_output_err(cmd_output_failed_to_get_exit_code(
+                cmd_output_io_err_from_io(&error, roc_host),
+            ))
         }
     };
 
@@ -212,17 +257,19 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
                     exit_code,
                 })),
                 None => {
-                    stdout_bytes.decref(roc_host);
-                    stderr_bytes.decref(roc_host);
-                    try_cmd_output_err(cmd_output_failed_to_get_exit_code(cmd_io_err_other(
+                    unsafe {
+                        stdout_bytes.decref(roc_host);
+                        stderr_bytes.decref(roc_host);
+                    }
+                    try_cmd_output_err(cmd_output_failed_to_get_exit_code(cmd_output_io_err_other(
                         "Process was killed by signal",
                         roc_host,
                     )))
                 }
             }
         }
-        Err(error) => try_cmd_output_err(cmd_output_failed_to_get_exit_code(cmd_io_err_from_io(
-            &error, roc_host,
-        ))),
+        Err(error) => try_cmd_output_err(cmd_output_failed_to_get_exit_code(
+            cmd_output_io_err_from_io(&error, roc_host),
+        )),
     }
 }

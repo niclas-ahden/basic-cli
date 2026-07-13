@@ -3,6 +3,10 @@ import Host
 import OsStr exposing [OsStr]
 import path.Path as PackagePath
 
+## Construct and operate on the shared
+## [`roc-lang/path`](https://github.com/roc-lang/path) `Path` type. Native Unix
+## bytes and Windows UTF-16 units are preserved across host effects; use
+## `display` only when a lossy human-readable representation is appropriate.
 Path := [].{
     ## Create a UTF-8 text path.
     ## The host lowers this text to the active OS path representation.

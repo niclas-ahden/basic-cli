@@ -18,9 +18,9 @@ type SqliteValue = BytesOrIntegerOrNullOrRealOrString;
 type SqliteValueTag = BytesOrIntegerOrNullOrRealOrStringTag;
 type SqliteValuePayload = BytesOrIntegerOrNullOrRealOrStringPayload;
 type SqliteError = HostSqlitePrepareErr;
-type SqliteBindings = AnonStruct60;
-type NativePath = UnixBytesOrUtf8OrWindowsU16sType19;
-type NativePathTag = UnixBytesOrUtf8OrWindowsU16sType19Tag;
+type SqliteBindings = HostSqliteBindArg1;
+type NativePath = UnixBytesOrUtf8OrWindowsU16s;
+type NativePathTag = UnixBytesOrUtf8OrWindowsU16sTag;
 
 const SQLITE_STMT_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
@@ -51,12 +51,14 @@ thread_local! {
 
 fn box_sqlite_stmt(stmt: SqliteStatement, roc_host: &RocHost) -> *mut u64 {
     let raw: *mut SqliteStatement = Box::into_raw(Box::new(stmt));
-    let boxed = allocate_box(
-        core::mem::size_of::<u64>(),
-        SQLITE_STMT_BOX_ALIGN,
-        false,
-        roc_host,
-    );
+    let boxed = unsafe {
+        allocate_box(
+            core::mem::size_of::<u64>(),
+            SQLITE_STMT_BOX_ALIGN,
+            false,
+            roc_host,
+        )
+    };
     unsafe {
         *(boxed as *mut u64) = raw as u64;
     }
@@ -77,13 +79,15 @@ extern "C" fn drop_sqlite_stmt(data_ptr: *mut c_void, _roc_host: *mut RocHost) {
 }
 
 fn release_sqlite_stmt(handle: *mut u64, roc_host: &RocHost) {
-    decref_box_with(
-        handle as RocBox,
-        SQLITE_STMT_BOX_ALIGN,
-        false,
-        Some(drop_sqlite_stmt),
-        roc_host,
-    );
+    unsafe {
+        decref_box_with(
+            handle as RocBox,
+            SQLITE_STMT_BOX_ALIGN,
+            false,
+            Some(drop_sqlite_stmt),
+            roc_host,
+        )
+    };
 }
 
 // SQLITE_TRANSIENT tells SQLite to make its own copy of bound text/blob data, so
@@ -320,9 +324,7 @@ fn try_sqlite_prepare_err(error: SqliteError) -> HostSqlitePrepareResult {
 
 fn try_sqlite_unit_ok() -> HostSqliteBindResult {
     HostSqliteBindResult {
-        payload: HostSqliteBindResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: HostSqliteBindResultPayload { ok: [] },
         tag: HostSqliteBindResultTag::Ok,
     }
 }
@@ -460,12 +462,12 @@ pub extern "C" fn hosted_sqlite_prepare(
     let path = match sqlite_path_from_native(path, roc_host) {
         Ok(path) => path,
         Err((code, message)) => {
-            query.decref(roc_host);
+            unsafe { query.decref(roc_host) };
             return try_sqlite_prepare_err(sqlite_error(code, &message, roc_host));
         }
     };
     let query_string = query.as_str().to_owned();
-    query.decref(roc_host);
+    unsafe { query.decref(roc_host) };
 
     let connection = match sqlite_get_connection(path) {
         Ok(connection) => connection,
@@ -504,9 +506,9 @@ pub extern "C" fn hosted_sqlite_bind(
         sqlite_bind_all(stmt, bindings.as_slice(), roc_host)
     };
     for binding in bindings.as_slice() {
-        decref_anon_struct60(*binding, roc_host);
+        unsafe { binding.decref(roc_host) };
     }
-    bindings.decref(roc_host);
+    unsafe { bindings.decref(roc_host) };
     release_sqlite_stmt(handle, roc_host);
     result
 }
@@ -516,7 +518,7 @@ pub extern "C" fn hosted_sqlite_columns(handle: *mut u64) -> RocList<RocStr> {
     let roc_host = roc_host();
     let stmt = unsafe { sqlite_stmt_ref(handle) };
     let count = unsafe { libsqlite3_sys::sqlite3_column_count(stmt.stmt) }.max(0) as usize;
-    let list = RocList::<RocStr>::allocate(count, roc_host);
+    let list = unsafe { RocList::<RocStr>::allocate(count, roc_host) };
     for index in 0..count {
         let name = unsafe {
             let raw = libsqlite3_sys::sqlite3_column_name(stmt.stmt, index as c_int);

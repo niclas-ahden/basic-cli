@@ -2,7 +2,7 @@ platform ""
 	requires {
 		main! : List([Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]) => Try({}, [Exit(I32), ..])
 	}
-	exposes [Cmd, Dir, Env, File, Http, IOErr, InternalSqlite, Locale, OsStr, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Url, Utc]
+	exposes [Cmd, Dir, Env, File, Http, IOErr, Locale, OsStr, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Url, Utc]
 	packages {
 		# HTTP data types (Method, Request, Response) come from the shared
 		# roc-lang/http package so apps and other packages using it see the same
@@ -77,6 +77,10 @@ platform ""
 		"hosted_tcp_write": Host.tcp_write!,
 		# HTTP is likewise kept at the end to avoid renumbering glue types.
 		"hosted_http_send_request": Host.http_send_request!,
+		# Environment additions are appended to preserve existing hosted ABI numbering.
+		"hosted_env_platform": Host.env_platform!,
+		"hosted_env_dict": Host.env_dict!,
+		"hosted_env_set_cwd": Host.env_set_cwd!,
 	}
 	targets: {
 		inputs_dir: "targets/",

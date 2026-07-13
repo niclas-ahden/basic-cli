@@ -111,4 +111,10 @@ Host := [].{
     # generated glue more than necessary.
     file_hard_link! : NativePath, NativePath => Try({}, [FileErr(IOErr)])
     file_rename! : NativePath, NativePath => Try({}, [FileErr(IOErr)])
+    env_platform! : () => {
+        arch : [X86, X64, ARM, AARCH64, OTHER(Str)],
+        os : [LINUX, MACOS, WINDOWS, OTHER(Str)],
+    }
+    env_dict! : () => List((NativeOsStr, NativeOsStr))
+    env_set_cwd! : NativePath => Try({}, IOErr)
 }

@@ -7,7 +7,7 @@ use crate::{roc_host, roc_u8_list_from_slice};
 // number; alias them to stable semantic names. Host ABI headers are `(Str, Str)`
 // tuples, rendered as a struct with `_0` (name) and `_1` (value) fields.
 type HttpResponse = HostHttpSendRequestOk;
-type HttpHeader = AnonStruct43;
+type HttpHeader = HostHttpSendRequestArg0Headers;
 type HttpResult = HostHttpSendRequestResult;
 type HttpResultPayload = HostHttpSendRequestResultPayload;
 type HttpResultTag = HostHttpSendRequestResultTag;
@@ -107,7 +107,7 @@ fn build_hyper_request(
 }
 
 fn build_roc_headers(pairs: &[(String, String)], roc_host: &RocHost) -> RocList<HttpHeader> {
-    let list = RocList::<HttpHeader>::allocate(pairs.len(), roc_host);
+    let list = unsafe { RocList::<HttpHeader>::allocate(pairs.len(), roc_host) };
     for (index, (name, value)) in pairs.iter().enumerate() {
         let header = HttpHeader {
             _0: RocStr::from_str(name, roc_host),
@@ -179,13 +179,15 @@ pub extern "C" fn hosted_http_send_request(args: HostHttpSendRequestArgs) -> Htt
     // Build the hyper request from the borrowed args, then release the owned
     // Roc values (the request has copied everything it needs).
     let request_result = build_hyper_request(&args);
-    args.body.decref(roc_host);
-    for header in args.headers.as_slice() {
-        decref_anon_struct43(*header, roc_host);
+    unsafe {
+        args.body.decref(roc_host);
+        for header in args.headers.as_slice() {
+            header.decref(roc_host);
+        }
+        args.headers.decref(roc_host);
+        args.method_ext.decref(roc_host);
+        args.uri.decref(roc_host);
     }
-    args.headers.decref(roc_host);
-    args.method_ext.decref(roc_host);
-    args.uri.decref(roc_host);
 
     let request = match request_result {
         Ok(request) => request,

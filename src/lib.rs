@@ -23,8 +23,8 @@ use crate::roc_platform_abi::*;
 // To stay robust against that renumbering we alias against the *semantic* names
 // the generator also emits (e.g. `HostCmdExecExitCodeResult`), which are keyed by
 // module + function name and therefore stable. Where our preferred local name is
-// identical to a generated semantic alias (e.g. `HostIOErr`, `HostDirListResult`), we
-// omit it here and rely on the `use crate::roc_platform_abi::*;` glob above.
+// identical to a generated semantic name (for example `HostDirListResult`), we
+// omit a local alias and rely on the `use crate::roc_platform_abi::*;` glob above.
 
 type DirUnitResult = HostDirCreateResult;
 type DirUnitResultPayload = HostDirCreateResultPayload;
@@ -80,16 +80,12 @@ type StdoutBytesResult = HostStdoutWriteBytesResult;
 type StdoutBytesResultPayload = HostStdoutWriteBytesResultPayload;
 type StdoutBytesResultTag = HostStdoutWriteBytesResultTag;
 
-pub(crate) type NativeOsStr = UnixBytesOrUtf8OrWindowsU16sType6;
-type NativeOsStrPayload = UnixBytesOrUtf8OrWindowsU16sType6Payload;
-type NativeOsStrTag = UnixBytesOrUtf8OrWindowsU16sType6Tag;
-
-type UnixBytesOrUtf8OrWindowsU16s = UnixBytesOrUtf8OrWindowsU16sType19;
-type UnixBytesOrUtf8OrWindowsU16sPayload = UnixBytesOrUtf8OrWindowsU16sType19Payload;
-type UnixBytesOrUtf8OrWindowsU16sTag = UnixBytesOrUtf8OrWindowsU16sType19Tag;
+pub(crate) type NativeOsStr = UnixBytesOrUtf8OrWindowsU16s;
+type NativeOsStrPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
+type NativeOsStrTag = UnixBytesOrUtf8OrWindowsU16sTag;
 
 pub(crate) fn roc_u8_list_from_slice(slice: &[u8], roc_host: &RocHost) -> RocListWith<u8, false> {
-    RocListWith::<u8, false>::from_slice(slice, roc_host)
+    unsafe { RocListWith::<u8, false>::from_slice(slice, roc_host) }
 }
 
 #[cfg(windows)]
@@ -97,7 +93,7 @@ pub(crate) fn roc_u16_list_from_slice(
     slice: &[u16],
     roc_host: &RocHost,
 ) -> RocListWith<u16, false> {
-    RocListWith::<u16, false>::from_slice(slice, roc_host)
+    unsafe { RocListWith::<u16, false>::from_slice(slice, roc_host) }
 }
 
 extern "C" {
@@ -179,70 +175,68 @@ macro_rules! define_common_io_err {
 define_common_io_err!(
     dir_io_err_from_io,
     dir_io_err_other,
-    HostIOErr,
-    HostIOErrTag,
-    HostIOErrPayload
+    IOErr,
+    IOErrTag,
+    IOErrPayload
 );
 define_common_io_err!(
     env_io_err_from_io,
     env_io_err_other,
-    HostIOErr,
-    HostIOErrTag,
-    HostIOErrPayload
+    IOErr,
+    IOErrTag,
+    IOErrPayload
 );
 define_common_io_err!(
     file_io_err_from_io,
     file_io_err_other,
-    HostIOErr,
-    HostIOErrTag,
-    HostIOErrPayload
+    IOErr,
+    IOErrTag,
+    IOErrPayload
 );
 define_common_io_err!(
     path_io_err_from_io,
     path_io_err_other,
-    HostIOErr,
-    HostIOErrTag,
-    HostIOErrPayload
+    IOErr,
+    IOErrTag,
+    IOErrPayload
 );
 define_common_io_err!(
     random_io_err_from_io,
     random_io_err_other,
-    HostIOErr,
-    HostIOErrTag,
-    HostIOErrPayload
+    IOErr,
+    IOErrTag,
+    IOErrPayload
 );
 define_common_io_err!(
     stderr_io_err_from_io,
     stderr_io_err_other,
-    HostIOErr,
-    HostIOErrTag,
-    HostIOErrPayload
+    IOErr,
+    IOErrTag,
+    IOErrPayload
 );
 define_common_io_err!(
     stdin_io_err_from_io,
     stdin_io_err_other,
-    HostIOErr,
-    HostIOErrTag,
-    HostIOErrPayload
+    IOErr,
+    IOErrTag,
+    IOErrPayload
 );
 define_common_io_err!(
     stdout_io_err_from_io,
     stdout_io_err_other,
-    HostIOErr,
-    HostIOErrTag,
-    HostIOErrPayload
+    IOErr,
+    IOErrTag,
+    IOErrPayload
 );
 
 fn try_dir_unit_ok() -> DirUnitResult {
     DirUnitResult {
-        payload: DirUnitResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: DirUnitResultPayload { ok: [] },
         tag: DirUnitResultTag::Ok,
     }
 }
 
-fn try_dir_unit_err(error: HostIOErr) -> DirUnitResult {
+fn try_dir_unit_err(error: IOErr) -> DirUnitResult {
     DirUnitResult {
         payload: DirUnitResultPayload {
             err: ManuallyDrop::new(error),
@@ -260,7 +254,7 @@ fn try_dir_list_ok(value: RocList<UnixBytesOrUtf8OrWindowsU16s>) -> HostDirListR
     }
 }
 
-fn try_dir_list_err(error: HostIOErr) -> HostDirListResult {
+fn try_dir_list_err(error: IOErr) -> HostDirListResult {
     HostDirListResult {
         payload: HostDirListResultPayload {
             err: ManuallyDrop::new(error),
@@ -296,7 +290,7 @@ fn env_var_not_found(name: NativeOsStr) -> EnvErrOrVarNotFound {
     }
 }
 
-fn env_var_env_err(error: HostIOErr) -> EnvErrOrVarNotFound {
+fn env_var_env_err(error: IOErr) -> EnvErrOrVarNotFound {
     EnvErrOrVarNotFound {
         payload: EnvErrOrVarNotFoundPayload {
             env_err: ManuallyDrop::new(error),
@@ -316,9 +310,7 @@ fn try_env_cwd_ok(value: UnixBytesOrUtf8OrWindowsU16s) -> HostEnvCwdResult {
 
 fn try_env_cwd_err() -> HostEnvCwdResult {
     HostEnvCwdResult {
-        payload: HostEnvCwdResultPayload {
-            err: ManuallyDrop::new(core::ptr::null_mut()),
-        },
+        payload: HostEnvCwdResultPayload { err: [] },
         tag: HostEnvCwdResultTag::Err,
     }
 }
@@ -334,11 +326,128 @@ fn try_env_exe_path_ok(value: UnixBytesOrUtf8OrWindowsU16s) -> HostEnvExePathRes
 
 fn try_env_exe_path_err() -> HostEnvExePathResult {
     HostEnvExePathResult {
-        payload: HostEnvExePathResultPayload {
-            err: ManuallyDrop::new(core::ptr::null_mut()),
-        },
+        payload: HostEnvExePathResultPayload { err: [] },
         tag: HostEnvExePathResultTag::Err,
     }
+}
+
+fn try_env_set_cwd_ok() -> HostEnvSetCwdResult {
+    HostEnvSetCwdResult {
+        payload: HostEnvSetCwdResultPayload { ok: [] },
+        tag: HostEnvSetCwdResultTag::Ok,
+    }
+}
+
+fn try_env_set_cwd_err(error: IOErr) -> HostEnvSetCwdResult {
+    HostEnvSetCwdResult {
+        payload: HostEnvSetCwdResultPayload {
+            err: ManuallyDrop::new(error),
+        },
+        tag: HostEnvSetCwdResultTag::Err,
+    }
+}
+
+#[cfg(not(target_pointer_width = "32"))]
+fn env_arch(roc_host: &RocHost) -> AARCH64OrARMOrOTHEROrX64OrX86 {
+    let (payload, tag) = match std::env::consts::ARCH {
+        "aarch64" => (
+            AARCH64OrARMOrOTHEROrX64OrX86Payload { aarch64: [] },
+            AARCH64OrARMOrOTHEROrX64OrX86Tag::AARCH64,
+        ),
+        "arm" => (
+            AARCH64OrARMOrOTHEROrX64OrX86Payload { arm: [] },
+            AARCH64OrARMOrOTHEROrX64OrX86Tag::ARM,
+        ),
+        "x86_64" => (
+            AARCH64OrARMOrOTHEROrX64OrX86Payload { x64: [] },
+            AARCH64OrARMOrOTHEROrX64OrX86Tag::X64,
+        ),
+        "x86" => (
+            AARCH64OrARMOrOTHEROrX64OrX86Payload { x86: [] },
+            AARCH64OrARMOrOTHEROrX64OrX86Tag::X86,
+        ),
+        other => (
+            AARCH64OrARMOrOTHEROrX64OrX86Payload {
+                other: ManuallyDrop::new(RocStr::from_str(other, roc_host)),
+            },
+            AARCH64OrARMOrOTHEROrX64OrX86Tag::OTHER,
+        ),
+    };
+    AARCH64OrARMOrOTHEROrX64OrX86 { payload, tag }
+}
+
+#[cfg(not(target_pointer_width = "32"))]
+fn env_os(roc_host: &RocHost) -> LINUXOrMACOSOrOTHEROrWINDOWS {
+    let (payload, tag) = match std::env::consts::OS {
+        "linux" => (
+            LINUXOrMACOSOrOTHEROrWINDOWSPayload { linux: [] },
+            LINUXOrMACOSOrOTHEROrWINDOWSTag::LINUX,
+        ),
+        "macos" => (
+            LINUXOrMACOSOrOTHEROrWINDOWSPayload { macos: [] },
+            LINUXOrMACOSOrOTHEROrWINDOWSTag::MACOS,
+        ),
+        "windows" => (
+            LINUXOrMACOSOrOTHEROrWINDOWSPayload { windows: [] },
+            LINUXOrMACOSOrOTHEROrWINDOWSTag::WINDOWS,
+        ),
+        other => (
+            LINUXOrMACOSOrOTHEROrWINDOWSPayload {
+                other: ManuallyDrop::new(RocStr::from_str(other, roc_host)),
+            },
+            LINUXOrMACOSOrOTHEROrWINDOWSTag::OTHER,
+        ),
+    };
+    LINUXOrMACOSOrOTHEROrWINDOWS { payload, tag }
+}
+
+#[cfg(target_pointer_width = "32")]
+fn env_arch(roc_host: &RocHost) -> AARCH64OrARMOrOTHEROrX64OrX86 {
+    let (tag, other) = match std::env::consts::ARCH {
+        "aarch64" => (AARCH64OrARMOrOTHEROrX64OrX86Tag::AARCH64, None),
+        "arm" => (AARCH64OrARMOrOTHEROrX64OrX86Tag::ARM, None),
+        "x86_64" => (AARCH64OrARMOrOTHEROrX64OrX86Tag::X64, None),
+        "x86" => (AARCH64OrARMOrOTHEROrX64OrX86Tag::X86, None),
+        value => (AARCH64OrARMOrOTHEROrX64OrX86Tag::OTHER, Some(value)),
+    };
+    let mut result = AARCH64OrARMOrOTHEROrX64OrX86 {
+        _payload_alignment: [],
+        payload: [0; 12],
+        tag,
+    };
+    if let Some(value) = other {
+        unsafe {
+            core::ptr::write(
+                result.payload.as_mut_ptr().cast::<RocStr>(),
+                RocStr::from_str(value, roc_host),
+            );
+        }
+    }
+    result
+}
+
+#[cfg(target_pointer_width = "32")]
+fn env_os(roc_host: &RocHost) -> LINUXOrMACOSOrOTHEROrWINDOWS {
+    let (tag, other) = match std::env::consts::OS {
+        "linux" => (LINUXOrMACOSOrOTHEROrWINDOWSTag::LINUX, None),
+        "macos" => (LINUXOrMACOSOrOTHEROrWINDOWSTag::MACOS, None),
+        "windows" => (LINUXOrMACOSOrOTHEROrWINDOWSTag::WINDOWS, None),
+        value => (LINUXOrMACOSOrOTHEROrWINDOWSTag::OTHER, Some(value)),
+    };
+    let mut result = LINUXOrMACOSOrOTHEROrWINDOWS {
+        _payload_alignment: [],
+        payload: [0; 12],
+        tag,
+    };
+    if let Some(value) = other {
+        unsafe {
+            core::ptr::write(
+                result.payload.as_mut_ptr().cast::<RocStr>(),
+                RocStr::from_str(value, roc_host),
+            );
+        }
+    }
+    result
 }
 
 fn try_file_bytes_ok(value: RocListWith<u8, false>) -> FileBytesResult {
@@ -350,7 +459,7 @@ fn try_file_bytes_ok(value: RocListWith<u8, false>) -> FileBytesResult {
     }
 }
 
-fn try_file_bytes_err(error: HostIOErr) -> FileBytesResult {
+fn try_file_bytes_err(error: IOErr) -> FileBytesResult {
     FileBytesResult {
         payload: FileBytesResultPayload {
             err: ManuallyDrop::new(error),
@@ -368,7 +477,7 @@ fn try_file_reader_ok(handle: *mut u64) -> FileReaderOpenResult {
     }
 }
 
-fn try_file_reader_err(error: HostIOErr) -> FileReaderOpenResult {
+fn try_file_reader_err(error: IOErr) -> FileReaderOpenResult {
     FileReaderOpenResult {
         payload: FileReaderOpenResultPayload {
             err: ManuallyDrop::new(error),
@@ -386,7 +495,7 @@ fn try_file_reader_line_ok(value: RocListWith<u8, false>) -> FileReaderLineResul
     }
 }
 
-fn try_file_reader_line_err(error: HostIOErr) -> FileReaderLineResult {
+fn try_file_reader_line_err(error: IOErr) -> FileReaderLineResult {
     FileReaderLineResult {
         payload: FileReaderLineResultPayload {
             err: ManuallyDrop::new(error),
@@ -397,14 +506,12 @@ fn try_file_reader_line_err(error: HostIOErr) -> FileReaderLineResult {
 
 fn try_file_write_bytes_ok() -> HostFileWriteBytesResult {
     HostFileWriteBytesResult {
-        payload: HostFileWriteBytesResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: HostFileWriteBytesResultPayload { ok: [] },
         tag: HostFileWriteBytesResultTag::Ok,
     }
 }
 
-fn try_file_write_bytes_err(error: HostIOErr) -> HostFileWriteBytesResult {
+fn try_file_write_bytes_err(error: IOErr) -> HostFileWriteBytesResult {
     HostFileWriteBytesResult {
         payload: HostFileWriteBytesResultPayload {
             err: ManuallyDrop::new(error),
@@ -422,7 +529,7 @@ fn try_file_str_ok(value: RocStr) -> FileStrResult {
     }
 }
 
-fn try_file_str_err(error: HostIOErr) -> FileStrResult {
+fn try_file_str_err(error: IOErr) -> FileStrResult {
     FileStrResult {
         payload: FileStrResultPayload {
             err: ManuallyDrop::new(error),
@@ -433,14 +540,12 @@ fn try_file_str_err(error: HostIOErr) -> FileStrResult {
 
 fn try_file_write_utf8_ok() -> HostFileWriteUtf8Result {
     HostFileWriteUtf8Result {
-        payload: HostFileWriteUtf8ResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: HostFileWriteUtf8ResultPayload { ok: [] },
         tag: HostFileWriteUtf8ResultTag::Ok,
     }
 }
 
-fn try_file_write_utf8_err(error: HostIOErr) -> HostFileWriteUtf8Result {
+fn try_file_write_utf8_err(error: IOErr) -> HostFileWriteUtf8Result {
     HostFileWriteUtf8Result {
         payload: HostFileWriteUtf8ResultPayload {
             err: ManuallyDrop::new(error),
@@ -451,14 +556,12 @@ fn try_file_write_utf8_err(error: HostIOErr) -> HostFileWriteUtf8Result {
 
 fn try_file_delete_ok() -> HostFileDeleteResult {
     HostFileDeleteResult {
-        payload: HostFileDeleteResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: HostFileDeleteResultPayload { ok: [] },
         tag: HostFileDeleteResultTag::Ok,
     }
 }
 
-fn try_file_delete_err(error: HostIOErr) -> HostFileDeleteResult {
+fn try_file_delete_err(error: IOErr) -> HostFileDeleteResult {
     HostFileDeleteResult {
         payload: HostFileDeleteResultPayload {
             err: ManuallyDrop::new(error),
@@ -476,7 +579,7 @@ fn try_file_size_ok(value: u64) -> FileSizeResult {
     }
 }
 
-fn try_file_size_err(error: HostIOErr) -> FileSizeResult {
+fn try_file_size_err(error: IOErr) -> FileSizeResult {
     FileSizeResult {
         payload: FileSizeResultPayload {
             err: ManuallyDrop::new(error),
@@ -494,7 +597,7 @@ fn try_file_bool_ok(value: bool) -> FileBoolResult {
     }
 }
 
-fn try_file_bool_err(error: HostIOErr) -> FileBoolResult {
+fn try_file_bool_err(error: IOErr) -> FileBoolResult {
     FileBoolResult {
         payload: FileBoolResultPayload {
             err: ManuallyDrop::new(error),
@@ -512,7 +615,7 @@ fn try_file_time_ok(value: u128) -> FileTimeResult {
     }
 }
 
-fn try_file_time_err(error: HostIOErr) -> FileTimeResult {
+fn try_file_time_err(error: IOErr) -> FileTimeResult {
     FileTimeResult {
         payload: FileTimeResultPayload {
             err: ManuallyDrop::new(error),
@@ -539,7 +642,7 @@ fn try_path_type_ok(value: HostPathTypeOk) -> HostPathTypeResult {
     }
 }
 
-fn try_path_type_err(error: HostIOErr) -> HostPathTypeResult {
+fn try_path_type_err(error: IOErr) -> HostPathTypeResult {
     HostPathTypeResult {
         payload: HostPathTypeResultPayload {
             err: ManuallyDrop::new(error),
@@ -557,7 +660,7 @@ fn try_random_u64_ok(value: u64) -> RandomU64Result {
     }
 }
 
-fn try_random_u64_err(error: HostIOErr) -> RandomU64Result {
+fn try_random_u64_err(error: IOErr) -> RandomU64Result {
     RandomU64Result {
         payload: RandomU64ResultPayload {
             err: ManuallyDrop::new(error),
@@ -575,7 +678,7 @@ fn try_random_u32_ok(value: u32) -> RandomU32Result {
     }
 }
 
-fn try_random_u32_err(error: HostIOErr) -> RandomU32Result {
+fn try_random_u32_err(error: IOErr) -> RandomU32Result {
     RandomU32Result {
         payload: RandomU32ResultPayload {
             err: ManuallyDrop::new(error),
@@ -586,14 +689,12 @@ fn try_random_u32_err(error: HostIOErr) -> RandomU32Result {
 
 fn try_stderr_unit_ok() -> StderrUnitResult {
     StderrUnitResult {
-        payload: StderrUnitResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: StderrUnitResultPayload { ok: [] },
         tag: StderrUnitResultTag::Ok,
     }
 }
 
-fn try_stderr_unit_err(error: HostIOErr) -> StderrUnitResult {
+fn try_stderr_unit_err(error: IOErr) -> StderrUnitResult {
     StderrUnitResult {
         payload: StderrUnitResultPayload {
             err: ManuallyDrop::new(error),
@@ -604,14 +705,12 @@ fn try_stderr_unit_err(error: HostIOErr) -> StderrUnitResult {
 
 fn try_stderr_bytes_ok() -> StderrBytesResult {
     StderrBytesResult {
-        payload: StderrBytesResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: StderrBytesResultPayload { ok: [] },
         tag: StderrBytesResultTag::Ok,
     }
 }
 
-fn try_stderr_bytes_err(error: HostIOErr) -> StderrBytesResult {
+fn try_stderr_bytes_err(error: IOErr) -> StderrBytesResult {
     StderrBytesResult {
         payload: StderrBytesResultPayload {
             err: ManuallyDrop::new(error),
@@ -627,7 +726,7 @@ fn stdin_line_eof_or_err_eof() -> StdinLineReadErr {
     }
 }
 
-fn stdin_line_eof_or_err_io(error: HostIOErr) -> StdinLineReadErr {
+fn stdin_line_eof_or_err_io(error: IOErr) -> StdinLineReadErr {
     StdinLineReadErr {
         payload: StdinLineReadErrPayload {
             stdin_err: ManuallyDrop::new(error),
@@ -643,7 +742,7 @@ fn stdin_bytes_eof_or_err_eof() -> StdinBytesReadErr {
     }
 }
 
-fn stdin_bytes_eof_or_err_io(error: HostIOErr) -> StdinBytesReadErr {
+fn stdin_bytes_eof_or_err_io(error: IOErr) -> StdinBytesReadErr {
     StdinBytesReadErr {
         payload: StdinBytesReadErrPayload {
             stdin_err: ManuallyDrop::new(error),
@@ -697,7 +796,7 @@ fn try_stdin_read_to_end_ok(value: RocListWith<u8, false>) -> HostStdinReadToEnd
     }
 }
 
-fn try_stdin_read_to_end_err(error: HostIOErr) -> HostStdinReadToEndResult {
+fn try_stdin_read_to_end_err(error: IOErr) -> HostStdinReadToEndResult {
     HostStdinReadToEndResult {
         payload: HostStdinReadToEndResultPayload {
             err: ManuallyDrop::new(error),
@@ -708,14 +807,12 @@ fn try_stdin_read_to_end_err(error: HostIOErr) -> HostStdinReadToEndResult {
 
 fn try_stdout_unit_ok() -> StdoutUnitResult {
     StdoutUnitResult {
-        payload: StdoutUnitResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: StdoutUnitResultPayload { ok: [] },
         tag: StdoutUnitResultTag::Ok,
     }
 }
 
-fn try_stdout_unit_err(error: HostIOErr) -> StdoutUnitResult {
+fn try_stdout_unit_err(error: IOErr) -> StdoutUnitResult {
     StdoutUnitResult {
         payload: StdoutUnitResultPayload {
             err: ManuallyDrop::new(error),
@@ -726,14 +823,12 @@ fn try_stdout_unit_err(error: HostIOErr) -> StdoutUnitResult {
 
 fn try_stdout_bytes_ok() -> StdoutBytesResult {
     StdoutBytesResult {
-        payload: StdoutBytesResultPayload {
-            ok: ManuallyDrop::new(()),
-        },
+        payload: StdoutBytesResultPayload { ok: [] },
         tag: StdoutBytesResultTag::Ok,
     }
 }
 
-fn try_stdout_bytes_err(error: HostIOErr) -> StdoutBytesResult {
+fn try_stdout_bytes_err(error: IOErr) -> StdoutBytesResult {
     StdoutBytesResult {
         payload: StdoutBytesResultPayload {
             err: ManuallyDrop::new(error),
@@ -1054,7 +1149,9 @@ pub extern "C" fn hosted_dir_list(path: UnixBytesOrUtf8OrWindowsU16s) -> HostDir
             let entries: Vec<std::path::PathBuf> = read_dir
                 .filter_map(|entry| entry.ok().map(|entry| entry.path()))
                 .collect();
-            let list = RocList::<UnixBytesOrUtf8OrWindowsU16s>::allocate(entries.len(), roc_host);
+            let list = unsafe {
+                RocList::<UnixBytesOrUtf8OrWindowsU16s>::allocate(entries.len(), roc_host)
+            };
             for (index, entry) in entries.iter().enumerate() {
                 unsafe {
                     list.elements
@@ -1112,6 +1209,47 @@ pub extern "C" fn hosted_env_var(name: NativeOsStr) -> HostEnvVarResult {
             key.as_os_str(),
             roc_host,
         ))),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_env_platform() -> HostEnvPlatform {
+    let roc_host = roc_host();
+    HostEnvPlatform {
+        arch: env_arch(roc_host),
+        os: env_os(roc_host),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_env_dict() -> RocList<HostEnvDict> {
+    let roc_host = roc_host();
+    let vars: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+    let list = unsafe { RocList::<HostEnvDict>::allocate(vars.len(), roc_host) };
+
+    for (index, (name, value)) in vars.iter().enumerate() {
+        unsafe {
+            list.elements.add(index).write(HostEnvDict {
+                _0: native_os_str_from_os_str(name.as_os_str(), roc_host),
+                _1: native_os_str_from_os_str(value.as_os_str(), roc_host),
+            });
+        }
+    }
+
+    list
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_env_set_cwd(path: UnixBytesOrUtf8OrWindowsU16s) -> HostEnvSetCwdResult {
+    let roc_host = roc_host();
+    let path = match path_from_native(path, roc_host) {
+        Ok(path) => path,
+        Err(error) => return try_env_set_cwd_err(env_io_err_from_io(&error, roc_host)),
+    };
+
+    match std::env::set_current_dir(path) {
+        Ok(()) => try_env_set_cwd_ok(),
+        Err(error) => try_env_set_cwd_err(env_io_err_from_io(&error, roc_host)),
     }
 }
 
@@ -1209,12 +1347,14 @@ const FILE_READER_BOX_ALIGN: usize = core::mem::align_of::<u64>();
 
 fn box_file_reader(reader: BufReader<fs::File>, roc_host: &RocHost) -> *mut u64 {
     let raw: *mut BufReader<fs::File> = Box::into_raw(Box::new(reader));
-    let boxed = allocate_box(
-        core::mem::size_of::<u64>(),
-        FILE_READER_BOX_ALIGN,
-        false,
-        roc_host,
-    );
+    let boxed = unsafe {
+        allocate_box(
+            core::mem::size_of::<u64>(),
+            FILE_READER_BOX_ALIGN,
+            false,
+            roc_host,
+        )
+    };
     unsafe {
         *(boxed as *mut u64) = raw as u64;
     }
@@ -1235,13 +1375,15 @@ extern "C" fn drop_file_reader(data_ptr: *mut c_void, _roc_host: *mut RocHost) {
 }
 
 fn release_file_reader(handle: *mut u64, roc_host: &RocHost) {
-    decref_box_with(
-        handle as RocBox,
-        FILE_READER_BOX_ALIGN,
-        false,
-        Some(drop_file_reader),
-        roc_host,
-    );
+    unsafe {
+        decref_box_with(
+            handle as RocBox,
+            FILE_READER_BOX_ALIGN,
+            false,
+            Some(drop_file_reader),
+            roc_host,
+        )
+    };
 }
 
 #[no_mangle]
@@ -1405,12 +1547,12 @@ pub extern "C" fn hosted_file_write_bytes(
     let path = match path_from_native(path, roc_host) {
         Ok(path) => path,
         Err(error) => {
-            bytes.decref(roc_host);
+            unsafe { bytes.decref(roc_host) };
             return try_file_write_bytes_err(file_io_err_from_io(&error, roc_host));
         }
     };
     let result = fs::write(path, bytes.as_slice());
-    bytes.decref(roc_host);
+    unsafe { bytes.decref(roc_host) };
 
     match result {
         Ok(()) => try_file_write_bytes_ok(),
@@ -1427,12 +1569,12 @@ pub extern "C" fn hosted_file_write_utf8(
     let path = match path_from_native(path, roc_host) {
         Ok(path) => path,
         Err(error) => {
-            content.decref(roc_host);
+            unsafe { content.decref(roc_host) };
             return try_file_write_utf8_err(file_io_err_from_io(&error, roc_host));
         }
     };
     let content_string = content.as_str().to_owned();
-    content.decref(roc_host);
+    unsafe { content.decref(roc_host) };
 
     match fs::write(path, content_string) {
         Ok(()) => try_file_write_utf8_ok(),
@@ -1496,7 +1638,7 @@ fn locale_all_strings() -> Vec<String> {
 pub extern "C" fn hosted_locale_all() -> RocList<RocStr> {
     let roc_host = roc_host();
     let locales = locale_all_strings();
-    let list = RocList::<RocStr>::allocate(locales.len(), roc_host);
+    let list = unsafe { RocList::<RocStr>::allocate(locales.len(), roc_host) };
 
     for (index, locale) in locales.iter().enumerate() {
         unsafe {
@@ -1574,7 +1716,7 @@ pub extern "C" fn hosted_stderr_line(message: RocStr) -> StderrUnitResult {
         let mut stderr = io::stderr().lock();
         writeln!(stderr, "{}", message.as_str())
     };
-    message.decref(roc_host);
+    unsafe { message.decref(roc_host) };
 
     match result {
         Ok(()) => try_stderr_unit_ok(),
@@ -1589,7 +1731,7 @@ pub extern "C" fn hosted_stderr_write(message: RocStr) -> StderrUnitResult {
         let mut stderr = io::stderr().lock();
         write!(stderr, "{}", message.as_str()).and_then(|()| stderr.flush())
     };
-    message.decref(roc_host);
+    unsafe { message.decref(roc_host) };
 
     match result {
         Ok(()) => try_stderr_unit_ok(),
@@ -1606,7 +1748,7 @@ pub extern "C" fn hosted_stderr_write_bytes(bytes: RocListWith<u8, false>) -> St
             .write_all(bytes.as_slice())
             .and_then(|()| stderr.flush())
     };
-    bytes.decref(roc_host);
+    unsafe { bytes.decref(roc_host) };
 
     match result {
         Ok(()) => try_stderr_bytes_ok(),
@@ -1662,7 +1804,7 @@ pub extern "C" fn hosted_stdout_line(message: RocStr) -> StdoutUnitResult {
         let mut stdout = io::stdout().lock();
         writeln!(stdout, "{}", message.as_str())
     };
-    message.decref(roc_host);
+    unsafe { message.decref(roc_host) };
 
     match result {
         Ok(()) => try_stdout_unit_ok(),
@@ -1677,7 +1819,7 @@ pub extern "C" fn hosted_stdout_write(message: RocStr) -> StdoutUnitResult {
         let mut stdout = io::stdout().lock();
         write!(stdout, "{}", message.as_str()).and_then(|()| stdout.flush())
     };
-    message.decref(roc_host);
+    unsafe { message.decref(roc_host) };
 
     match result {
         Ok(()) => try_stdout_unit_ok(),
@@ -1694,7 +1836,7 @@ pub extern "C" fn hosted_stdout_write_bytes(bytes: RocListWith<u8, false>) -> St
             .write_all(bytes.as_slice())
             .and_then(|()| stdout.flush())
     };
-    bytes.decref(roc_host);
+    unsafe { bytes.decref(roc_host) };
 
     match result {
         Ok(()) => try_stdout_bytes_ok(),
@@ -1762,7 +1904,7 @@ fn build_args_list(argc: i32, argv: *const *const c_char, roc_host: &RocHost) ->
         return RocList::empty();
     }
 
-    let list = RocList::<OsStr>::allocate(argc as usize, roc_host);
+    let list = unsafe { RocList::<OsStr>::allocate(argc as usize, roc_host) };
     for index in 0..argc as isize {
         unsafe {
             let arg_ptr = *argv.offset(index);
@@ -1786,7 +1928,7 @@ fn build_args_list(_argc: i32, _argv: *const *const c_char, roc_host: &RocHost) 
     use std::os::windows::ffi::OsStrExt;
 
     let args = std::env::args_os().collect::<Vec<_>>();
-    let list = RocList::<OsStr>::allocate(args.len(), roc_host);
+    let list = unsafe { RocList::<OsStr>::allocate(args.len(), roc_host) };
     for (index, arg) in args.iter().enumerate() {
         let units = arg.encode_wide().collect::<Vec<_>>();
         unsafe {
