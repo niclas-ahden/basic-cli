@@ -2,7 +2,7 @@
 
 This file tracks only work that must be resolved before publishing a release
 candidate from the Zig compiler migration. It was last reviewed against PR #413
-at `3ebf1f7` on 2026-07-13.
+at `f7e9162` on 2026-07-13.
 
 An upstream compiler issue is not automatically an RC blocker when a tested,
 explicit workaround exists. Conversely, a green build step is not sufficient:
@@ -14,42 +14,20 @@ P0/P1 indicates resolution order; every unchecked item below blocks the RC.
 ## P0: Artifact and Release Integrity
 
 - [ ] Make every release-facing check green at the intended RC commit.
-  - Current evidence: the latest PR CI run fails on both macOS targets, while
-    Linux x64 and Linux ARM64 pass:
-    https://github.com/roc-lang/basic-cli/actions/runs/28847228467.
-  - Current evidence: the release workflow builds the bundle, but its downloaded
-    bundle test fails on all four supported targets:
-    https://github.com/roc-lang/basic-cli/actions/runs/28847228399.
-  - The bundle test rewrites only `examples/*.roc` to use the downloaded bundle.
-    `ci/all_tests.sh` also builds `tests/*.roc`, which still reference the local
-    `platform/main.roc`; with `NO_BUILD=1`, the checkout has no generated
-    `libhost.a` for those local test apps. The test therefore does not currently
-    establish that the release artifact is usable.
-  - Required resolution: diagnose and fix the two macOS failures; make every app
-    built by the bundle job consume the downloaded bundle (or otherwise provide
-    a clean artifact-only test); rerun CI and bundle tests successfully on macOS
-    ARM64, macOS x64, Linux x64, and Windows x64.
-
-- [ ] Guarantee that the release tag identifies the exact commit that produced
-  and passed the artifacts.
-  - `.github/workflows/release.yml` calls `gh release create` without `--target`
-    or `--verify-tag`. If the input tag does not exist, `gh` creates it from the
-    repository's default branch, not necessarily the workflow's checked-out
-    ref. An existing tag is also not checked against `${GITHUB_SHA}`.
-  - Required resolution: validate the tag and commit before publishing. Either
-    create the tag explicitly at `${GITHUB_SHA}` or pass
-    `--target "${GITHUB_SHA}"`; alternatively, require a pre-existing tag and
-    verify that it resolves to `${GITHUB_SHA}`. Fail closed on a mismatch.
-
-- [ ] Publish release-candidate tags as GitHub prereleases.
-  - The workflow never passes `--prerelease`. The Pages workflow selects the
-    newest non-draft, non-prerelease release for the root redirect, so an RC
-    published as a normal release can incorrectly replace the stable docs
-    target.
-  - Required resolution: validate the supported tag format and pass
-    `--prerelease` for RC tags. Exercise the workflow with an RC-form tag and
-    confirm that the stable docs redirect is unchanged while the RC docs exist
-    at their versioned path.
+  - Local and CI tests now build a WIP package and rewrite both `examples/*.roc`
+    and `tests/*.roc` to consume it. Release tests download the uploaded package
+    and use the same artifact-only path.
+  - Linux x64 and Windows x64 CI pass at `f7e9162`. The Windows test builds,
+    bundles, links, and runs an app using the packaged `host.lib` and Windows SDK
+    import libraries:
+    https://github.com/roc-lang/basic-cli/actions/runs/29216873253.
+  - macOS ARM64 and macOS x64 CI are waiting for runner capacity. The release
+    workflow's native Windows host build passes; release-bundle assembly and its
+    four-platform downloaded-bundle matrix are still pending:
+    https://github.com/roc-lang/basic-cli/actions/runs/29216873260.
+  - Required resolution: make the remaining macOS CI jobs and all downloaded
+    release-bundle tests pass on macOS ARM64, macOS x64, Linux x64, and Windows
+    x64 at the final RC commit.
 
 ## P0: Product Contract and Critical Coverage
 
