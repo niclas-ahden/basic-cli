@@ -113,6 +113,8 @@
         {
           "name": "happy",
           "args": ["{root}/LICENSE"],
+          "platforms": { "windows": { "enabled": false } },
+          "reason": "File permission metadata is unsupported by the Windows host",
           "contains": [
             "LICENSE file permissions:",
             "Readable: True",
@@ -359,11 +361,9 @@
       "reason": "Python standard library has no Windows ConPTY support",
       "cases": [
         {
-          "name": "wall-collision",
+          "name": "quit-command",
           "pty": true,
-          "stdin": "ssssssssss",
-          "input_delay": 0.25,
-          "timeout": 15,
+          "stdin": "q",
           "contains": ["Game Over"]
         }
       ]

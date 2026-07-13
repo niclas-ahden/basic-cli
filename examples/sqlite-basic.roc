@@ -57,14 +57,12 @@ print_line! : Str => Try({}, _)
 print_line! = |line| Stdout.line!(line)
 
 query_todos_by_status! = |db_path, status|
-	Sqlite.query_many!(
-		{
-			path: db_path,
-			query: "SELECT id, task, status FROM todos WHERE status = :status;",
-			bindings: [{ name: ":status", value: String(status) }],
-			rows: decode_todo,
-		},
-	)
+	Sqlite.query_many!({
+		path: db_path,
+		query: "SELECT id, task, status FROM todos WHERE status = :status;",
+		bindings: [{ name: ":status", value: String(status) }],
+		rows: decode_todo,
+	})
 
 # A row decoder is `List(Str) -> (Stmt => Try(a, err))`; the new compiler does not
 # support the record-builder (`<-`) sugar, so we combine the leaf decoders by hand.

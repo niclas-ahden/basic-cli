@@ -26,7 +26,7 @@ jobs:
         with:
           targets: x86_64-unknown-linux-musl
       - name: Format, check, and test examples
-        run: python3 scripts/test.py --operation validate
+        run: ./scripts/test.py --operation validate
 
   build-examples:
     name: build examples (${{ matrix.target }})
@@ -68,7 +68,7 @@ jobs:
           targets: ${{ matrix.rust_target }}
       - name: Cross-compile every example
         shell: bash
-        run: python3 scripts/test.py --operation build --target "${{ matrix.target }}" --artifact-dir dist/example-binaries
+        run: ./scripts/test.py --operation build --target "${{ matrix.target }}" --artifact-dir dist/example-binaries
       - name: Upload example binaries
         uses: actions/upload-artifact@v4
         with:
@@ -104,4 +104,4 @@ jobs:
           path: dist/example-binaries/${{ matrix.target }}
       - name: Run native spec cases
         shell: bash
-        run: python3 scripts/test.py --operation run --target "${{ matrix.target }}" --artifact-dir dist/example-binaries
+        run: ./scripts/test.py --operation run --target "${{ matrix.target }}" --artifact-dir dist/example-binaries

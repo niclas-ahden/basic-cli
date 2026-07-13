@@ -33,14 +33,14 @@ soon as a new nightly is published. If a nightly changes the host ABI:
 
 1. Run `./ci/regenerate_glue.sh` to refresh `src/roc_platform_abi.rs`.
 2. Reconcile `src/lib.rs` if generated names or layouts changed.
-3. Run `cargo check` and `python3 scripts/test.py`.
+3. Run `cargo check` and `./scripts/test.py`.
 
 ## Verification
 
 Run the full local check before opening release or CI-facing changes:
 
 ```sh
-python3 scripts/test.py
+./scripts/test.py
 ```
 
 The default command builds and bundles the native host, serves the bundle from
@@ -66,15 +66,15 @@ binary artifacts are then downloaded and executed on matching native runners;
 The operations can also be run independently:
 
 ```sh
-python3 scripts/test.py --operation validate
-python3 scripts/test.py --operation build --target x64musl --artifact-dir dist/example-binaries
-python3 scripts/test.py --operation run --target x64musl --artifact-dir dist/example-binaries
+./scripts/test.py --operation validate
+./scripts/test.py --operation build --target x64musl --artifact-dir dist/example-binaries
+./scripts/test.py --operation run --target x64musl --artifact-dir dist/example-binaries
 ```
 
 For faster local iterations when the platform host is already built:
 
 ```sh
-python3 scripts/test.py --no-build
+./scripts/test.py --no-build
 ```
 
 Build and validation operations bundle the current platform and temporarily

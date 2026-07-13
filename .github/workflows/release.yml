@@ -99,12 +99,12 @@ jobs:
           fi
 
       - name: Build platform for all targets
-        run: python3 scripts/build.py --all
+        run: ./scripts/build.py --all
 
       - name: Validate package
         env:
           NO_BUILD: "1"
-        run: python3 scripts/test.py
+        run: ./scripts/test.py
 
       - name: Resolve previous release
         if: github.event_name == 'workflow_dispatch'
@@ -127,7 +127,7 @@ jobs:
           previous_url: ${{ steps.previous.outputs.previous_url }}
 
       - name: Bundle platform
-        run: python3 scripts/bundle.py --output-dir dist
+        run: ./scripts/bundle.py --output-dir dist
 
       - name: Prepare release bundle metadata
         id: bundles
@@ -187,7 +187,7 @@ jobs:
         if: matrix.os != 'windows-2025'
         uses: roc-lang/release-package/actions/test-bundle@d2560ead9f724bfaabfbc8134b8895e120171064
         with:
-          test_bundle_command: python3 scripts/test.py --bundle-path
+          test_bundle_command: ./scripts/test.py --bundle-path
           bundle_path: .release/test-bundles/${{ matrix.artifact_file }}
           bundle_name: ${{ matrix.bundle_name }}
           release_version: ${{ needs.build.outputs.release_version }}
@@ -355,7 +355,7 @@ jobs:
           )
           PY
           )"
-          python3 scripts/update_app_platform_urls.py \
+          ./scripts/update_app_platform_urls.py \
             --platform-url "$bundle_url" \
             examples
 
