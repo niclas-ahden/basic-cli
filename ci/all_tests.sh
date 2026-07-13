@@ -172,16 +172,24 @@ else
 
     echo ""
     echo "=== Starting HTTP server for bundle testing ==="
-    python3 -m http.server 8000 &
+    BUNDLE_PORT="$(python3 - <<'PY'
+import socket
+
+with socket.socket() as sock:
+    sock.bind(("127.0.0.1", 0))
+    print(sock.getsockname()[1])
+PY
+)"
+    python3 -m http.server "$BUNDLE_PORT" --bind 127.0.0.1 &
     HTTP_SERVER_PID=$!
     sleep 2
-    BUNDLE_URL="http://localhost:8000/$BUNDLE_FILE"
+    BUNDLE_URL="http://127.0.0.1:$BUNDLE_PORT/$BUNDLE_FILE"
 
     if ! curl -f -I "$BUNDLE_URL" > /dev/null 2>&1; then
         echo "Error: bundle server failed to start" >&2
         exit 1
     fi
-    echo "HTTP server running at http://localhost:8000"
+    echo "HTTP server running at http://127.0.0.1:$BUNDLE_PORT"
     echo "Bundle: $BUNDLE_FILE"
 fi
 
