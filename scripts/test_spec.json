@@ -370,6 +370,8 @@
     },
     {
       "path": "examples/time.roc",
+      "platforms": { "windows": { "run": false } },
+      "reason": "Windows host time/sleep execution currently crashes",
       "cases": [
         {
           "name": "one-second-sleep",
