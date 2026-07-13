@@ -38,7 +38,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-x64-host
-          path: platform/targets/x64win/host.lib
+          path: platform/targets/x64win/*.lib
           if-no-files-found: error
           retention-days: 7
 
