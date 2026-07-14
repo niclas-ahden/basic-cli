@@ -3,7 +3,9 @@
 #![allow(improper_ctypes_definitions)]
 
 use core::mem::ManuallyDrop;
-use std::ffi::{c_char, c_void, CStr, OsStr as StdOsStr, OsString};
+#[cfg(unix)]
+use std::ffi::CStr;
+use std::ffi::{c_char, c_void, OsStr as StdOsStr, OsString};
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -632,6 +634,22 @@ fn try_file_time_err(error: IOErr) -> FileTimeResult {
     }
 }
 
+fn try_utc_now_ok(nanos: u128) -> HostUtcNowResult {
+    HostUtcNowResult {
+        payload: HostUtcNowResultPayload {
+            ok: ManuallyDrop::new(nanos),
+        },
+        tag: HostUtcNowResultTag::Ok,
+    }
+}
+
+fn try_utc_now_err() -> HostUtcNowResult {
+    HostUtcNowResult {
+        payload: HostUtcNowResultPayload { err: [] },
+        tag: HostUtcNowResultTag::Err,
+    }
+}
+
 fn try_locale_get_ok(value: RocStr) -> HostLocaleGetResult {
     HostLocaleGetResult {
         payload: HostLocaleGetResultPayload {
@@ -1152,7 +1170,7 @@ pub extern "C" fn hosted_dir_list(path: UnixBytesOrUtf8OrWindowsU16s) -> HostDir
         Ok(path) => path,
         Err(error) => return try_dir_list_err(dir_io_err_from_io(&error, roc_host)),
     };
-    match fs::read_dir(path) {
+    match fs::read_dir(&path) {
         Ok(read_dir) => {
             let entries: Vec<std::path::PathBuf> = read_dir
                 .filter_map(|entry| entry.ok().map(|entry| entry.path()))
@@ -1169,7 +1187,10 @@ pub extern "C" fn hosted_dir_list(path: UnixBytesOrUtf8OrWindowsU16s) -> HostDir
             }
             try_dir_list_ok(list)
         }
-        Err(error) => try_dir_list_err(dir_io_err_from_io(&error, roc_host)),
+        Err(error) => try_dir_list_err(dir_io_err_from_io(
+            &normalize_dir_list_err(&path, error),
+            roc_host,
+        )),
     }
 }
 
@@ -1323,9 +1344,12 @@ pub extern "C" fn hosted_file_read_bytes(path: UnixBytesOrUtf8OrWindowsU16s) -> 
         Ok(path) => path,
         Err(error) => return try_file_bytes_err(file_io_err_from_io(&error, roc_host)),
     };
-    match fs::read(path) {
+    match fs::read(&path) {
         Ok(bytes) => try_file_bytes_ok(roc_u8_list_from_slice(&bytes, roc_host)),
-        Err(error) => try_file_bytes_err(file_io_err_from_io(&error, roc_host)),
+        Err(error) => try_file_bytes_err(file_io_err_from_io(
+            &normalize_file_kind_err(&path, error),
+            roc_host,
+        )),
     }
 }
 
@@ -1336,9 +1360,12 @@ pub extern "C" fn hosted_file_read_utf8(path: UnixBytesOrUtf8OrWindowsU16s) -> F
         Ok(path) => path,
         Err(error) => return try_file_str_err(file_io_err_from_io(&error, roc_host)),
     };
-    match fs::read_to_string(path) {
+    match fs::read_to_string(&path) {
         Ok(content) => try_file_str_ok(RocStr::from_str(&content, roc_host)),
-        Err(error) => try_file_str_err(file_io_err_from_io(&error, roc_host)),
+        Err(error) => try_file_str_err(file_io_err_from_io(
+            &normalize_file_kind_err(&path, error),
+            roc_host,
+        )),
     }
 }
 
@@ -1404,7 +1431,7 @@ pub extern "C" fn hosted_file_open_reader(
         Ok(path) => path,
         Err(error) => return try_file_reader_err(file_io_err_from_io(&error, roc_host)),
     };
-    match fs::File::open(path) {
+    match fs::File::open(&path) {
         Ok(file) => {
             let reader = if capacity == 0 {
                 BufReader::new(file)
@@ -1413,7 +1440,10 @@ pub extern "C" fn hosted_file_open_reader(
             };
             try_file_reader_ok(box_file_reader(reader, roc_host))
         }
-        Err(error) => try_file_reader_err(file_io_err_from_io(&error, roc_host)),
+        Err(error) => try_file_reader_err(file_io_err_from_io(
+            &normalize_file_kind_err(&path, error),
+            roc_host,
+        )),
     }
 }
 
@@ -1439,6 +1469,46 @@ fn file_metadata(
     fs::metadata(path_from_native(path, roc_host)?)
 }
 
+// Windows reports ERROR_ACCESS_DENIED when a directory is opened for
+// file-style reads/writes, where Unix reports EISDIR; remap so the typed
+// IOErr is portable. If the metadata probe races a concurrent delete, the
+// original error passes through unchanged.
+#[cfg(windows)]
+fn normalize_file_kind_err(path: &std::path::Path, error: io::Error) -> io::Error {
+    if error.kind() == io::ErrorKind::PermissionDenied {
+        if let Ok(metadata) = fs::metadata(path) {
+            if metadata.is_dir() {
+                return io::ErrorKind::IsADirectory.into();
+            }
+        }
+    }
+    error
+}
+
+#[cfg(not(windows))]
+fn normalize_file_kind_err(_path: &std::path::Path, error: io::Error) -> io::Error {
+    error
+}
+
+// Windows lists a directory via FindFirstFileW(path\*), whose error codes for
+// non-directory paths don't always decode to NotADirectory like Unix's ENOTDIR.
+#[cfg(windows)]
+fn normalize_dir_list_err(path: &std::path::Path, error: io::Error) -> io::Error {
+    if error.kind() != io::ErrorKind::NotADirectory {
+        if let Ok(metadata) = fs::metadata(path) {
+            if !metadata.is_dir() {
+                return io::ErrorKind::NotADirectory.into();
+            }
+        }
+    }
+    error
+}
+
+#[cfg(not(windows))]
+fn normalize_dir_list_err(_path: &std::path::Path, error: io::Error) -> io::Error {
+    error
+}
+
 #[no_mangle]
 pub extern "C" fn hosted_file_size_in_bytes(path: UnixBytesOrUtf8OrWindowsU16s) -> FileSizeResult {
     let roc_host = roc_host();
@@ -1448,7 +1518,7 @@ pub extern "C" fn hosted_file_size_in_bytes(path: UnixBytesOrUtf8OrWindowsU16s) 
     }
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn unsupported_file_permission_error() -> io::Error {
     io::Error::new(
         io::ErrorKind::Unsupported,
@@ -1456,23 +1526,91 @@ fn unsupported_file_permission_error() -> io::Error {
     )
 }
 
+#[cfg(unix)]
 fn file_permission_bit(
     path: UnixBytesOrUtf8OrWindowsU16s,
     roc_host: &RocHost,
     bit: u32,
 ) -> io::Result<bool> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let metadata = file_metadata(path, roc_host)?;
+    Ok(metadata.permissions().mode() & bit != 0)
+}
+
+fn file_is_executable(
+    path: UnixBytesOrUtf8OrWindowsU16s,
+    roc_host: &RocHost,
+) -> io::Result<bool> {
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-
-        let metadata = file_metadata(path, roc_host)?;
-        Ok(metadata.permissions().mode() & bit != 0)
+        file_permission_bit(path, roc_host, 0o111)
     }
 
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        // Windows has no executable permission bit; approximate with the
+        // conventional executable extensions the shell would run.
+        let path = path_from_native(path, roc_host)?;
+        fs::metadata(&path)?;
+        Ok(path
+            .extension()
+            .and_then(StdOsStr::to_str)
+            .is_some_and(|extension| {
+                ["exe", "bat", "cmd", "com"]
+                    .iter()
+                    .any(|candidate| extension.eq_ignore_ascii_case(candidate))
+            }))
+    }
+
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = path_from_native(path, roc_host);
-        let _ = bit;
+        Err(unsupported_file_permission_error())
+    }
+}
+
+fn file_is_readable(
+    path: UnixBytesOrUtf8OrWindowsU16s,
+    roc_host: &RocHost,
+) -> io::Result<bool> {
+    #[cfg(unix)]
+    {
+        file_permission_bit(path, roc_host, 0o400)
+    }
+
+    #[cfg(windows)]
+    {
+        // Windows has no read permission bit outside ACLs; anything statable
+        // is considered readable.
+        file_metadata(path, roc_host)?;
+        Ok(true)
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = path_from_native(path, roc_host);
+        Err(unsupported_file_permission_error())
+    }
+}
+
+fn file_is_writable(
+    path: UnixBytesOrUtf8OrWindowsU16s,
+    roc_host: &RocHost,
+) -> io::Result<bool> {
+    #[cfg(unix)]
+    {
+        file_permission_bit(path, roc_host, 0o200)
+    }
+
+    #[cfg(windows)]
+    {
+        Ok(!file_metadata(path, roc_host)?.permissions().readonly())
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = path_from_native(path, roc_host);
         Err(unsupported_file_permission_error())
     }
 }
@@ -1480,7 +1618,7 @@ fn file_permission_bit(
 #[no_mangle]
 pub extern "C" fn hosted_file_is_executable(path: UnixBytesOrUtf8OrWindowsU16s) -> FileBoolResult {
     let roc_host = roc_host();
-    match file_permission_bit(path, roc_host, 0o111) {
+    match file_is_executable(path, roc_host) {
         Ok(value) => try_file_bool_ok(value),
         Err(error) => try_file_bool_err(file_io_err_from_io(&error, roc_host)),
     }
@@ -1489,7 +1627,7 @@ pub extern "C" fn hosted_file_is_executable(path: UnixBytesOrUtf8OrWindowsU16s) 
 #[no_mangle]
 pub extern "C" fn hosted_file_is_readable(path: UnixBytesOrUtf8OrWindowsU16s) -> FileBoolResult {
     let roc_host = roc_host();
-    match file_permission_bit(path, roc_host, 0o400) {
+    match file_is_readable(path, roc_host) {
         Ok(value) => try_file_bool_ok(value),
         Err(error) => try_file_bool_err(file_io_err_from_io(&error, roc_host)),
     }
@@ -1498,7 +1636,7 @@ pub extern "C" fn hosted_file_is_readable(path: UnixBytesOrUtf8OrWindowsU16s) ->
 #[no_mangle]
 pub extern "C" fn hosted_file_is_writable(path: UnixBytesOrUtf8OrWindowsU16s) -> FileBoolResult {
     let roc_host = roc_host();
-    match file_permission_bit(path, roc_host, 0o200) {
+    match file_is_writable(path, roc_host) {
         Ok(value) => try_file_bool_ok(value),
         Err(error) => try_file_bool_err(file_io_err_from_io(&error, roc_host)),
     }
@@ -1559,12 +1697,15 @@ pub extern "C" fn hosted_file_write_bytes(
             return try_file_write_bytes_err(file_io_err_from_io(&error, roc_host));
         }
     };
-    let result = fs::write(path, bytes.as_slice());
+    let result = fs::write(&path, bytes.as_slice());
     unsafe { bytes.decref(roc_host) };
 
     match result {
         Ok(()) => try_file_write_bytes_ok(),
-        Err(error) => try_file_write_bytes_err(file_io_err_from_io(&error, roc_host)),
+        Err(error) => try_file_write_bytes_err(file_io_err_from_io(
+            &normalize_file_kind_err(&path, error),
+            roc_host,
+        )),
     }
 }
 
@@ -1584,9 +1725,12 @@ pub extern "C" fn hosted_file_write_utf8(
     let content_string = content.as_str().to_owned();
     unsafe { content.decref(roc_host) };
 
-    match fs::write(path, content_string) {
+    match fs::write(&path, content_string) {
         Ok(()) => try_file_write_utf8_ok(),
-        Err(error) => try_file_write_utf8_err(file_io_err_from_io(&error, roc_host)),
+        Err(error) => try_file_write_utf8_err(file_io_err_from_io(
+            &normalize_file_kind_err(&path, error),
+            roc_host,
+        )),
     }
 }
 
@@ -1862,12 +2006,15 @@ pub extern "C" fn hosted_tty_enable_raw_mode() {
     let _ = enable_raw_mode();
 }
 
+// TODO(https://github.com/roc-lang/roc/issues/10163): revert to a bare u128
+// return once the compiler emits the clang/Rust u128 return convention on
+// x86_64-windows; bare u128 returns are currently misread there.
 #[no_mangle]
-pub extern "C" fn hosted_utc_now() -> u128 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("time went backwards")
-        .as_nanos()
+pub extern "C" fn hosted_utc_now() -> HostUtcNowResult {
+    match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        Ok(duration) => try_utc_now_ok(duration.as_nanos()),
+        Err(_) => try_utc_now_err(),
+    }
 }
 
 #[no_mangle]

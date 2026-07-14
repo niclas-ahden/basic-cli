@@ -28,6 +28,23 @@ jobs:
       - name: Format, check, and test examples
         run: ./scripts/test.py --operation validate
 
+  validate-windows:
+    name: validate sources (windows)
+    runs-on: windows-2025
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427 # ratchet:roc-lang/setup-roc@v0.3.0
+        with:
+          version: nightly-new-compiler
+      - uses: dtolnay/rust-toolchain@1.83.0
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Format, check, and test examples
+        shell: bash
+        run: ./scripts/test.py --operation validate
+
   build-examples:
     name: build examples (${{ matrix.target }})
     needs: validate

@@ -3995,6 +3995,71 @@ const _: () = assert!(core::mem::align_of::<HostTcpWriteResult>() == 4, "HostTcp
 #[cfg(target_pointer_width = "32")]
 const _: () = assert!(core::mem::offset_of!(HostTcpWriteResult, tag) == 12, "HostTcpWriteResult tag offset mismatch");
 
+/// Tag discriminant for Try.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostUtcNowResultTag {
+    Err = 0,
+    Ok = 1,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union HostUtcNowResultPayload {
+    pub err: [u8; 0],
+    pub ok: core::mem::ManuallyDrop<u128>,
+}
+
+#[cfg(target_pointer_width = "32")]
+#[repr(align(16))]
+#[derive(Clone, Copy)]
+pub struct HostUtcNowResultPayloadAlignment;
+
+/// Tag union: Try
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostUtcNowResult {
+    pub _payload_alignment: [HostUtcNowResultPayloadAlignment; 0],
+    pub payload: [u8; 16],
+    pub tag: HostUtcNowResultTag,
+}
+
+/// Tag union: Try
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostUtcNowResult {
+    pub payload: HostUtcNowResultPayload,
+    pub tag: HostUtcNowResultTag,
+}
+
+impl HostUtcNowResult {
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_ok(&self) -> u128 {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const u128) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_ok(&self) -> u128 {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.ok) }
+    }
+
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<HostUtcNowResult>() == 32, "HostUtcNowResult size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<HostUtcNowResult>() == 16, "HostUtcNowResult alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::offset_of!(HostUtcNowResult, tag) == 16, "HostUtcNowResult tag offset mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<HostUtcNowResult>() == 32, "HostUtcNowResult size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<HostUtcNowResult>() == 16, "HostUtcNowResult alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::offset_of!(HostUtcNowResult, tag) == 16, "HostUtcNowResult tag offset mismatch");
+
 /// Tag discriminant for AARCH64OrARMOrOTHEROrX64OrX86.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4290,14 +4355,14 @@ const _: () = assert!(core::mem::offset_of!(OsStr, tag) == 12, "OsStr tag offset
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TryType203Tag {
+pub enum TryType205Tag {
     Err = 0,
     Ok = 1,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub union TryType203Payload {
+pub union TryType205Payload {
     pub err: core::mem::ManuallyDrop<i32>,
     pub ok: [u8; 0],
 }
@@ -4305,28 +4370,28 @@ pub union TryType203Payload {
 #[cfg(target_pointer_width = "32")]
 #[repr(align(4))]
 #[derive(Clone, Copy)]
-pub struct TryType203PayloadAlignment;
+pub struct TryType205PayloadAlignment;
 
 /// Tag union: Try
 #[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct TryType203 {
-    pub _payload_alignment: [TryType203PayloadAlignment; 0],
+pub struct TryType205 {
+    pub _payload_alignment: [TryType205PayloadAlignment; 0],
     pub payload: [u8; 4],
-    pub tag: TryType203Tag,
+    pub tag: TryType205Tag,
 }
 
 /// Tag union: Try
 #[cfg(not(target_pointer_width = "32"))]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct TryType203 {
-    pub payload: TryType203Payload,
-    pub tag: TryType203Tag,
+pub struct TryType205 {
+    pub payload: TryType205Payload,
+    pub tag: TryType205Tag,
 }
 
-impl TryType203 {
+impl TryType205 {
     #[cfg(target_pointer_width = "32")]
     pub fn payload_err(&self) -> i32 {
         unsafe { core::ptr::read(self.payload.as_ptr() as *const i32) }
@@ -4340,17 +4405,17 @@ impl TryType203 {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::size_of::<TryType203>() == 8, "TryType203 size mismatch");
+const _: () = assert!(core::mem::size_of::<TryType205>() == 8, "TryType205 size mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::align_of::<TryType203>() == 4, "TryType203 alignment mismatch");
+const _: () = assert!(core::mem::align_of::<TryType205>() == 4, "TryType205 alignment mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::offset_of!(TryType203, tag) == 4, "TryType203 tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(TryType205, tag) == 4, "TryType205 tag offset mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::size_of::<TryType203>() == 8, "TryType203 size mismatch");
+const _: () = assert!(core::mem::size_of::<TryType205>() == 8, "TryType205 size mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::align_of::<TryType203>() == 4, "TryType203 alignment mismatch");
+const _: () = assert!(core::mem::align_of::<TryType205>() == 4, "TryType205 alignment mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::offset_of!(TryType203, tag) == 4, "TryType203 tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(TryType205, tag) == 4, "TryType205 tag offset mismatch");
 
 /// Return type record for Host.env_platform!
 /// Fields ordered by compiler-emitted ABI offsets.
@@ -6797,6 +6862,35 @@ impl HostTcpWriteResult {
     }
 }
 
+impl HostUtcNowResult {
+    /// Recursively decrement Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted payload.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        let _ = roc_host;
+        match value.tag {
+            HostUtcNowResultTag::Err => {},
+            HostUtcNowResultTag::Ok => {},
+        }
+    }
+
+    /// Increment Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        let _ = amount;
+        match value.tag {
+            HostUtcNowResultTag::Err => {},
+            HostUtcNowResultTag::Ok => {},
+        }
+    }
+}
+
 impl AnonStructBca0d23b5d625934 {
     /// Recursively decrement Roc-owned fields.
     ///
@@ -7007,7 +7101,7 @@ impl OsStr {
     }
 }
 
-impl TryType203 {
+impl TryType205 {
     /// Recursively decrement Roc-owned payloads.
     ///
     /// # Safety
@@ -7016,8 +7110,8 @@ impl TryType203 {
         let value = self;
         let _ = roc_host;
         match value.tag {
-            TryType203Tag::Err => {},
-            TryType203Tag::Ok => {},
+            TryType205Tag::Err => {},
+            TryType205Tag::Ok => {},
         }
     }
 
@@ -7030,8 +7124,8 @@ impl TryType203 {
         let value = self;
         let _ = amount;
         match value.tag {
-            TryType203Tag::Err => {},
-            TryType203Tag::Ok => {},
+            TryType205Tag::Err => {},
+            TryType205Tag::Ok => {},
         }
     }
 }
@@ -7295,8 +7389,8 @@ unsafe extern "C" {
     pub fn hosted_tty_enable_raw_mode();
 
     /// Hosted symbol for Host.utc_now!
-    /// Roc signature: {} => U128
-    pub fn hosted_utc_now() -> u128;
+    /// Roc signature: {} => Try(U128, [ClockBeforeEpoch])
+    pub fn hosted_utc_now() -> HostUtcNowResult;
 
 }
 

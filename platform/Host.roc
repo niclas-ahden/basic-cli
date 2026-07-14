@@ -106,7 +106,11 @@ Host :: [].{
 	tty_enable_raw_mode! : () => {}
 	tty_disable_raw_mode! : () => {}
 
-	utc_now! : () => U128
+	# TODO(https://github.com/roc-lang/roc/issues/10163): revert to a bare U128
+	# return once the compiler emits the clang/Rust u128 return convention on
+	# x86_64-windows; bare U128 returns are currently misread there, while
+	# Try-wrapped results cross the boundary correctly on every target.
+	utc_now! : () => Try(U128, [ClockBeforeEpoch])
 
 	# New hosted functions are kept at the end to avoid renumbering existing
 	# generated glue more than necessary.
