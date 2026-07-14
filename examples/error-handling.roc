@@ -9,34 +9,27 @@ import pf.Path
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
+
+	file_name : Path
 	file_name = "test-file.txt"
-	file_display = Path.display(file_name)
 
 	# Try to read a file that doesn't exist - should error
-	result = File.read_utf8!("nonexistent-file.txt")
-	match result {
+	match File.read_utf8!("nonexistent-file.txt") {
 		Ok(content) => Err(UnexpectedReadSuccess(content))?
-		Err(FileErr(NotFound)) => {
-			Stdout.line!("Expected error: File not found (NotFound)")?
-		}
-		Err(FileErr(PermissionDenied)) => {
-			Stdout.line!("Error: Permission denied")?
-		}
-		Err(FileErr(Other(msg))) => {
-			Stdout.line!("Error: ${msg}")?
-		}
-		Err(_) => {
-			Stdout.line!("Error: Other file error")?
-		}
+		Err(FileErr(NotFound)) => Stdout.line!("Expected error: File not found (NotFound)")?
+		Err(FileErr(PermissionDenied)) => Stdout.line!("Error: Permission denied")?
+		Err(FileErr(Other(msg))) => Stdout.line!("Error: ${msg}")?
+		Err(_) => Stdout.line!("Error: Other file error")?
 	}
 
-	File.write_utf8!(file_name, "Hello from error-handling example!") ? |err| FileWriteFailed(err)
+	file_name.write_utf8!("Hello from error-handling example!") ? |err| FileWriteFailed(err)
 
-	content = File.read_utf8!(file_name) ? |err| FileReadFailed(err)
+	content = file_name.read_utf8!() ? |err| FileReadFailed(err)
 
 	# Cleanup
-	File.delete!(file_name) ? |err| FileDeleteFailed(err)
+	file_name.delete!() ? |err| FileDeleteFailed(err)
 
-	Stdout.line!("${file_display} contains: ${content}")?
+	Stdout.line!("${file_name.display()} contains: ${content}")?
+
 	Ok({})
 }

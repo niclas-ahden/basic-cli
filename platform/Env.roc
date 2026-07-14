@@ -1,14 +1,13 @@
 import Host
 import IOErr exposing [IOErr]
 import OsStr exposing [OsStr]
-import path.Path as PackagePath
+import Path
 
 ## Read and modify the process environment without losing native OS strings.
 ##
 ## Variable names and values use [`OsStr`](OsStr) because Unix environment data
 ## is not required to be UTF-8. Use [`var_str!`](#var_str!) when an application
-## specifically requires text. Paths use the shared
-## [`roc-lang/path`](https://github.com/roc-lang/path) `Path` type.
+## specifically requires text. Paths use basic-cli's byte-preserving `Path` type.
 Env := [].{
     ## Report the architecture and operating system for which the host was built.
     platform! : () => {
@@ -53,10 +52,10 @@ Env := [].{
     ## from the environment.
     ##
     ## Returns `Err(CwdUnavailable)` if the cwd cannot be determined.
-    cwd! : () => Try(PackagePath.Path, [CwdUnavailable, ..])
+    cwd! : () => Try(Path.Path, [CwdUnavailable, ..])
     cwd! = ||
         match Host.env_cwd!() {
-            Ok(raw) => Ok(PackagePath.from_raw(raw)),
+            Ok(raw) => Ok(Path.from_raw(raw)),
             Err(CwdUnavailable) => Err(CwdUnavailable),
         }
 
@@ -64,22 +63,22 @@ Env := [].{
     ##
     ## Returns `Err(InvalidCwd(err))` when the path cannot be used as a working
     ## directory. The process-wide change remains in effect until changed again.
-    set_cwd! : PackagePath.Path => Try({}, [InvalidCwd(IOErr), ..])
+    set_cwd! : Path.Path => Try({}, [InvalidCwd(IOErr), ..])
     set_cwd! = |path|
-        Host.env_set_cwd!(PackagePath.to_raw(path))
+        Host.env_set_cwd!(Path.to_raw(path))
             .map_err(|err| InvalidCwd(err))
 
     ## Gets the path to the currently-running executable.
     ##
     ## Returns `Err(ExePathUnavailable)` if the path cannot be determined.
-    exe_path! : () => Try(PackagePath.Path, [ExePathUnavailable, ..])
+    exe_path! : () => Try(Path.Path, [ExePathUnavailable, ..])
     exe_path! = ||
         match Host.env_exe_path!() {
-            Ok(raw) => Ok(PackagePath.from_raw(raw)),
+            Ok(raw) => Ok(Path.from_raw(raw)),
             Err(ExePathUnavailable) => Err(ExePathUnavailable),
         }
 
     ## Gets the default directory for temporary files.
-    temp_dir! : () => PackagePath.Path
-    temp_dir! = || PackagePath.from_raw(Host.env_temp_dir!())
+    temp_dir! : () => Path.Path
+    temp_dir! = || Path.from_raw(Host.env_temp_dir!())
 }

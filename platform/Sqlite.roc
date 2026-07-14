@@ -1,13 +1,12 @@
 import InternalSqlite
 import Host
-import path.Path as PackagePath
+import Path
 
 ## Execute SQLite statements and decode rows using either one-shot or reusable
 ## prepared APIs. Application code works with the public `Value`, `Binding`,
 ## `Stmt`, and `ErrCode` types below; raw host ABI records remain internal.
 ##
-## Paths are the shared [`roc-lang/path`](https://github.com/roc-lang/path)
-## `Path` type, so database paths can be exchanged with other packages.
+## Database paths use basic-cli's byte-preserving `Path` type.
 # Porting notes for the new (zig) compiler: the decoder combinator API is written
 # with fully-literal nested lambdas (`|name| |cols| |stmt| ...`) and relies on
 # structural type inference. This is deliberate — the current compiler (a) treats
@@ -89,12 +88,12 @@ Sqlite := [].{
     DecodeErr : [NoSuchField(Str), SqliteErr(ErrCode, Str)]
 
     ## Prepare a `Stmt` for reuse by the prepared execute and query operations.
-    prepare! : { path : PackagePath.Path, query : Str } => Try(Stmt, [SqliteErr(ErrCode, Str), ..])
+    prepare! : { path : Path.Path, query : Str } => Try(Stmt, [SqliteErr(ErrCode, Str), ..])
     prepare! = |{ path, query: q }|
-        sqlite_prepare!(PackagePath.to_raw(path), q)
+        sqlite_prepare!(Path.to_raw(path), q)
 
     ## Execute a SQL statement that **doesn't return any rows** (INSERT/UPDATE/DELETE).
-    execute! : { path : PackagePath.Path, query : Str, bindings : List(Binding) } => Try({}, [RowsReturnedUseQueryInstead, SqliteErr(ErrCode, Str), ..])
+    execute! : { path : Path.Path, query : Str, bindings : List(Binding) } => Try({}, [RowsReturnedUseQueryInstead, SqliteErr(ErrCode, Str), ..])
     execute! = |{ path, query: q, bindings }| {
         stmt = prepare!({ path, query: q })?
         execute_prepared!({ stmt, bindings })
