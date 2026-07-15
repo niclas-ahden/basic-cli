@@ -8,7 +8,7 @@ on:
       - ".github/workflows/deploy-docs.yml"
       - "docs/**"
       - "platform/**"
-      - "www/**"
+      - "scripts/restore_release_docs.sh"
   workflow_dispatch:
 
 concurrency:
@@ -42,14 +42,10 @@ jobs:
         with:
           version: nightly-new-compiler
 
-      - name: Create Pages tree
-        run: |
-          mkdir -p temp_docs
-          if [ -d www ]; then
-            cp -R www/. temp_docs/
-          else
-            sed 's/LATESTVERSION/main/g' docs/index.html > temp_docs/index.html
-          fi
+      - name: Restore released docs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/restore_release_docs.sh temp_docs
 
       - name: Generate main branch docs
         env:

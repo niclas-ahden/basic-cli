@@ -132,7 +132,8 @@ simple-http-server --nocache --index
 ```
 
 The release workflow attaches `docs.tar.gz`, updates checked-in examples to the
-new bundle URL, generates versioned docs under `www/`, and opens a follow-up PR
-for those source changes. It also deploys the validated docs immediately. After
-the follow-up PR merges, the Pages workflow deploys the committed release docs
-plus freshly generated `main` docs.
+new bundle URL, and opens a follow-up PR for those source changes. It also
+reconstructs the versioned documentation site from release assets and deploys
+the validated docs immediately. The Pages workflow performs the same
+reconstruction and adds freshly generated `main` docs without committing
+generated documentation to the repository.

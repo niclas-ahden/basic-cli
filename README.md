@@ -15,14 +15,20 @@ The [examples](examples/) directory contains executable, application-shaped CLI
 programs for common tasks like reading files, running commands, constructing
 URLs, making HTTP requests, working with SQLite, and reading stdin.
 
-If you want to run an example without building `basic-cli` from source, use a released bundle URL in place of `"../platform/main.roc"`. To run examples from a local checkout, build the platform first; see [CONTRIBUTING.md](CONTRIBUTING.md).
+The examples are pinned to the [`0.21.0-rc4` release](https://github.com/roc-lang/basic-cli/releases/tag/0.21.0-rc4):
+
+```roc
+app [main!] { pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.21.0-rc4/FvCh4vdqm3nBY6DWEfZ8RuGCVfjuMY43HA8KSNk9qVDn.tar.zst" }
+```
+
+To run examples from a local checkout instead, build the platform first and use `"../platform/main.roc"`; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 HTTP examples use Roc's builtin `Json` parser and encoder directly through
 `Http.get!` and `Http.send_json!`.
 
 ## Documentation
 
-- [latest release](https://roc-lang.github.io/basic-cli/)
+- [`0.21.0-rc4` release documentation](https://roc-lang.github.io/basic-cli/0.21.0-rc4/)
 - [latest main branch](https://roc-lang.github.io/basic-cli/main/)
 
 ## Help
