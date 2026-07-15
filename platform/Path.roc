@@ -1,7 +1,6 @@
 import IOErr exposing [IOErr]
 import Host
 import OsStr exposing [OsStr]
-import PathEncoding
 
 ## Construct and operate on byte-preserving paths. Native Unix
 ## bytes and Windows UTF-16 units are preserved across host effects; use
@@ -183,23 +182,9 @@ Path := [
 	from_interpolation = |first, rest|
 		Utf8(rest.fold(first, |acc, (interpolated, segment)| acc.concat(interpolated).concat(segment)))
 
-	## Parse and encode every path representation as a lossless tagged value.
-	parser_for : _
-	parser_for = |encoding| {
-		parse_raw = PathEncoding.parser_for(encoding)
-
-		|state| {
-			parsed = parse_raw(state)?
-			Ok({ value: path_from_encoding(parsed.value), rest: parsed.rest })
-		}
-	}
-
-	encoder_for : _
-	encoder_for = |encoding| {
-		encode_raw = PathEncoding.encoder_for(encoding)
-
-		|path, state| encode_raw(path_to_encoding(path), state)
-	}
+	## TODO: Restore generic parser_for and encoder_for helpers when the compiler
+	## no longer treats auto-derived `_` declarations in platforms as hosted:
+	## https://github.com/roc-lang/roc/issues/10162
 
 	## Create a Unix path from a Roc string by storing its UTF-8 bytes.
 	unix : Str -> Path
@@ -353,25 +338,6 @@ Path := [
 			WindowsU16s(u16s) => Windows(u16s)
 		}
 }
-
-path_from_encoding : PathEncoding -> Path
-path_from_encoding = |encoded|
-	match encoded {
-		Utf8(str) => Path.utf8(str)
-		UnixBytes(bytes) => Path.unix_bytes(bytes)
-		WindowsU16s(u16s) => Path.windows_u16s(u16s)
-	}
-
-path_to_encoding : Path -> PathEncoding
-path_to_encoding = |path|
-	match Path.to_raw(path) {
-		Utf8(str) => PathEncoding.Utf8(str)
-		UnixBytes(bytes) => PathEncoding.UnixBytes(bytes)
-		WindowsU16s(u16s) => PathEncoding.WindowsU16s(u16s)
-	}
-
-expect path_from_encoding(PathEncoding.WindowsU16s([0xD800, 97])) == Path.windows_u16s([0xD800, 97])
-expect path_to_encoding(Path.unix_bytes([97, 255])) == PathEncoding.UnixBytes([97, 255])
 
 map_file_result : Try(a, [FileErr(IOErr)]) -> Try(a, [PathErr(IOErr), ..])
 map_file_result = |result|
