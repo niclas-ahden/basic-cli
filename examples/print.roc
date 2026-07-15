@@ -1,31 +1,28 @@
+## Write lines, text, and lists to standard output and standard error.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Stdout
 import pf.Stderr
-import pf.Arg exposing [Arg]
 
-# Printing to stdout and stderr
+main! : List(OsStr) => Try({}, _)
+main! = |_args| {
+	# Print a string to stdout
+	Stdout.line!("Hello, world!")?
 
-# To run this example: check the README.md in this folder
+	# Print without a newline
+	Stdout.write!("No newline after me.")?
 
-main! : List Arg => Result {} _
-main! = |_args|
-    
-    # # Print a string to stdout
-    Stdout.line!("Hello, world!")?
+	# Print a string to stderr
+	Stderr.line!("Hello, error!")?
 
-    # # Print without a newline
-    Stdout.write!("No newline after me.")?
+	# Print a string to stderr without a newline
+	Stderr.write!("Err with no newline after.")?
 
-    # # Print a string to stderr
-    Stderr.line!("Hello, error!")?
+	# Print a list to stdout
+	for str in ["Foo", "Bar", "Baz"] {
+		Stdout.line!(str)?
+	}
 
-    # # Print a string to stderr without a newline
-    Stderr.write!("Err with no newline after.")?
-
-    # # Print a list to stdout
-    ["Foo", "Bar", "Baz"]
-    |> List.for_each_try!(|str| Stdout.line!(str))
-    
-    # Use List.map! if you want to apply an effectful function that returns something.
-    # Use List.map_try! if you want to apply an effectful function that returns a Result.
+	Ok({})
+}

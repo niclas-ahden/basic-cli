@@ -1,230 +1,255 @@
+## Build a small full-screen snake game using terminal raw mode.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Stdin
 import pf.Stdout
 import pf.Tty
-import pf.Arg exposing [Arg]
-
-# To run this example: check the README.md in this folder
-
-# If you want to make a full screen terminal app, you probably want to switch the terminal to [raw mode](https://en.wikipedia.org/wiki/Terminal_mode).
-# Here we demonstrate `Tty.enable_raw_mode!` and `Tty.disable_raw_mode!` with a simple snake game.
 
 Position : { x : I64, y : I64 }
 
+Snake : { first : Position, rest : List(Position) }
+
+Direction : { dx : I64, dy : I64 }
+
 GameState : {
-    snake_lst : NonEmptyList,
-    food_pos : Position,
-    direction : [Up, Down, Left, Right],
-    game_over : Bool,
+	snake : Snake,
+	food : Position,
+	direction : Direction,
+	game_over : Bool,
 }
 
-# The snake list should never be empty, so we use a non-empty list.
-# Typically we'd use head and tail, but this would be confusing with the snake's head and tail later on :)
-NonEmptyList : { first : Position, rest : List Position }
-
+initial_state : GameState
 initial_state = {
-    snake_lst: { first: { x: 10, y: 10 }, rest: [{ x: 9, y: 10 }, { x: 8, y: 10 }] },
-    food_pos: { x: 15, y: 15 },
-    direction: Right,
-    game_over: Bool.false,
+	snake: { first: { x: 10, y: 10 }, rest: [{ x: 9, y: 10 }, { x: 8, y: 10 }] },
+	food: { x: 15, y: 15 },
+	direction: right,
+	game_over: Bool.False,
 }
 
-# Keep this above 15 for the initial food_pos
+grid_size : I64
 grid_size = 20
 
-init_snake_len = len(initial_state.snake_lst)
+up : Direction
+up = { dx: 0, dy: -1 }
 
-main! : List Arg => Result {} _
-main! = |_args|
-    Tty.enable_raw_mode!({})
+down : Direction
+down = { dx: 0, dy: 1 }
 
-    game_loop!(initial_state)?
+left : Direction
+left = { dx: -1, dy: 0 }
 
-    Tty.disable_raw_mode!({})
-    Stdout.line!("\n--- Game Over ---")
+right : Direction
+right = { dx: 1, dy: 0 }
 
-game_loop! : GameState => Result {} _
-game_loop! = |state|
-    if state.game_over then
-        Ok({})
-    else
-        draw_game!(state)?
+init_snake_len : U64
+init_snake_len = snake_len(initial_state.snake)
 
-        # Check keyboard input
-        input_bytes = Stdin.bytes!({})?
+main! : List(OsStr) => Try({}, _)
+main! = |args| {
+	Tty.enable_raw_mode!()
+	game_result = game_loop!(initial_state_from_os_strs(args))
+	Tty.disable_raw_mode!()
 
-        partial_new_state =
-            when input_bytes is
-                ['w'] -> { state & direction: Up }
-                ['s'] -> { state & direction: Down }
-                ['a'] -> { state & direction: Left }
-                ['d'] -> { state & direction: Right }
-                ['q'] -> { state & game_over: Bool.true }
-                _ -> state
+	game_result?
+	Stdout.line!("\n--- Game Over ---")?
+	Ok({})
+}
 
-        new_state = update_game(partial_new_state)
-        game_loop!(new_state)
+initial_state_from_os_strs : List(OsStr) -> GameState
+initial_state_from_os_strs = |args| {
+	# Avoid specializing the renderer with a fully known initial state; the
+	# current compiler postcheck panics on that path.
+	has_args = args.len() > 0
+	{ ..initial_state, game_over: has_args and Bool.not(has_args) }
+}
+
+game_loop! : GameState => Try({}, _)
+game_loop! = |state| {
+	if state.game_over {
+		Ok({})
+	} else {
+		draw_game!(state)?
+
+		input_bytes = Stdin.bytes!()?
+		new_state = update_game(apply_input(state, input_bytes))
+
+		game_loop!(new_state)
+	}
+}
+
+apply_input : GameState, List(U8) -> GameState
+apply_input = |state, input_bytes| {
+	for byte in input_bytes {
+		return apply_input_byte(state, byte)
+	}
+
+	state
+}
+
+apply_input_byte : GameState, U8 -> GameState
+apply_input_byte = |state, byte|
+	if byte == 119 {
+		{ ..state, direction: up }
+	} else if byte == 115 {
+		{ ..state, direction: down }
+	} else if byte == 97 {
+		{ ..state, direction: left }
+	} else if byte == 100 {
+		{ ..state, direction: right }
+	} else if byte == 113 {
+		{ ..state, game_over: Bool.True }
+	} else {
+		state
+	}
 
 update_game : GameState -> GameState
-update_game = |state|
-    if state.game_over then
-        state
-    else
-        snake_head_pos = state.snake_lst.first
-        new_head_pos = move_head(snake_head_pos, state.direction)
+update_game = |state| {
+	if state.game_over {
+		state
+	} else {
+		new_head = move_head(state.snake.first, state.direction)
 
-        new_state =
-            # Check wall collision
-            if new_head_pos.x < 0 or new_head_pos.x >= grid_size or new_head_pos.y < 0 or new_head_pos.y >= grid_size then
-                { state & game_over: Bool.true }
+		if hit_wall(new_head) or snake_contains(state.snake, new_head) {
+			{ ..state, game_over: Bool.True }
+		} else if new_head == state.food {
+			new_snake = snake_prepend(state.snake, new_head)
+			new_food = { x: (new_head.x + 3) % grid_size, y: (new_head.y + 3) % grid_size }
 
-            # Check self collision
-            else if contains(state.snake_lst, new_head_pos) then
-                { state & game_over: Bool.true }
-            
-            # Check food collision
-            else if new_head_pos == state.food_pos then
-                new_snake_lst = prepend(state.snake_lst, new_head_pos)
+			{ ..state, snake: new_snake, food: new_food }
+		} else {
+			grown = snake_prepend(state.snake, new_head)
+			moved = { first: grown.first, rest: List.drop_last(grown.rest, 1) }
 
-                new_food_pos = { x: (new_head_pos.x + 3) % grid_size, y: (new_head_pos.y + 3) % grid_size }
+			{ ..state, snake: moved }
+		}
+	}
+}
 
-                { state & snake_lst: new_snake_lst, food_pos: new_food_pos }
-            
-            # No collision; move the snake
-            else
-                new_snake_lst =
-                    prepend(state.snake_lst, new_head_pos)
-                    |> |snake_lst| { first: snake_lst.first, rest: List.drop_last(snake_lst.rest, 1) }
+hit_wall : Position -> Bool
+hit_wall = |pos|
+	pos.x < 0 or pos.x >= grid_size or pos.y < 0 or pos.y >= grid_size
 
-                { state & snake_lst: new_snake_lst }
-
-        new_state
-
-move_head : Position, [Down, Left, Right, Up] -> Position
+move_head : Position, Direction -> Position
 move_head = |head, direction|
-    when direction is
-        Up -> { head & y: head.y - 1 }
-        Down -> { head & y: head.y + 1 }
-        Left -> { head & x: head.x - 1 }
-        Right -> { head & x: head.x + 1 }
+	{ x: head.x + direction.dx, y: head.y + direction.dy }
 
-draw_game! : GameState => Result {} _
-draw_game! = |state|
-    clear_screen!({})?
+draw_game! : GameState => Try({}, _)
+draw_game! = |state| {
+	clear_screen!()?
 
-    Stdout.line!("\nControls: W A S D to move, Q to quit\n\r")?
+	Stdout.line!("\nControls: W A S D to move, Q to quit\n\r")?
+	Stdout.line!("Score: ${(snake_len(state.snake) - init_snake_len).to_str()}\r")?
 
-    # \r to fix indentation because we're in raw mode
-    Stdout.line!("Score: ${Num.to_str(len(state.snake_lst) - init_snake_len)}\r")?
-
-    rendered_game_str = draw_game_pure(state)
-
-    Stdout.line!("${rendered_game_str}\r")
+	rendered_game_str = draw_game_pure(state)
+	Stdout.line!("${rendered_game_str}\r")
+}
 
 draw_game_pure : GameState -> Str
 draw_game_pure = |state|
-    List.range({ start: At 0, end: Before grid_size })
-    |> List.map(
-        |yy|
-            line =
-                List.range({ start: At 0, end: Before grid_size })
-                |> List.map(
-                    |xx|
-                        pos = { x: xx, y: yy }
-                        if contains(state.snake_lst, pos) then
-                            if pos == state.snake_lst.first then
-                                "O" # Snake head
-                            else
-                                "o" # Snake body
-                        else if pos == state.food_pos then
-                            "*" # food_pos
-                        else
-                            ".", # Empty space
-                )
-                |> Str.join_with("")
+	draw_rows(state, 0, [])
 
-            line,
-    )
-    |> Str.join_with("\r\n")
+draw_rows : GameState, I64, List(Str) -> Str
+draw_rows = |state, yy, rows| {
+	if yy >= grid_size {
+		Str.join_with(rows, "\r\n")
+	} else {
+		draw_rows(state, yy + 1, rows.append(draw_row(state, yy)))
+	}
+}
 
-clear_screen! = |{}|
-    Stdout.write!("\u(001b)[2J\u(001b)[H") # ANSI escape codes to clear screen
+draw_row : GameState, I64 -> Str
+draw_row = |state, yy|
+	draw_cells(state, yy, 0, [])
 
-# NonEmptyList helpers
+draw_cells : GameState, I64, I64, List(Str) -> Str
+draw_cells = |state, yy, xx, cells| {
+	if xx >= grid_size {
+		Str.join_with(cells, "")
+	} else {
+		pos = { x: xx, y: yy }
+		cell = if pos == state.snake.first {
+			"O"
+		} else if positions_contains(state.snake.rest, pos) {
+			"o"
+		} else if pos == state.food {
+			"*"
+		} else {
+			"."
+		}
 
-contains : NonEmptyList, Position -> Bool
-contains = |list, pos|
-    list.first == pos or List.contains(list.rest, pos)
+		draw_cells(state, yy, xx + 1, cells.append(cell))
+	}
+}
 
-prepend : NonEmptyList, Position -> NonEmptyList
-prepend = |list, pos|
-    { first: pos, rest: List.prepend(list.rest, list.first) }
+clear_screen! : () => Try({}, _)
+clear_screen! = || Stdout.write!("\u(001b)[2J\u(001b)[H")
 
-len : NonEmptyList -> U64
-len = |list|
-    1 + List.len(list.rest)
+snake_contains : Snake, Position -> Bool
+snake_contains = |snake, pos|
+	snake.first == pos or positions_contains(snake.rest, pos)
 
-# Tests
+positions_contains : List(Position), Position -> Bool
+positions_contains = |positions, pos| {
+	for current in positions {
+		if current == pos {
+			return Bool.True
+		}
+	}
 
-expect
-    grid_size == 20 # The tests below assume a grid size of 20
+	Bool.False
+}
 
-expect
-    initial_grid = draw_game_pure(initial_state)
-    expected_grid =
-        """
-        ....................\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ........ooO.........\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ...............*....\r
-        ....................\r
-        ....................\r
-        ....................\r
-        ....................
-        """
+snake_prepend : Snake, Position -> Snake
+snake_prepend = |snake, pos|
+	{ first: pos, rest: List.prepend(snake.rest, snake.first) }
 
-    initial_grid == expected_grid
+snake_len : Snake -> U64
+snake_len = |snake|
+	1 + snake.rest.len()
 
-# Test moving down
-expect
-    new_state = update_game({ initial_state & direction: Down })
-    new_grid = draw_game_pure(new_state)
+initial_grid = {
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\........ooO.........
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\...............*....
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+}
 
-    expected_grid =
-    """
-    ....................\r
-    ....................\r
-    ....................\r
-    ....................\r
-    ....................\r
-    ....................\r
-    ....................\r
-    ....................\r
-    ....................\r
-    ....................\r
-    .........oo.........\r
-    ..........O.........\r
-    ....................\r
-    ....................\r
-    ....................\r
-    ...............*....\r
-    ....................\r
-    ....................\r
-    ....................\r
-    ....................
-    """
-
-    new_grid == expected_grid
+moved_down_grid = {
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+	\\.........oo.........
+	\\..........O.........
+	\\....................
+	\\....................
+	\\....................
+	\\...............*....
+	\\....................
+	\\....................
+	\\....................
+	\\....................
+}

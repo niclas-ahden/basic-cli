@@ -5,29 +5,30 @@
 
 # basic-cli
 
-A Roc [platform](https://github.com/roc-lang/roc/wiki/Roc-concepts-explained#platform) to work with files, commands, HTTP, TCP, command line arguments,...
+A Roc [platform](https://github.com/roc-lang/roc/wiki/Roc-concepts-explained#platform) for command-line programs.
 
-:eyes: **examples**:
-  - [0.20.0](https://github.com/roc-lang/basic-cli/tree/0.20.0/examples)
-  - [0.19.0](https://github.com/roc-lang/basic-cli/tree/0.19.0/examples)
-  - [0.18.0](https://github.com/roc-lang/basic-cli/tree/0.18.0/examples)
-  - [latest main branch](https://github.com/roc-lang/basic-cli/tree/main/examples)
+`basic-cli` supports command execution, directories, environment variables, files, HTTP, locales, paths, random seeds, sleeping, SQLite, standard input/output/error, TCP, terminal raw mode, and UTC time.
 
-:book: **documentation**:
-  - [0.20.0](https://roc-lang.github.io/basic-cli/0.20.0/)
-  - [0.19.0](https://roc-lang.github.io/basic-cli/0.19.0/)
-  - [0.18.0](https://roc-lang.github.io/basic-cli/0.18.0/)
-  - [latest main branch](https://roc-lang.github.io/basic-cli/main/)
+## Examples
 
-## Running Locally
+The [examples](examples/) directory contains executable, application-shaped CLI
+programs for common tasks like reading files, running commands, constructing
+URLs, making HTTP requests, working with SQLite, and reading stdin.
 
-If you clone this repo instead of using the release URL you'll need to build the platform once:
-```sh
-./jump-start.sh
-roc build.roc --linker=legacy
-```
-Then you can run like usual:
-```sh
-$ roc examples/hello-world.roc
-Hello, World!
-```
+If you want to run an example without building `basic-cli` from source, use a released bundle URL in place of `"../platform/main.roc"`. To run examples from a local checkout, build the platform first; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+HTTP examples use Roc's builtin `Json` parser and encoder directly through
+`Http.get!` and `Http.send_json!`.
+
+## Documentation
+
+- [latest release](https://roc-lang.github.io/basic-cli/)
+- [latest main branch](https://roc-lang.github.io/basic-cli/main/)
+
+## Help
+
+Ask questions on [Roc Zulip](https://roc.zulipchat.com), especially in the `#beginners` stream.
+
+## Contributing
+
+Contributor setup, verification, generated glue, and documentation publishing notes live in [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -1,42 +1,49 @@
+## Create, inspect, and clean up a small directory tree.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Stdout
-import pf.Dir
 import pf.Path
-import pf.File
-import pf.Arg exposing [Arg]
 
-# Demo of all Dir functions.
+main! : List(OsStr) => Try({}, _)
+main! = |_args| {
+	# Best-effort cleanup from a previous interrupted run.
+	workspace : Path
+	workspace = "demo-workspace"
 
-# To run this example: check the README.md in this folder
+	workspace.delete_all!() ?? {}
 
-main! : List Arg => Result {} _
-main! = |_args|
+	# Create a directory
+	workspace.create_dir!()?
 
-    # Create a directory
-    Dir.create!("empty-dir")?
+	# Create a directory and its parents
+	components : Path
+	components = "demo-workspace/src/components"
 
-    dir_exists = File.is_dir!("empty-dir")?
-    expect dir_exists
+	components.create_all!()?
 
-    # Create a directory and its parents
-    Dir.create_all!("nested-dir/a/b/c")?
+	# Create a child directory
+	assets : Path
+	assets = "demo-workspace/assets"
 
-    # Create a child directory
-    Dir.create!("nested-dir/child")?
+	assets.create_dir!()?
 
-    # List the contents of a directory
-    paths_as_str =
-        Dir.list!("nested-dir")
-        |> Result.map_ok(|paths| List.map(paths, Path.display))?
+	# List the contents of a directory
+	paths = workspace.list!()?
 
-    # Check the contents of the directory
-    expect Set.from_list(paths_as_str) == Set.from_list(["nested-dir/a", "nested-dir/child"])
+	displayed = paths.map(|path| path.display())
 
-    # Delete an empty directory
-    Dir.delete_empty!("empty-dir")?
+	# Check the contents of the directory
+	expect paths.len() == 2
+	expect displayed.contains("demo-workspace/src")
+	expect displayed.contains("demo-workspace/assets")
 
-    # Delete all directories recursively
-    Dir.delete_all!("nested-dir")?
+	Stdout.line!("Workspace entries: ${Str.join_with(displayed, ", ")}")?
 
-    Stdout.line!("Success!")
+	# Delete all directories recursively
+	workspace.delete_all!()?
+
+	Stdout.line!("Workspace cleaned up.")?
+
+	Ok({})
+}

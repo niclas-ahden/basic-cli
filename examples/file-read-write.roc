@@ -1,31 +1,26 @@
+## Write a UTF-8 file, read it back, and delete it.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Stdout
-import pf.File
-import pf.Arg exposing [Arg]
+import pf.Path
 
-# To run this example: check the README.md in this folder
+main! : List(OsStr) => Try({}, _)
+main! = |_args| {
 
-main! : List Arg => Result {} _
-main! = |_args|
-    # Note: you can also import files directly if you know the path: https://www.roc-lang.org/examples/IngestFiles/README.html
-    out_file = "out.txt"
+	out_file : Path
+	out_file = "out.txt"
 
-    file_write_read!(out_file)?
+	Stdout.line!("Writing a string to out.txt")?
 
-    # Cleanup
-    File.delete!(out_file)
+	out_file.write_utf8!("a string!")?
 
-file_write_read! : Str => Result {} [FileReadErr _ _, FileReadUtf8Err _ _, FileWriteErr _ _, StdoutErr _]
-file_write_read! = |file_name|
+	contents = out_file.read_utf8!()?
 
-    Stdout.line!("Writing a string to out.txt")?
+	# Cleanup
+	out_file.delete!()?
 
-    File.write_utf8!("a string!", file_name)?
+	Stdout.line!("I read the file back. Its contents are: \"${contents}\"")?
 
-    contents = File.read_utf8!(file_name)?
-
-    Stdout.line!("I read the file back. Its contents are: \"${contents}\"")
-
-
-
+	Ok({})
+}

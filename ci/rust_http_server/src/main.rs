@@ -1,16 +1,15 @@
 /// Adapted from hyper examples examples/hello.rs and examples/web_api.rs
 /// Licensed under the MIT License.
 /// Thank you, hyper contributors!
-
 use bytes::Bytes;
-use hyper::body::Incoming;
-use std::net::SocketAddr;
-use hyper::{Method, Request, Response, StatusCode};
-use hyper::service::{service_fn};
-use hyper::server::conn::http1;
-use hyper_util::rt::TokioTimer;
-use tokio::net::TcpListener;
 use http_body_util::{BodyExt, Full};
+use hyper::body::Incoming;
+use hyper::server::conn::http1;
+use hyper::service::service_fn;
+use hyper::{Method, Request, Response, StatusCode};
+use hyper_util::rt::TokioTimer;
+use std::net::SocketAddr;
+use tokio::net::TcpListener;
 
 type GenericError = Box<dyn std::error::Error + Send + Sync>;
 type BoxBody = http_body_util::combinators::BoxBody<Bytes, hyper::Error>;
@@ -26,16 +25,40 @@ async fn handle_request(req: Request<Incoming>) -> Result<Response<BoxBody>, Gen
         (&Method::GET, "/utf8test") => {
             // UTF-8 encoded "Hello utf8"
             let utf8_bytes = "Hello utf8".as_bytes().to_vec();
-            
+
             Response::builder()
                 .status(StatusCode::OK)
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(full(Bytes::from(utf8_bytes)))?
-        },
+        }
+        (&Method::GET, "/html") => Response::builder()
+            .status(StatusCode::OK)
+            .header("Content-Type", "text/html; charset=utf-8")
+            .body(full(Bytes::from_static(
+                b"<html>\n<body>Basic CLI HTTP test</body>\n</html>",
+            )))?,
+        (&Method::GET, "/invalid-json") => Response::builder()
+            .status(StatusCode::OK)
+            .header("Content-Type", "application/json")
+            .body(full(Bytes::from_static(b"not-json")))?,
+        (&Method::GET, "/invalid-utf8") => Response::builder()
+            .status(StatusCode::OK)
+            .header("Content-Type", "application/octet-stream")
+            .body(full(Bytes::from_static(&[0xff])))?,
+        (&Method::POST, "/echo-json") => {
+            let body = req.into_body().collect().await?.to_bytes();
+
+            Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", "application/json")
+                .body(full(body))?
+        }
         _ => {
-            // Default response (original functionality)
-            // output of: Encode.to_bytes({foo: "Hello Json!"}, Json.utf8)
-            let json_bytes: Vec<u8> = vec![123, 34, 102, 111, 111, 34, 58, 34, 72, 101, 108, 108, 111, 32, 74, 115, 111, 110, 33, 34, 125];
+            // Default JSON response for `{ foo: "Hello Json!" }`.
+            let json_bytes: Vec<u8> = vec![
+                123, 34, 102, 111, 111, 34, 58, 34, 72, 101, 108, 108, 111, 32, 74, 115, 111, 110,
+                33, 34, 125,
+            ];
 
             Response::builder()
                 .status(StatusCode::OK)

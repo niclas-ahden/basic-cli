@@ -1,20 +1,18 @@
+## Print the operating system's default temporary directory.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Stdout
 import pf.Env
 import pf.Path
-import pf.Arg exposing [Arg]
 
-# To run this example: check the README.md in this folder
+main! : List(OsStr) => Try({}, _)
+main! = |_args| {
 
-# Prints the default temp dir
-#
-# !! this requires the flag `--linker=legacy`:
-# for example: `roc build examples/temp-dir.roc --linker=legacy`
+	temp_dir_path : Path
+	temp_dir_path = Env.temp_dir!()
 
-main! : List Arg => Result {} _
-main! = |_args|
+	Stdout.line!("The temp dir path is ${temp_dir_path.display()}")?
 
-    temp_dir_path_str = Path.display(Env.temp_dir!({}))
-
-    Stdout.line!("The temp dir path is ${temp_dir_path_str}")
+	Ok({})
+}

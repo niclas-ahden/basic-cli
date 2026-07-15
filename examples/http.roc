@@ -1,73 +1,37 @@
+## Fetch UTF-8, JSON, and HTML responses from a local HTTP server.
 app [main!] {
-    pf: platform "../platform/main.roc",
-    json: "https://github.com/lukewilliamboswell/roc-json/releases/download/0.13.0/RqendgZw5e1RsQa3kFhgtnMP8efWoqGRsAvubx4-zus.tar.br",
+	pf: platform "../platform/main.roc",
+	http: "https://github.com/roc-lang/http/releases/download/1.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",
 }
 
+import pf.OsStr
 import pf.Http
 import pf.Stdout
-import json.Json
-import pf.Arg exposing [Arg]
+import http.Request
+import http.Response
 
-# Demo of all basic-cli Http functions
+main! : List(OsStr) => Try({}, _)
+main! = |_args| {
 
-# To run this example: 
-# ```
-# nix develop
-# cd basic-cli/ci/rust_http_server
-# cargo run
-# ```
-# Then in another terminal: follow the steps in the README.md file of this folder.
+	hello_str = Http.get_utf8!("http://127.0.0.1:9000/utf8test") ? |err| GetUtf8Failed(err)
+	Stdout.line!("I received '${hello_str}' from the server.")?
 
-main! : List Arg => Result {} _
-main! = |_args|
+	decoded : { foo : Str }
+	decoded = Http.get!("http://127.0.0.1:9000") ? |err| GetJsonFailed(err)
 
-    # # HTTP GET a String
-    #   ----------------
+	Stdout.line!("The json I received was: { foo: \"${decoded.foo}\" }")?
 
-    hello_str : Str
-    hello_str = Http.get_utf8!("http://localhost:9000/utf8test")?
-    # If you want to see an example of the server side, see basic-cli/ci/rust_http_server/src/main.rs
+	response = Http.send!(Request.from_method(GET).with_uri("http://127.0.0.1:9000/html")) ? |err| SendHtmlFailed(err)
+	body = Str.from_utf8(response.body()) ? |err| HtmlBodyUtf8Failed(err)
 
-    Stdout.line!("I received '${hello_str}' from the server.\n")?
+	Stdout.line!("Response body:")?
+	Stdout.line!(body)?
 
-    # # Getting json
-    #   ------------
+	response_2 = Http.send!(Request.from_method(GET).with_uri("http://127.0.0.1:9000/html")) ? |err| SendSecondHtmlFailed(err)
+	body_2 = Str.from_utf8(Response.body(response_2)) ? |err| SecondHtmlBodyUtf8Failed(err)
 
-    # We decode/deserialize the json `{ "foo": "something" }` into a Roc record
+	Stdout.line!("Response body 2:")?
+	Stdout.line!(body_2)?
 
-    { foo } = Http.get!("http://localhost:9000", Json.utf8)?
-    # If you want to see an example of the server side, see basic-cli/ci/rust_http_server/src/main.rs
-
-    Stdout.line!("The json I received was: { foo: \"$(foo)\" }\n")?
-
-    # # Getting a Response record
-    #   -------------------------
-
-    response : Http.Response
-    response = Http.send!(
-        {
-            method: GET,
-            headers: [],
-            uri: "https://www.example.com",
-            body: [],
-            timeout_ms: TimeoutMilliseconds(5000),
-        },
-    )?
-
-    body_str = (Str.from_utf8(response.body))?
-
-    Stdout.line!("Response body:\n\t${body_str}.\n")?
-
-    # # Using default_request and providing a header
-    #   --------------------------------------------
-    
-    response_2 =
-        Http.default_request
-        |> &uri "https://www.example.com"
-        |> &headers [Http.header(("Accept", "text/html"))]
-        |> Http.send!()?
-
-    body_str_2 = (Str.from_utf8(response_2.body))?
-
-    # Same as above
-    Stdout.line!("Response body 2:\n\t${body_str_2}.\n")
+	Ok({})
+}

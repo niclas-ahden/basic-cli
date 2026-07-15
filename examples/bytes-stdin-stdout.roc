@@ -1,15 +1,18 @@
+## Copy raw bytes from standard input to standard output and report the total.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Stdin
 import pf.Stdout
 import pf.Stderr
-import pf.Arg exposing [Arg]
 
-# To run this example: check the README.md in this folder
+main! : List(OsStr) => Try({}, _)
+main! = |_args| {
+	data = Stdin.read_to_end!()?
 
-main! : List Arg => Result {} _
-main! = |_args|
-    data = Stdin.bytes!({})?
-    Stderr.write_bytes!(data)?
-    Stdout.write_bytes!(data)?
-    Ok {}
+	Stdout.write_bytes!(data)?
+
+	Stderr.line!("Copied ${data.len().to_str()} bytes from stdin to stdout.")?
+
+	Ok({})
+}

@@ -1,153 +1,125 @@
-hosted [
-    FileReader,
-    TcpStream,
-    command_exec_output!,
-    command_exec_exit_code!,
-    current_arch_os!,
-    cwd!,
-    dir_create!,
-    dir_create_all!,
-    dir_delete_all!,
-    dir_delete_empty!,
-    dir_list!,
-    env_dict!,
-    env_var!,
-    exe_path!,
-    file_delete!,
-    file_exists!,
-    file_read_bytes!,
-    file_reader!,
-    file_read_line!,
-    file_size_in_bytes!,
-    file_write_bytes!,
-    file_write_utf8!,
-    file_is_executable!,
-    file_is_readable!,
-    file_is_writable!,
-    file_time_accessed!,
-    file_time_modified!,
-    file_time_created!,
-    file_rename!,
-    get_locale!,
-    get_locales!,
-    hard_link!,
-    path_type!,
-    posix_time!,
-    random_u64!,
-    random_u32!,
-    send_request!,
-    set_cwd!,
-    sleep_millis!,
-    sqlite_bind!,
-    sqlite_columns!,
-    sqlite_column_value!,
-    sqlite_prepare!,
-    sqlite_reset!,
-    sqlite_step!,
-    stderr_line!,
-    stderr_write!,
-    stderr_write_bytes!,
-    stdin_bytes!,
-    stdin_line!,
-    stdin_read_to_end!,
-    stdout_line!,
-    stdout_write!,
-    stdout_write_bytes!,
-    tcp_connect!,
-    tcp_read_exactly!,
-    tcp_read_until!,
-    tcp_read_up_to!,
-    tcp_write!,
-    temp_dir!,
-    tty_mode_canonical!,
-    tty_mode_raw!,
-]
-
+import IOErr exposing [IOErr]
 import InternalHttp
-import InternalCmd
-import InternalPath
-import InternalIOErr
 import InternalSqlite
-# COMMAND
-command_exec_exit_code! : InternalCmd.Command => Result I32 InternalIOErr.IOErrFromHost
-command_exec_output! : InternalCmd.Command => Result InternalCmd.OutputFromHostSuccess (Result InternalCmd.OutputFromHostFailure InternalIOErr.IOErrFromHost)
 
-# FILE
-file_write_bytes! : List U8, List U8 => Result {} InternalIOErr.IOErrFromHost
-file_write_utf8! : List U8, Str => Result {} InternalIOErr.IOErrFromHost
-file_delete! : List U8 => Result {} InternalIOErr.IOErrFromHost
-file_read_bytes! : List U8 => Result (List U8) InternalIOErr.IOErrFromHost
-file_size_in_bytes! : List U8 => Result U64 InternalIOErr.IOErrFromHost
-file_exists! : List U8 => Result Bool InternalIOErr.IOErrFromHost
-file_is_executable! : List U8 => Result Bool InternalIOErr.IOErrFromHost
-file_is_readable! : List U8 => Result Bool InternalIOErr.IOErrFromHost
-file_is_writable! : List U8 => Result Bool InternalIOErr.IOErrFromHost
-file_time_accessed! : List U8 => Result U128 InternalIOErr.IOErrFromHost
-file_time_modified! : List U8 => Result U128 InternalIOErr.IOErrFromHost
-file_time_created! : List U8 => Result U128 InternalIOErr.IOErrFromHost
-file_rename! : List U8, List U8 => Result {} InternalIOErr.IOErrFromHost
+## Declare the hosted effects and ABI-safe data exchanged with the native host.
+Host :: [].{
+	NativeOsStr : [Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]
+	NativePath : [Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]
 
-FileReader := Box {}
-file_reader! : List U8, U64 => Result FileReader InternalIOErr.IOErrFromHost
-file_read_line! : FileReader => Result (List U8) InternalIOErr.IOErrFromHost
+	Cmd : {
+		args : List(NativeOsStr),
+		clear_envs : Bool,
+		envs : List(NativeOsStr),
+		program : NativeOsStr,
+	}
 
-dir_list! : List U8 => Result (List (List U8)) InternalIOErr.IOErrFromHost
-dir_create! : List U8 => Result {} InternalIOErr.IOErrFromHost
-dir_create_all! : List U8 => Result {} InternalIOErr.IOErrFromHost
-dir_delete_empty! : List U8 => Result {} InternalIOErr.IOErrFromHost
-dir_delete_all! : List U8 => Result {} InternalIOErr.IOErrFromHost
+	CmdOutputSuccess : {
+		stderr_bytes : List(U8),
+		stdout_bytes : List(U8),
+	}
 
-hard_link! : List U8, List U8 => Result {} InternalIOErr.IOErrFromHost
-path_type! : List U8 => Result InternalPath.InternalPathType InternalIOErr.IOErrFromHost
-cwd! : {} => Result (List U8) {}
-temp_dir! : {} => List U8
+	CmdOutputFailure : {
+		stderr_bytes : List(U8),
+		stdout_bytes : List(U8),
+		exit_code : I32,
+	}
 
-# STDIO
-stdout_line! : Str => Result {} InternalIOErr.IOErrFromHost
-stdout_write! : Str => Result {} InternalIOErr.IOErrFromHost
-stdout_write_bytes! : List U8 => Result {} InternalIOErr.IOErrFromHost
-stderr_line! : Str => Result {} InternalIOErr.IOErrFromHost
-stderr_write! : Str => Result {} InternalIOErr.IOErrFromHost
-stderr_write_bytes! : List U8 => Result {} InternalIOErr.IOErrFromHost
-stdin_line! : {} => Result Str InternalIOErr.IOErrFromHost
-stdin_bytes! : {} => Result (List U8) InternalIOErr.IOErrFromHost
-stdin_read_to_end! : {} => Result (List U8) InternalIOErr.IOErrFromHost
+	FileReader :: Box(U64)
 
-# TCP
-send_request! : InternalHttp.RequestToAndFromHost => InternalHttp.ResponseToAndFromHost
+	PathType : {
+		is_dir : Bool,
+		is_file : Bool,
+		is_sym_link : Bool,
+	}
 
-TcpStream := Box {}
-tcp_connect! : Str, U16 => Result TcpStream Str
-tcp_read_up_to! : TcpStream, U64 => Result (List U8) Str
-tcp_read_exactly! : TcpStream, U64 => Result (List U8) Str
-tcp_read_until! : TcpStream, U8 => Result (List U8) Str
-tcp_write! : TcpStream, List U8 => Result {} Str
+	SqliteStmt :: Box(U64)
 
-# SQLITE
-sqlite_prepare! : Str, Str => Result (Box {}) InternalSqlite.SqliteError
-sqlite_bind! : Box {}, List InternalSqlite.SqliteBindings => Result {} InternalSqlite.SqliteError
-sqlite_columns! : Box {} => List Str
-sqlite_column_value! : Box {}, U64 => Result InternalSqlite.SqliteValue InternalSqlite.SqliteError
-sqlite_step! : Box {} => Result InternalSqlite.SqliteState InternalSqlite.SqliteError
-sqlite_reset! : Box {} => Result {} InternalSqlite.SqliteError
+	TcpStream :: Box(U64)
 
-# OTHERS
-current_arch_os! : {} => { arch : Str, os : Str }
+	cmd_exec_exit_code! : Cmd => Try(I32, IOErr)
+	cmd_exec_output! : Cmd => Try(CmdOutputSuccess, [NonZeroExitCode(CmdOutputFailure), FailedToGetExitCode(IOErr)])
 
-get_locale! : {} => Result Str {}
-get_locales! : {} => List Str
+	dir_create! : NativePath => Try({}, [DirErr(IOErr)])
+	dir_create_all! : NativePath => Try({}, [DirErr(IOErr)])
+	dir_delete_empty! : NativePath => Try({}, [DirErr(IOErr)])
+	dir_delete_all! : NativePath => Try({}, [DirErr(IOErr)])
+	dir_list! : NativePath => Try(List(NativePath), [DirErr(IOErr)])
 
-posix_time! : {} => U128 # TODO why is this a U128 but then getting converted to a I128 in Utc.roc?
+	env_var! : NativeOsStr => Try(NativeOsStr, [VarNotFound(NativeOsStr), EnvErr(IOErr)])
+	env_cwd! : () => Try(NativePath, [CwdUnavailable])
+	env_exe_path! : () => Try(NativePath, [ExePathUnavailable])
+	env_temp_dir! : () => NativePath
 
-sleep_millis! : U64 => {}
+	file_read_bytes! : NativePath => Try(List(U8), [FileErr(IOErr)])
+	file_write_bytes! : NativePath, List(U8) => Try({}, [FileErr(IOErr)])
+	file_read_utf8! : NativePath => Try(Str, [FileErr(IOErr)])
+	file_write_utf8! : NativePath, Str => Try({}, [FileErr(IOErr)])
+	file_open_reader! : NativePath, U64 => Try(FileReader, [FileErr(IOErr)])
+	file_read_line! : FileReader => Try(List(U8), [FileErr(IOErr)])
+	file_delete! : NativePath => Try({}, [FileErr(IOErr)])
+	file_size_in_bytes! : NativePath => Try(U64, [FileErr(IOErr)])
+	file_is_executable! : NativePath => Try(Bool, [FileErr(IOErr)])
+	file_is_readable! : NativePath => Try(Bool, [FileErr(IOErr)])
+	file_is_writable! : NativePath => Try(Bool, [FileErr(IOErr)])
+	file_time_accessed! : NativePath => Try(U128, [FileErr(IOErr)])
+	file_time_modified! : NativePath => Try(U128, [FileErr(IOErr)])
+	file_time_created! : NativePath => Try(U128, [FileErr(IOErr)])
 
-tty_mode_canonical! : {} => {}
-tty_mode_raw! : {} => {}
+	http_send_request! : InternalHttp.RequestToAndFromHost => Try(InternalHttp.ResponseToAndFromHost, InternalHttp.TransportErr)
 
-env_dict! : {} => List (Str, Str)
-env_var! : Str => Result Str {}
-exe_path! : {} => Result (List U8) {}
-set_cwd! : List U8 => Result {} {}
+	locale_get! : () => Try(Str, [NotAvailable])
+	locale_all! : () => List(Str)
 
-random_u64! : {} => Result U64 InternalIOErr.IOErrFromHost
-random_u32! : {} => Result U32 InternalIOErr.IOErrFromHost
+	path_type! : NativePath => Try(PathType, IOErr)
+
+	random_seed_u64! : () => Try(U64, [RandomErr(IOErr)])
+	random_seed_u32! : () => Try(U32, [RandomErr(IOErr)])
+
+	sleep_millis! : U64 => {}
+
+	sqlite_prepare! : NativePath, Str => Try(SqliteStmt, InternalSqlite.SqliteError)
+	sqlite_bind! : SqliteStmt, List(InternalSqlite.SqliteBindings) => Try({}, InternalSqlite.SqliteError)
+	sqlite_columns! : SqliteStmt => List(Str)
+	sqlite_column_value! : SqliteStmt, U64 => Try(InternalSqlite.SqliteValue, InternalSqlite.SqliteError)
+	sqlite_step! : SqliteStmt => Try(Bool, InternalSqlite.SqliteError)
+	sqlite_reset! : SqliteStmt => Try({}, InternalSqlite.SqliteError)
+
+	stderr_line! : Str => Try({}, [StderrErr(IOErr)])
+	stderr_write! : Str => Try({}, [StderrErr(IOErr)])
+	stderr_write_bytes! : List(U8) => Try({}, [StderrErr(IOErr)])
+
+	stdin_line! : () => Try(Str, [EndOfFile, StdinErr(IOErr)])
+	stdin_bytes! : () => Try(List(U8), [EndOfFile, StdinErr(IOErr)])
+	stdin_read_to_end! : () => Try(List(U8), [StdinErr(IOErr)])
+
+	stdout_line! : Str => Try({}, [StdoutErr(IOErr)])
+	stdout_write! : Str => Try({}, [StdoutErr(IOErr)])
+	stdout_write_bytes! : List(U8) => Try({}, [StdoutErr(IOErr)])
+
+	tcp_connect! : Str, U16 => Try(TcpStream, Str)
+	tcp_read_up_to! : TcpStream, U64 => Try(List(U8), Str)
+	tcp_read_exactly! : TcpStream, U64 => Try(List(U8), Str)
+	tcp_read_until! : TcpStream, U8 => Try(List(U8), Str)
+	tcp_write! : TcpStream, List(U8) => Try({}, Str)
+
+	tty_enable_raw_mode! : () => {}
+	tty_disable_raw_mode! : () => {}
+
+	# TODO(https://github.com/roc-lang/roc/issues/10163): revert to a bare U128
+	# return once the compiler emits the clang/Rust u128 return convention on
+	# x86_64-windows; bare U128 returns are currently misread there, while
+	# Try-wrapped results cross the boundary correctly on every target.
+	utc_now! : () => Try(U128, [ClockBeforeEpoch])
+
+	# New hosted functions are kept at the end to avoid renumbering existing
+	# generated glue more than necessary.
+	file_hard_link! : NativePath, NativePath => Try({}, [FileErr(IOErr)])
+	file_rename! : NativePath, NativePath => Try({}, [FileErr(IOErr)])
+	env_platform! : () => {
+		arch : [X86, X64, ARM, AARCH64, OTHER(Str)],
+		os : [LINUX, MACOS, WINDOWS, OTHER(Str)],
+	}
+	env_dict! : () => List((NativeOsStr, NativeOsStr))
+	env_set_cwd! : NativePath => Try({}, IOErr)
+}

@@ -1,23 +1,29 @@
+## Measure a sleep interval and format the current UTC time.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Stdout
 import pf.Utc
 import pf.Sleep
-import pf.Arg exposing [Arg]
 
-# To run this example: check the README.md in this folder
+main! : List(OsStr) => Try({}, _)
+main! = |_args| {
 
-# Demo Utc and sleep functions
+	start : U128
+	start = Utc.now!()
 
-main! : List Arg => Result {} _
-main! = |_args|
-    start = Utc.now!({})
+	Stdout.line!("Started at ${Utc.to_iso_8601(start)}")?
 
-    # 1000 ms = 1 second
-    Sleep.millis!(1000)
+	# 1000 ms = 1 second
+	Sleep.millis!(1000)
 
-    finish = Utc.now!({})
+	finish : U128
+	finish = Utc.now!()
 
-    duration = Num.to_str(Utc.delta_as_nanos(start, finish))
+	duration_ms = Utc.delta_as_millis(finish, start)
+	duration_nanos = Utc.delta_as_nanos(finish, start)
 
-    Stdout.line!("Completed in ${duration} ns")
+	Stdout.line!("Completed in ${duration_ms.to_str()} ms (${duration_nanos.to_str()} ns)")?
+
+	Ok({})
+}

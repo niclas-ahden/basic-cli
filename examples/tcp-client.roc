@@ -1,78 +1,60 @@
+## Exchange lines with a local TCP echo server using buffered stream operations.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Tcp
 import pf.Stdout
 import pf.Stdin
-import pf.Stderr
-import pf.Arg exposing [Arg]
 
-# To run this example: check the README.md in this folder
+# To try it interactively, start an echo server in another terminal first:
+#
+#     $ ncat -e $(which cat) -l 8085
+#
+# then run this example.
+main! : List(OsStr) => Try({}, _)
+main! = |_args| {
 
-# Simple TCP client in Roc.
-# Connects to a server on localhost:8085, reads user input from stdin,
-# sends it to the server, and prints the server's response.
+	stream : Tcp.Stream
+	stream = Tcp.connect!("127.0.0.1", 8085) ? |err| ConnectFailed(err)
 
-main! : List Arg => Result {} _
-main! = |_args|
+	verify_stream_methods!(stream)?
 
-    tcp_stream = Tcp.connect!("127.0.0.1", 8085)?
+	Stdout.line!("Connected!")?
 
-    Stdout.line!("Connected!")?
+	run!(stream)
+}
 
-    loop!(
-        {},
-        |_| Result.map_ok(tick!(tcp_stream), Step),
-    )
-    |> Result.on_err!(handle_err!)
+## Exercise every read and write operation against the echo test server.
+verify_stream_methods! : Tcp.Stream => Try({}, _)
+verify_stream_methods! = |stream| {
+	stream.write!([1, 2, 3])?
+	exact_bytes = stream.read_exactly!(3)?
+	expect exact_bytes == [1, 2, 3]
 
-## Read from stdin, send to the server, and print the response.
-tick! : Tcp.Stream => Result {} _
-tick! = |tcp_stream|
-    Stdout.write!("> ")?
+	stream.write_utf8!("until|")?
+	until_bytes = stream.read_until!(124)?
+	expect until_bytes == [117, 110, 116, 105, 108, 124]
 
-    out_msg = Stdin.line!({})?
+	stream.write!([42])?
+	up_to_bytes = stream.read_up_to!(1)?
+	expect up_to_bytes == [42]
 
-    Tcp.write_utf8!(tcp_stream, "${out_msg}\n")?
+	Ok({})
+}
 
-    in_msg = Tcp.read_line!(tcp_stream)?
-
-    Stdout.line!("< ${in_msg}")
-
-
-loop! : state, (state => Result [Step state, Done done] err) => Result done err
-loop! = |state, fn!|
-    when fn!(state) is
-        Err(err) -> Err(err)
-        Ok(Done(done)) -> Ok(done)
-        Ok(Step(next)) -> loop!(next, fn!)
-
-
-handle_err! : []_ => Result {} _
-handle_err! = |error|
-    when error is
-        TcpConnectErr(err) ->
-            err_str = Tcp.connect_err_to_str(err)
-            Stderr.line!(
-                """
-                Failed to connect: ${err_str}
-
-                If you don't have anything listening on port 8085, run:
-                \$ nc -l 8085
-
-                If you want an echo server you can run:
-                $ ncat -e \$(which cat) -l 8085
-                """,
-            )
-
-        TcpReadBadUtf8(_) ->
-            Stderr.line!("Received invalid UTF-8 data")
-
-        TcpReadErr(err) ->
-            err_str = Tcp.stream_err_to_str(err)
-            Stderr.line!("Error while reading: ${err_str}")
-
-        TcpWriteErr(err) ->
-            err_str = Tcp.stream_err_to_str(err)
-            Stderr.line!("Error while writing: ${err_str}")
-
-        other_err -> Stderr.line!("Unhandled error: ${Inspect.to_str(other_err)}")
+## Read a line from stdin, send it to the server, print the response, repeat.
+run! : Tcp.Stream => Try({}, _)
+run! = |stream| {
+	Stdout.write!("> ")?
+	match Stdin.line!() {
+		# No more input — exit cleanly.
+		Err(EndOfFile) => Ok({})
+		Err(StdinErr(err)) => Err(StdinReadFailed(err))
+		Ok(out_msg) => {
+			stream.write_utf8!("${out_msg}\n") ? |err| TcpWriteFailed(err)
+			in_msg = stream.read_line!() ? |err| TcpReadFailed(err)
+			Stdout.line!("< ${in_msg}")?
+			run!(stream)
+		}
+	}
+}

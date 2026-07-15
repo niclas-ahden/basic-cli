@@ -1,25 +1,21 @@
+## Read native and UTF-8 environment variables.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Stdout
 import pf.Env
-import pf.Arg exposing [Arg]
 
-# How to read environment variables with Env.decode
+main! : List(OsStr) => Try({}, _)
+main! = |_args| {
+	editor = Env.var!("EDITOR")?
 
-# To run this example: check the README.md in this folder
+	Stdout.line!("Your favorite editor is ${editor.display()}!")?
 
-main! : List Arg => Result {} _
-main! = |_args|
+	letters = Env.var_str!("LETTERS")?
 
-    editor = Env.decode!("EDITOR")?
+	joined_letters = Str.join_with(letters.split_on(","), " ")
 
-    Stdout.line!("Your favorite editor is ${editor}!")?
+	Stdout.line!("Your favorite letters are: ${joined_letters}")?
 
-    # Env.decode! does not return the same type everywhere.
-    # The type is determined based on type inference.
-    # Here `Str.join_with` forces the type that Env.decode! returns to be `List Str`
-    joined_letters =
-        Env.decode!("LETTERS")
-        |> Result.map_ok(|letters| Str.join_with(letters, " "))?
-
-    Stdout.line!("Your favorite letters are: ${joined_letters}")
+	Ok({})
+}

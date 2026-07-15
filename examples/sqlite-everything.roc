@@ -1,13 +1,11 @@
+## Exercise SQLite queries, decoders, nullable values, and prepared writes.
 app [main!] { pf: platform "../platform/main.roc" }
 
+import pf.OsStr
 import pf.Env
 import pf.Stdout
 import pf.Sqlite
-import pf.Arg exposing [Arg]
-
-# To run this example: check the README.md in this folder and set `export DB_PATH=./examples/todos2.db`
-
-# Demo of basic Sqlite usage
+import pf.Path
 
 # Sql that was used to create the table:
 # CREATE TABLE todos (
@@ -20,205 +18,238 @@ import pf.Arg exposing [Arg]
 # We recommend using `NOT NULL` when possible.
 # Note 2: boolean is "fake" in sqlite https://www.sqlite.org/datatype3.html
 
-main! : List Arg => Result {} _
-main! = |_args|
-    db_path = Env.var!("DB_PATH")?
+main! : List(OsStr) => Try({}, _)
+main! = |_args| run!()
 
-    # Example: print all rows
+run! : () => Try({}, _)
+run! = || {
 
-    all_todos = Sqlite.query_many!({
-        path: db_path,
-        query: "SELECT * FROM todos;",
-        bindings: [],
-        # This uses the record builder syntax: https://www.roc-lang.org/examples/RecordBuilder/README.html
-        rows: { Sqlite.decode_record <-
-            id: Sqlite.i64("id"),
-            task: Sqlite.str("task"),
-            status: Sqlite.str("status") |> Sqlite.map_value_result(decode_status),
-            # bools in sqlite are actually integers
-            edited: Sqlite.nullable_i64("edited") |> Sqlite.map_value(decode_edited),
-        },
-    })?
+	# Read from environment variable, or use default
+	db_path = match Env.var!("DB_PATH") {
+		Ok(p) => Path.from_os_str(p)
+		Err(_) => "./examples/todos2.db"
+	}
 
-    Stdout.line!("All Todos:")?
+	# Example: print all rows
+	all_todos = Sqlite.query_many!({
+		path: db_path,
+		query: "SELECT * FROM todos;",
+		bindings: [],
+		rows: decode_full_todo,
+	}) ? |err| QueryAllTodosFailed(err)
 
-    List.for_each_try!(
-        all_todos,
-        |{ id, task, status, edited }|
-            Stdout.line!("\tid: ${Num.to_str(id)}, task: ${task}, status: ${Inspect.to_str(status)}, edited: ${Inspect.to_str(edited)}"),
-    )?
+	print_line!("All Todos:")?
+	for t in all_todos {
+		print_line!("    id: ${I64.to_str(t.id)}, task: ${t.task}, status: ${status_to_str(t.status)}, edited: ${edited_to_str(decode_edited(t.edited_val))}")?
+	}
 
-    # Example: filter rows by status
+	# Example: filter rows by status (decode a single column)
+	tasks_in_progress = Sqlite.query_many!({
+		path: db_path,
+		query: "SELECT id, task, status FROM todos WHERE status = :status;",
+		bindings: [{ name: ":status", value: encode_status(InProgress) }],
+		rows: Sqlite.str("task"),
+	}) ? |err| QueryInProgressTasksFailed(err)
 
-    tasks_in_progress = Sqlite.query_many!(
-        {
-            path: db_path,
-            query: "SELECT id, task, status FROM todos WHERE status = :status;",
-            bindings: [{ name: ":status", value: encode_status(InProgress) }],
-            rows: Sqlite.str("task")
-        },
-    )?
+	print_line!("")?
+	print_line!("In-progress Todos:")?
+	for task in tasks_in_progress {
+		print_line!("    In-progress task: ${task}")?
+	}
 
-    Stdout.line!("\nIn-progress Todos:")?
+	# Example: insert a row
+	Sqlite.execute!({
+		path: db_path,
+		query: "INSERT INTO todos (task, status, edited) VALUES (:task, :status, :edited);",
+		bindings: [
+			{ name: ":task", value: String("Make sql example.") },
+			{ name: ":status", value: encode_status(InProgress) },
+			{ name: ":edited", value: encode_edited(NotEdited) },
+		],
+	}) ? |err| InsertTodoFailed(err)
 
-    List.for_each_try!(
-        tasks_in_progress,
-        |task_description|
-            Stdout.line!("\tIn-progress tasks: ${task_description}"),
-    )?
+	# Example: insert multiple rows from a Roc list
+	todos_list = [
+		{ task: "Insert Roc list 1", status: Todo, edited: NotEdited },
+		{ task: "Insert Roc list 2", status: Todo, edited: NotEdited },
+		{ task: "Insert Roc list 3", status: Todo, edited: NotEdited },
+	]
 
-    # Example: insert a row
+	values_str = Str.join_with(
+		todos_list.map_with_index(
+			|_t, indx| {
+				i = U64.to_str(indx)
+				"(:task${i}, :status${i}, :edited${i})"
+			},
+		),
+		", ",
+	)
 
-    Sqlite.execute!({
-        path: db_path,
-        query: "INSERT INTO todos (task, status, edited) VALUES (:task, :status, :edited);",
-        bindings: [
-            { name: ":task", value: String("Make sql example.") },
-            { name: ":status", value: encode_status(InProgress) },
-            { name: ":edited", value: encode_edited(NotEdited) },
-        ],
-    })?
+	binding_groups = List.map_with_index(
+		todos_list,
+		|t, indx| {
+			i = U64.to_str(indx)
+			[
+				{ name: ":task${i}", value: String(t.task) },
+				{ name: ":status${i}", value: encode_status(t.status) },
+				{ name: ":edited${i}", value: encode_edited(t.edited) },
+			]
+		},
+	)
 
-    # Example: insert multiple rows from a Roc list
+	all_bindings = Iter.fold(List.iter(binding_groups), [], |acc, group| List.concat(acc, group))
 
-    todos_list : List ({task : Str, status : TodoStatus, edited : EditedValue})
-    todos_list = [
-        { task: "Insert Roc list 1", status: Todo, edited: NotEdited },
-        { task: "Insert Roc list 2", status: Todo, edited: NotEdited },
-        { task: "Insert Roc list 3", status: Todo, edited: NotEdited },
-    ]
+	Sqlite.execute!({
+		path: db_path,
+		query: "INSERT INTO todos (task, status, edited) VALUES ${values_str};",
+		bindings: all_bindings,
+	}) ? |err| InsertTodoListFailed(err)
 
-    values_str =
-        todos_list
-        |> List.map_with_index(
-            |_, indx|
-                indx_str = Num.to_str(indx)
-                "(:task${indx_str}, :status${indx_str}, :edited${indx_str})",
-        )
-        |> Str.join_with(", ")
+	# Example: update a row
+	Sqlite.execute!({
+		path: db_path,
+		query: "UPDATE todos SET status = :status WHERE task = :task;",
+		bindings: [
+			{ name: ":task", value: String("Make sql example.") },
+			{ name: ":status", value: encode_status(Completed) },
+		],
+	}) ? |err| UpdateTodoFailed(err)
 
-    all_bindings =
-        todos_list
-        |> List.map_with_index(
-            |{ task, status, edited }, indx|
-                indx_str = Num.to_str(indx)
-                [
-                    { name: ":task${indx_str}", value: String(task) },
-                    { name: ":status${indx_str}", value: encode_status(status) },
-                    { name: ":edited${indx_str}", value: encode_edited(edited) },
-                ],
-        )
-        |> List.join
+	# Example: delete a row
+	Sqlite.execute!({
+		path: db_path,
+		query: "DELETE FROM todos WHERE task = :task;",
+		bindings: [{ name: ":task", value: String("Make sql example.") }],
+	}) ? |err| DeleteTodoFailed(err)
 
-    Sqlite.execute!({
-        path: db_path,
-        query: "INSERT INTO todos (task, status, edited) VALUES ${values_str};",
-        bindings: all_bindings,
-    })?
+	# Example: delete all rows where ID is greater than 3 (cleanup so this example is repeatable)
+	Sqlite.execute!({
+		path: db_path,
+		query: "DELETE FROM todos WHERE id > :id;",
+		bindings: [{ name: ":id", value: Integer(3) }],
+	}) ? |err| CleanupInsertedTodosFailed(err)
 
-    # Example: update a row
+	# Example: count the number of rows
+	count = Sqlite.query!({
+		path: db_path,
+		query: "SELECT COUNT(*) as \"count\" FROM todos;",
+		bindings: [],
+		row: Sqlite.u64("count"),
+	}) ? |err| CountTodosFailed(err)
 
-    Sqlite.execute!({
-        path: db_path,
-        query: "UPDATE todos SET status = :status WHERE task = :task;",
-        bindings: [
-            { name: ":task", value: String("Make sql example.") },
-            { name: ":status", value: encode_status(Completed) },
-        ],
-    })?
+	print_line!("")?
+	print_line!("Row count: ${U64.to_str(count)}")?
 
-    # Example: delete a row
+	# Example: prepared statements
+	# Note: This is faster if you execute the same prepared statement many times.
+	prepared_update = Sqlite.prepare!({
+		path: db_path,
+		query: "UPDATE todos SET status = status WHERE id = :id;",
+	}) ? |err| PrepareUpdateTodoFailed(err)
 
-    Sqlite.execute!({
-        path: db_path,
-        query: "DELETE FROM todos WHERE task = :task;",
-        bindings: [
-            { name: ":task", value: String("Make sql example.") },
-        ],
-    })?
+	prepared_update.execute!([{ name: ":id", value: Integer(1) }]) ? |err| ExecutePreparedUpdateFailed(err)
+	# Reuse verifies that execution resets the statement before returning.
+	prepared_update.execute!([{ name: ":id", value: Integer(2) }]) ? |err| ReusePreparedUpdateFailed(err)
 
-    # Example: delete all rows where ID is greater than 3
+	prepared_count = Sqlite.prepare!({
+		path: db_path,
+		query: "SELECT COUNT(*) as \"count\" FROM todos;",
+	}) ? |err| PrepareCountTodosFailed(err)
+	prepared_count_value = prepared_count.query!([], Sqlite.u64("count")) ? |err| QueryPreparedCountFailed(err)
+	expect prepared_count_value == count
 
-    Sqlite.execute!({
-        path: db_path,
-        query: "DELETE FROM todos WHERE id > :id;",
-        bindings: [
-            { name: ":id", value: Integer(3) },
-        ],
-    })?
+	prepared_query = Sqlite.prepare!({
+		path: db_path,
+		# sort by the length of the task description
+		query: "SELECT * FROM todos ORDER BY LENGTH(task);",
+	}) ? |err| PrepareSortedTodosFailed(err)
 
-    # Example: count the number of rows
+	todos_sorted = prepared_query.query_many!([], decode_task_status) ? |err| QuerySortedTodosFailed(err)
+	# Reuse verifies that querying resets the statement before returning.
+	todos_sorted_again = prepared_query.query_many!([], decode_task_status) ? |err| ReuseSortedTodosFailed(err)
+	expect todos_sorted_again.len() == todos_sorted.len()
 
-    count = Sqlite.query!({
-        path: db_path,
-        query: "SELECT COUNT(*) as \"count\" FROM todos;",
-        bindings: [],
-        row: Sqlite.u64("count"),
-    })?
+	print_line!("")?
+	print_line!("Todos sorted by length of task description:")?
+	for t in todos_sorted {
+		print_line!("    task: ${t.task}, status: ${status_to_str(t.status)}")?
+	}
 
-    expect count == 3
+	Ok({})
+}
 
-    # Example: prepared statements
-    # Note: This leads to better performance if you are executing the same prepared statement multiple times.
+print_line! : Str => Try({}, _)
+print_line! = |s| Stdout.line!(s)
 
-    prepared_query = Sqlite.prepare!({
-        path : db_path,
-        query : "SELECT * FROM todos ORDER BY LENGTH(task);", # sort by the length of the task description
-    })?
-    
-    todos_sorted = Sqlite.query_many_prepared!({
-        stmt: prepared_query,
-        bindings: [],
-        rows: { Sqlite.decode_record <-
-            task: Sqlite.str("task"),
-            status: Sqlite.str("status") |> Sqlite.map_value_result(decode_status),
-        },
-    })?
+# Decode every column of the todos table. The nullable `edited` column is returned
+# raw (`[NotNull(I64), Null]`) and interpreted by `decode_edited` at the call site:
+# decoding both `status` (via `?`) and `edited` inside this nested decoder lambda
+# currently panics the type checker, so we keep only one interpreting `?` here.
+decode_full_todo = |cols|
+	|stmt| {
+		id = Sqlite.i64("id")(cols)(stmt)?
+		task = Sqlite.str("task")(cols)(stmt)?
+		status_str = Sqlite.str("status")(cols)(stmt)?
+		match decode_status(status_str) {
+			Ok(status) => {
+				edited_val = Sqlite.nullable_i64("edited")(cols)(stmt)?
+				Ok({ id, task, status, edited_val })
+			}
+			Err(ParseError(message)) => Err(ParseError(message))
+		}
+	}
 
-    Stdout.line!("\nTodos sorted by length of task description:")?
-
-    List.for_each_try!(
-        todos_sorted,
-        |{ task, status }|
-            Stdout.line!("\t task: ${task}, status: ${Inspect.to_str(status)}"),
-    )?
-
-    Ok({})
+# Decode just the task and status columns.
+decode_task_status = |cols|
+	|stmt| {
+		task = Sqlite.str("task")(cols)(stmt)?
+		status_str = Sqlite.str("status")(cols)(stmt)?
+		match decode_status(status_str) {
+			Ok(status) => Ok({ task, status })
+			Err(ParseError(message)) => Err(ParseError(message))
+		}
+	}
 
 TodoStatus : [Todo, Completed, InProgress]
 
-decode_status : Str -> Result TodoStatus _
 decode_status = |status_str|
-    when status_str is
-        "todo" -> Ok(Todo)
-        "completed" -> Ok(Completed)
-        "in-progress" -> Ok(InProgress)
-        _ -> Err(ParseError("Unknown status str: ${status_str}"))
+	match status_str {
+		"todo" => Ok(Todo)
+		"completed" => Ok(Completed)
+		"in-progress" => Ok(InProgress)
+		_ => Err(ParseError("Unknown status str: ${status_str}"))
+	}
 
 status_to_str : TodoStatus -> Str
 status_to_str = |status|
-    when status is
-        Todo -> "todo"
-        Completed -> "completed"
-        InProgress -> "in-progress"
+	match status {
+		Todo => "todo"
+		Completed => "completed"
+		InProgress => "in-progress"
+	}
 
-    
-encode_status : TodoStatus -> [String Str]
-encode_status = |status|
-    String(status_to_str(status))
+encode_status = |status| String(status_to_str(status))
 
-EditedValue : [Edited, NotEdited, Null]
+EditedValue : [Edited, NotEdited, Unknown]
 
-decode_edited : [NotNull I64, Null] -> EditedValue
 decode_edited = |edited_val|
-    when edited_val is
-        NotNull 1 -> Edited
-        NotNull 0 -> NotEdited
-        _ -> Null
+	match edited_val {
+		NotNull(1) => Edited
+		NotNull(0) => NotEdited
+		_ => Unknown
+	}
 
-encode_edited : EditedValue -> [Integer I64, Null]
+edited_to_str : EditedValue -> Str
+edited_to_str = |edited|
+	match edited {
+		Edited => "edited"
+		NotEdited => "not-edited"
+		Unknown => "unknown"
+	}
+
 encode_edited = |edited|
-    when edited is
-        Edited -> Integer(1)
-        NotEdited -> Integer(0)
-        Null -> Null
+	match edited {
+		Edited => Integer(1)
+		NotEdited => Integer(0)
+		Unknown => Null
+	}
