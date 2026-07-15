@@ -28,7 +28,7 @@ InternalHttp := [].{
         body : List(U8),
     }
 
-    to_host_request : Request.Request -> RequestToAndFromHost
+    to_host_request : Request -> RequestToAndFromHost
     to_host_request = |request| {
         method = Request.method(request)
         {
@@ -41,7 +41,7 @@ InternalHttp := [].{
         }
     }
 
-    from_host_response : ResponseToAndFromHost -> Response.Response
+    from_host_response : ResponseToAndFromHost -> Response
     from_host_response = |response|
         Response.from_status(response.status)
             .with_headers(from_host_headers(response.headers))

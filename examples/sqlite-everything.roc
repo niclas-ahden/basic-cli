@@ -1,15 +1,12 @@
+## Demo of the wider Sqlite API: queries, decoders, nullable columns, inserts,
+## updates, deletes, prepared statements.
 app [main!] { pf: platform "../platform/main.roc" }
 
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Env
 import pf.Stdout
 import pf.Sqlite
 import pf.Path
-
-# To run this example: check the README.md in this folder and set `export DB_PATH=./examples/todos2.db`
-
-# Demo of the wider Sqlite API: queries, decoders, nullable columns, inserts,
-# updates, deletes, prepared statements.
 
 # Sql that was used to create the table:
 # CREATE TABLE todos (
@@ -27,6 +24,8 @@ main! = |_args| run!()
 
 run! : () => Try({}, _)
 run! = || {
+
+	# Read from environment variable, or use default
 	db_path = match Env.var!("DB_PATH") {
 		Ok(p) => Path.from_os_str(p)
 		Err(_) => "./examples/todos2.db"
@@ -78,8 +77,7 @@ run! = || {
 	]
 
 	values_str = Str.join_with(
-		List.map_with_index(
-			todos_list,
+		todos_list.map_with_index(
 			|_t, indx| {
 				i = U64.to_str(indx)
 				"(:task${i}, :status${i}, :edited${i})"

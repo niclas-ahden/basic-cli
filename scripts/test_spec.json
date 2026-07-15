@@ -187,7 +187,8 @@
           "contains": [
             "I received 'Hello utf8' from the server.",
             "send_json! echoed: { foo: \"Hello Json!\" }.",
-            "invalid UTF-8 was rejected."
+            "invalid UTF-8 was rejected.",
+            "invalid request URL was rejected."
           ]
         },
         {
@@ -408,7 +409,7 @@
         {
           "name": "search-request",
           "contains": [
-            "Request URL: https://api.example.com/v1/search?q=roc%20lang&page=1#results"
+            "Request URL: https://api.example.com/v1/search?q=roc+lang&page=1#results"
           ]
         }
       ]

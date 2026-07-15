@@ -1,6 +1,6 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Tcp
 import pf.Stdout
 import pf.Stdin
@@ -17,13 +17,18 @@ import pf.Stdin
 # then run this example.
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
+
+	stream : Tcp.Stream
 	stream = Tcp.connect!("127.0.0.1", 8085) ? |err| ConnectFailed(err)
+
 	verify_stream_methods!(stream)?
+
 	Stdout.line!("Connected!")?
+
 	run!(stream)
 }
 
-## Exercise every read and write operation against the echo server.
+## Exercise every read and write operation against the echo test server.
 verify_stream_methods! : Tcp.Stream => Try({}, _)
 verify_stream_methods! = |stream| {
 	stream.write!([1, 2, 3])?

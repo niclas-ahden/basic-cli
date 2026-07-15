@@ -1,6 +1,6 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Stdout
 import pf.Url
 
@@ -8,15 +8,17 @@ import pf.Url
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-	base = Url.from_str("https://api.example.com")
-	search = Url.append(base, "v1/search")
-	with_query = Url.append_param(search, "q", "roc lang")
-	with_page = Url.append_param(with_query, "page", "1")
-	url = Url.with_fragment(with_page, "results")
+	base : Url.Url
+	base = "https://api.example.com"
+	search = base.append_path_segments(["v1", "search"])
+	with_query = search.append_query_param("q", "roc lang")
+	with_page = with_query.append_query_param("page", "1")
+	url = with_page.with_fragment(Some("results")) ? |err| UrlBuildFailed(err)
 
-	expect Url.path(url) == "v1/search"
-	expect Url.query(url) == "q=roc%20lang&page=1"
+	expect url.path() == "/v1/search"
+	expect url.query() == Some("q=roc+lang&page=1")
+	expect url.query_pairs() == [("q", "roc lang"), ("page", "1")]
 
-	Stdout.line!("Request URL: ${Url.to_str(url)}")?
+	Stdout.line!("Request URL: ${url.to_str()}")?
 	Ok({})
 }

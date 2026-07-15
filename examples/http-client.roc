@@ -3,7 +3,7 @@ app [main!] {
 	http: "https://github.com/roc-lang/http/releases/download/1.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",
 }
 
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Http
 import pf.Stdout
 import http.Request
@@ -44,8 +44,20 @@ run_demo! = || {
 	write_line!("send_json! echoed: { foo: \"${echoed.foo}\" }.")?
 	reject_invalid_json!()?
 	reject_invalid_utf8!()?
+	reject_invalid_url!()?
 
 	Ok({})
+}
+
+reject_invalid_url! : () => Try({}, _)
+reject_invalid_url! = || {
+	result = Http.send!(Request.from_method(GET).with_uri("ftp://example.com"))
+
+	match result {
+		Err(InvalidUrl(UnsupportedScheme("ftp"))) => write_line!("invalid request URL was rejected.")
+		Err(err) => Err(InvalidUrlRejectedWithWrongError(err))
+		Ok(_) => Err(InvalidUrlUnexpectedlySucceeded)
+	}
 }
 
 reject_invalid_json! : () => Try({}, _)
