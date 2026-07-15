@@ -1,3 +1,4 @@
+## Query a SQLite database and decode rows into application records.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr exposing [OsStr]
@@ -7,8 +8,6 @@ import pf.Sqlite
 import pf.Path
 
 # To run this example: check the README.md in this folder and set `export DB_PATH=./examples/todos.db`
-
-# Demo of basic Sqlite usage
 
 # Sql to create the table:
 # CREATE TABLE todos (

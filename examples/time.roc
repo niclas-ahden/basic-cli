@@ -1,11 +1,10 @@
+## Measure a sleep interval and format the current UTC time.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
 import pf.Stdout
 import pf.Utc
 import pf.Sleep
-
-# Demo Utc and Sleep functions
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {

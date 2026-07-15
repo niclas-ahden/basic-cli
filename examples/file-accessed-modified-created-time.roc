@@ -1,3 +1,4 @@
+## Read a file's accessed, modified, and creation timestamps.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr

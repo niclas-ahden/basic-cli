@@ -4,7 +4,7 @@
 ## DNS names, dotted-decimal IPv4 addresses, or bracketed IPv6 addresses made
 ## from hexadecimal groups with optional :: elision. IPv4-in-IPv6 and Unicode
 ## domain names are intentionally unsupported.
-Url := {
+Url :: {
 	scheme : [Http, Https],
 	host : Str,
 	port : [None, Some(U16)],
@@ -53,12 +53,54 @@ Url := {
 			Err(err) => Err(BadQuotedBytes(parse_err_to_str(err)))
 		}
 
+	## Parse a URL from a string value supplied by a generic encoding.
+	parser_for : encoding -> (state -> Try({ value : Url, rest : state }, err))
+		where [
+			encoding.parse_str : encoding, state -> Try({ value : Str, rest : state }, err),
+			encoding.invalid_value : encoding, state -> err,
+		]
+	parser_for = |encoding| {
+		Encoding : encoding
+
+		|state| {
+			parsed = Encoding.parse_str(encoding, state)?
+
+			match parse(parsed.value) {
+				Ok(url) => Ok({ value: url, rest: parsed.rest })
+				Err(_) => Err(Encoding.invalid_value(encoding, state))
+			}
+		}
+	}
+
+	## Encode a URL as its canonical string through a generic encoding.
+	encoder_for : encoding -> (Url, state -> Try(state, err))
+		where [
+			encoding.encode_str : Str, state -> Try(state, err),
+		]
+	encoder_for = |_encoding| {
+		Encoding : encoding
+
+		|url, state| Encoding.encode_str(to_str(url), state)
+	}
+
 	## Serialize the URL in a stable normalized ASCII form.
 	##
 	## Scheme and DNS host names are lowercase, default ports are omitted,
 	## paths are absolute, and IPv6 addresses use eight unpadded groups.
 	to_str : Url -> Str
 	to_str = |url| serialize(url, True)
+
+	## Render a URL for debugging and test failures.
+	to_inspect : Url -> Str
+	to_inspect = |url| "Url(${Json.to_str(to_str(url))})"
+
+	## Compare URLs by their canonical serialized representation.
+	is_eq : Url, Url -> Bool
+	is_eq = |left, right| Str.is_eq(to_str(left), to_str(right))
+
+	## Hash URLs consistently with canonical equality.
+	to_hash : Url, Hasher -> Hasher
+	to_hash = |url, hasher| Str.to_hash(to_str(url), hasher)
 
 	## Return Http or Https.
 	scheme : Url -> [Http, Https]
@@ -1309,3 +1351,41 @@ expect
 		Err(BadQuotedBytes(message)) => Str.contains(message, "http:// or https://")
 		Ok(_) => False
 	}
+
+## Inspection uses the canonical URL and identifies the nominal type.
+expect
+	match Url.parse("HTTPS://EXAMPLE.COM:443/a") {
+		Ok(url) => Str.inspect(url) == "Url(\"https://example.com/a\")"
+		Err(_) => False
+	}
+
+## Canonically equivalent URLs compare and hash identically.
+expect
+	match (Url.parse("HTTPS://EXAMPLE.COM:443/a"), Url.parse("https://example.com/a")) {
+		(Ok(stored), Ok(lookup)) => stored == lookup and Dict.single(stored, "found").get(lookup) == Ok("found")
+		_ => False
+	}
+
+## Generic encoders represent URLs as canonical strings.
+expect {
+	url : Url
+	url = "https://example.com/a?q=roc"
+	Json.to_str(url) == "\"https://example.com/a?q=roc\""
+}
+
+## Generic parsers validate and canonicalize encoded URL strings.
+expect {
+	decoded : Try(Url, Json.ParseErr)
+	decoded = Json.parse("\"HTTPS://EXAMPLE.COM:443/a\"")
+
+	match decoded {
+		Ok(url) => Url.to_str(url) == "https://example.com/a"
+		Err(_) => False
+	}
+}
+
+expect {
+	decoded : Try(Url, Json.ParseErr)
+	decoded = Json.parse("\"not a url\"")
+	decoded == Err(Json.invalid_json)
+}

@@ -1,3 +1,4 @@
+## Read piped bytes to end-of-input and validate them as UTF-8.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr

@@ -1,10 +1,9 @@
+## Handle common filesystem errors with tag-pattern matching.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
 import pf.Stdout
 import pf.Path
-
-# Demonstrates error handling patterns
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {

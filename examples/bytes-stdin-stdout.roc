@@ -1,3 +1,4 @@
+## Copy raw bytes from standard input to standard output and report the total.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr

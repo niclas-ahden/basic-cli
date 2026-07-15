@@ -1,10 +1,9 @@
+## Create, inspect, and clean up a small directory tree.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
 import pf.Stdout
 import pf.Path
-
-# Create and inspect a small project workspace.
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {

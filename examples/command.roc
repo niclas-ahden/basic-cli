@@ -1,10 +1,9 @@
+## Run child processes, capture their output, and configure their environment.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
 import pf.Stdout
 import pf.Cmd
-
-# Different ways to run commands like you do in a terminal.
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| run!()
@@ -22,9 +21,10 @@ run! = || {
 	Stdout.line!("${Str.inspect(cmd_output)}")?
 
 	# To run a command with a controlled environment.
-	Cmd.new("/usr/bin/env")
+	env_cmd = Cmd.new("/usr/bin/env")
 		.args(["-i", "BAZ=DUCK", "FOO=BAR", "XYZ=ABC"])
-		.exec_cmd!() ? |err| ExecCmdEnvFailed(err)
+	Stdout.line!("Command config: ${Str.inspect(env_cmd)}")?
+	env_cmd.exec_cmd!() ? |err| ExecCmdEnvFailed(err)
 
 	# To execute and just get the exit code (prints to your terminal).
 	# Prefer using `exec!` or `exec_cmd!`.

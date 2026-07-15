@@ -1,3 +1,4 @@
+## Exchange lines with a local TCP echo server using buffered stream operations.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
@@ -5,11 +6,6 @@ import pf.Tcp
 import pf.Stdout
 import pf.Stdin
 
-# Simple TCP client in Roc.
-#
-# Connects to a server on localhost:8085, reads user input from stdin, sends it
-# to the server, and prints the server's response — looping until end-of-input.
-#
 # To try it interactively, start an echo server in another terminal first:
 #
 #     $ ncat -e $(which cat) -l 8085

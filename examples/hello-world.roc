@@ -1,3 +1,4 @@
+## Print a minimal greeting to standard output.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr

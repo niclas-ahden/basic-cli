@@ -1,5 +1,5 @@
-# Host-ABI types shared between the SQLite host functions and the Sqlite module.
-# These map 1:1 to the generated Rust glue types in src/roc_platform_abi.rs.
+## Define the host-ABI types shared by SQLite effects and the public module.
+## These records map directly to the generated Rust glue types.
 InternalSqlite :: [].{
     SqliteError : {
         code : I64,

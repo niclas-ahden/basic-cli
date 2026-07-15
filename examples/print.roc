@@ -1,10 +1,9 @@
+## Write lines, text, and lists to standard output and standard error.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.Stderr
-
-# Printing to stdout and stderr
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {

@@ -1,3 +1,4 @@
+## Inspect whether a file is executable, readable, and writable.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
@@ -11,9 +12,7 @@ main! = |args| {
 	file = path_argument(args)?
 
 	is_executable = file.is_executable!()?
-
 	is_readable = file.is_readable!()?
-
 	is_writable = file.is_writable!()?
 
 	Stdout.line!(

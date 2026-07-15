@@ -1,3 +1,4 @@
+## Send HTTP requests and handle UTF-8, JSON, and transport failures.
 app [main!] {
 	pf: platform "../platform/main.roc",
 	http: "https://github.com/roc-lang/http/releases/download/1.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",
@@ -9,8 +10,6 @@ import pf.Stdout
 import http.Request
 import http.Response
 
-# Demo of the basic-cli HTTP client against a local server.
-#
 # To run this example, first start the test server in another terminal:
 #
 #     cd ci/rust_http_server && cargo run --release

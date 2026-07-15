@@ -1,13 +1,20 @@
 import Host
 import Path
 
-File := [].{
+## Open files for incremental, buffered reading.
+##
+## Whole-file operations and filesystem metadata are available on [`Path`](Path).
+File :: [].{
 
 	## Represents a buffered file reader.
 	##
 	## The file is automatically closed when the last reference to the reader is
 	## dropped. It wraps an opaque host-side `BufReader<File>` handle.
-	Reader := { host : Host.FileReader }.{
+	Reader :: { host : Host.FileReader }.{
+
+		## Render the reader without exposing its host handle.
+		to_inspect : Reader -> Str
+		to_inspect = |_| "File.Reader(<opaque>)"
 
 		## Read bytes up to and including the next newline from this buffered reader.
 		##

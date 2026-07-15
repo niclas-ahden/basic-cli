@@ -1,3 +1,5 @@
+## A native command-line platform with filesystem, process, network, terminal,
+## SQLite, environment, random, and UTC effects.
 platform ""
 	requires {
 		main! : List([Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]) => Try({}, [Exit(I32), ..])

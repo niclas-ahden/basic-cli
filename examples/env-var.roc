@@ -1,10 +1,9 @@
+## Read native and UTF-8 environment variables.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
 import pf.Stdout
 import pf.Env
-
-# How to read environment variables with Env.var!
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {

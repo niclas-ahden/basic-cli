@@ -1,10 +1,9 @@
+## Build a validated search URL while encoding path and query components.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
 import pf.Stdout
 import pf.Url
-
-# Build a URL for a search request without hand-encoding user input.
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
@@ -20,5 +19,7 @@ main! = |_args| {
 	expect url.query_pairs() == [("q", "roc lang"), ("page", "1")]
 
 	Stdout.line!("Request URL: ${url.to_str()}")?
+	Stdout.line!("Debug URL: ${Str.inspect(url)}")?
+	Stdout.line!("JSON URL: ${Json.to_str(url)}")?
 	Ok({})
 }

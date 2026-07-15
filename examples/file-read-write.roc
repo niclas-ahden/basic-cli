@@ -1,13 +1,13 @@
+## Write a UTF-8 file, read it back, and delete it.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
 import pf.Stdout
 import pf.Path
 
-# Demo of Path.read_utf8! and Path.write_utf8!
-
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
+
 	out_file : Path
 	out_file = "out.txt"
 
@@ -21,5 +21,6 @@ main! = |_args| {
 	out_file.delete!()?
 
 	Stdout.line!("I read the file back. Its contents are: \"${contents}\"")?
+
 	Ok({})
 }

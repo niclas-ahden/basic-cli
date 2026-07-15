@@ -4,7 +4,7 @@ import Host
 ##
 ## Locale spelling is preserved for display, while equality and hashing are
 ## ASCII case-insensitive as required for language tags.
-Locale := { raw : Str }.{
+Locale :: { raw : Str }.{
 
 	## A reason a locale string could not be parsed.
 	ParseErr : [
@@ -38,9 +38,43 @@ Locale := { raw : Str }.{
 			Err(err) => Err(BadQuotedBytes(parse_err_to_str(err)))
 		}
 
+	## Parse a locale from a string value supplied by a generic encoding.
+	parser_for : encoding -> (state -> Try({ value : Locale, rest : state }, err))
+		where [
+			encoding.parse_str : encoding, state -> Try({ value : Str, rest : state }, err),
+			encoding.invalid_value : encoding, state -> err,
+		]
+	parser_for = |encoding| {
+		Encoding : encoding
+
+		|state| {
+			parsed = Encoding.parse_str(encoding, state)?
+
+			match parse(parsed.value) {
+				Ok(locale) => Ok({ value: locale, rest: parsed.rest })
+				Err(_) => Err(Encoding.invalid_value(encoding, state))
+			}
+		}
+	}
+
+	## Encode a locale using its original spelling through a generic encoding.
+	encoder_for : encoding -> (Locale, state -> Try(state, err))
+		where [
+			encoding.encode_str : Str, state -> Try(state, err),
+		]
+	encoder_for = |_encoding| {
+		Encoding : encoding
+
+		|locale, state| Encoding.encode_str(to_str(locale), state)
+	}
+
 	## Return the locale using its original spelling.
 	to_str : Locale -> Str
 	to_str = |locale| locale.raw
+
+	## Render a locale for debugging and test failures.
+	to_inspect : Locale -> Str
+	to_inspect = |locale| "Locale(${Json.to_str(locale.raw)})"
 
 	## Compare locale tags without ASCII case distinctions.
 	is_eq : Locale, Locale -> Bool
@@ -257,3 +291,34 @@ expect
 		Err(BadQuotedBytes(message)) => Str.contains(message, "ASCII letters, digits, and hyphens")
 		Ok(_) => False
 	}
+
+## Inspection preserves spelling and identifies the nominal type.
+expect
+	match Locale.parse("EN-us") {
+		Ok(locale) => Str.inspect(locale) == "Locale(\"EN-us\")"
+		Err(_) => False
+	}
+
+## Generic encoders preserve the locale's original spelling.
+expect {
+	locale : Locale
+	locale = "en-US"
+	Json.to_str(locale) == "\"en-US\""
+}
+
+## Generic parsers validate encoded locale strings.
+expect {
+	decoded : Try(Locale, Json.ParseErr)
+	decoded = Json.parse("\"zh-Hant-TW\"")
+
+	match decoded {
+		Ok(locale) => Locale.to_str(locale) == "zh-Hant-TW"
+		Err(_) => False
+	}
+}
+
+expect {
+	decoded : Try(Locale, Json.ParseErr)
+	decoded = Json.parse("\"en_US\"")
+	decoded == Err(Json.invalid_json)
+}

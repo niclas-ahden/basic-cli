@@ -1,5 +1,4 @@
-## Demo of the wider Sqlite API: queries, decoders, nullable columns, inserts,
-## updates, deletes, prepared statements.
+## Exercise SQLite queries, decoders, nullable values, and prepared writes.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr

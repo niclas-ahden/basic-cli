@@ -1,13 +1,10 @@
+## Build a small full-screen snake game using terminal raw mode.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
 import pf.Stdin
 import pf.Stdout
 import pf.Tty
-
-# If you want to make a full screen terminal app, you probably want to switch
-# the terminal to raw mode. Here we demonstrate Tty.enable_raw_mode! and
-# Tty.disable_raw_mode! with a small snake game.
 
 Position : { x : I64, y : I64 }
 

@@ -1,12 +1,10 @@
+## Enable terminal raw mode, read one key, and restore normal behavior.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr
 import pf.Stdout
 import pf.Stdin
 import pf.Tty
-
-## Raw mode allows you to change the behaviour of the terminal.
-## This is useful for running an app like vim or a game in the terminal.
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {

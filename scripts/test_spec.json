@@ -24,7 +24,7 @@
         {
           "name": "one-argument",
           "args": ["foo"],
-          "contains": ["received argument: foo", "back to OsStr: OsStr(foo)"],
+          "contains": ["received argument: foo", "back to OsStr: OsStr."],
           "regex": [
             "(?:Unix argument, bytes|Windows argument, UTF-16 code units): \\[102, 111, 111\\]"
           ]
@@ -43,7 +43,7 @@
       "cases": [
         {
           "name": "happy",
-          "contains": ["Hello", "Exit code: 1", "stdout_bytes: [72, 105, 10]"]
+          "contains": ["Hello", "Command config: Cmd({", "Exit code: 1", "stdout_bytes: [72, 105, 10]"]
         }
       ]
     },
@@ -72,14 +72,14 @@
           "name": "missing-editor",
           "unset_env": ["EDITOR", "LETTERS"],
           "exit_code": 1,
-          "contains": ["VarNotFound(OsStr(EDITOR))"]
+          "contains": ["VarNotFound(OsStr."]
         },
         {
           "name": "missing-letters",
           "unset_env": ["LETTERS"],
           "env": { "EDITOR": "nano" },
           "exit_code": 1,
-          "contains": ["VarNotFound(OsStr(LETTERS))"]
+          "contains": ["VarNotFound(OsStr."]
         }
       ]
     },
@@ -225,7 +225,8 @@
           "regex": [
             "The most preferred locale for this system or application: .+",
             "All available locales for this system or application: \\[.*\\]"
-          ]
+          ],
+          "contains": ["Locale JSON example: \"en-US\""]
         }
       ]
     },
@@ -235,7 +236,7 @@
         {
           "name": "existing-source",
           "args": ["{source}"],
-          "contains": ["Filename: path.roc", "Extension: roc", "Type: IsFile"]
+          "contains": ["Debug: Path.", "Filename: path.roc", "Extension: roc", "Type: IsFile"]
         }
       ]
     },
@@ -409,7 +410,9 @@
         {
           "name": "search-request",
           "contains": [
-            "Request URL: https://api.example.com/v1/search?q=roc+lang&page=1#results"
+            "Request URL: https://api.example.com/v1/search?q=roc+lang&page=1#results",
+            "Debug URL: Url(\"https://api.example.com/v1/search?q=roc+lang&page=1#results\")",
+            "JSON URL: \"https://api.example.com/v1/search?q=roc+lang&page=1#results\""
           ]
         }
       ]

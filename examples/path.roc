@@ -1,10 +1,9 @@
+## Inspect a path's filename, extension, representation, and filesystem type.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr exposing [OsStr]
 import pf.Stdout
 import pf.Path
-
-# Demo of basic-cli Path functions
 
 main! : List(OsStr) => Try({}, _)
 main! = |args| {
@@ -14,6 +13,7 @@ main! = |args| {
 
 	Stdout.line!(
 		\\Path: ${Path.display(path)}
+		\\Debug: ${Str.inspect(path)}
 		\\Filename: ${filename}
 		\\Extension: ${extension}
 		\\Type: ${Str.inspect(Path.type!(path)?)}

@@ -1,3 +1,4 @@
+## Prompt for two lines of standard input and print a greeting.
 app [main!] { pf: platform "../platform/main.roc" }
 
 import pf.OsStr

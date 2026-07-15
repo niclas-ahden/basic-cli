@@ -1,44 +1,54 @@
 import Host
 import InternalDateTime
 
-Utc := [].{
-    ## Get the current UTC time as nanoseconds since the Unix epoch (January 1, 1970).
-    now! : () => U128
-    now! = || Host.utc_now!()
+## Read UTC time and convert Unix timestamps into common representations.
+Utc :: [].{
 
-    ## Convert nanoseconds since epoch to milliseconds since epoch.
-    to_millis_since_epoch : U128 -> U128
-    to_millis_since_epoch = |nanos| nanos // 1_000_000
+	## Get the current UTC time as nanoseconds since the Unix epoch (January 1, 1970).
+	now! : () => U128
+	now! = || Host.utc_now!()
 
-    ## Convert milliseconds since epoch to nanoseconds since epoch.
-    from_millis_since_epoch : U128 -> U128
-    from_millis_since_epoch = |millis| millis * 1_000_000
+	## Convert nanoseconds since epoch to milliseconds since epoch.
+	to_millis_since_epoch : U128 -> U128
+	to_millis_since_epoch = |nanos| nanos // 1_000_000
 
-    ## Convert a timestamp to nanoseconds since epoch.
-    to_nanos_since_epoch : U128 -> U128
-    to_nanos_since_epoch = |nanos| nanos
+	## Convert milliseconds since epoch to nanoseconds since epoch.
+	from_millis_since_epoch : U128 -> U128
+	from_millis_since_epoch = |millis| millis * 1_000_000
 
-    ## Convert nanoseconds since epoch to a timestamp.
-    from_nanos_since_epoch : U128 -> U128
-    from_nanos_since_epoch = |nanos| nanos
+	## Convert a timestamp to nanoseconds since epoch.
+	to_nanos_since_epoch : U128 -> U128
+	to_nanos_since_epoch = |nanos| nanos
 
-    ## Calculate the difference between two timestamps in nanoseconds.
-    delta_as_nanos : U128, U128 -> U128
-    delta_as_nanos = |a, b| if a > b { a - b } else { b - a }
+	## Convert nanoseconds since epoch to a timestamp.
+	from_nanos_since_epoch : U128 -> U128
+	from_nanos_since_epoch = |nanos| nanos
 
-    ## Calculate the difference between two timestamps in milliseconds.
-    delta_as_millis : U128, U128 -> U128
-    delta_as_millis = |a, b| {
-        nanos = if a > b { a - b } else { b - a }
-        nanos // 1_000_000
-    }
+	## Calculate the difference between two timestamps in nanoseconds.
+	delta_as_nanos : U128, U128 -> U128
+	delta_as_nanos = |a, b| if a > b {
+		a - b
+	} else {
+		b - a
+	}
 
-    ## Convert a timestamp to an ISO 8601 UTC string with second precision.
-    to_iso_8601 : U128 -> Str
-    to_iso_8601 = |nanos| {
-        millis = to_millis_since_epoch(nanos)
-        datetime = InternalDateTime.epoch_millis_to_datetime(millis)
+	## Calculate the difference between two timestamps in milliseconds.
+	delta_as_millis : U128, U128 -> U128
+	delta_as_millis = |a, b| {
+		nanos = if a > b {
+			a - b
+		} else {
+			b - a
+		}
+		nanos // 1_000_000
+	}
 
-        InternalDateTime.to_iso_8601(datetime)
-    }
+	## Convert a timestamp to an ISO 8601 UTC string with second precision.
+	to_iso_8601 : U128 -> Str
+	to_iso_8601 = |nanos| {
+		millis = to_millis_since_epoch(nanos)
+		datetime = InternalDateTime.epoch_millis_to_datetime(millis)
+
+		InternalDateTime.to_iso_8601(datetime)
+	}
 }
