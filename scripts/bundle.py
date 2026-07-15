@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM_DIR = ROOT / "platform"
 LIBRARY_EXTENSIONS = {".a", ".o", ".lib", ".obj"}
+MAX_PLATFORM_BYTES = 100 * 1024 * 1024
 
 
 def relative_platform_path(path: Path) -> str:
@@ -37,6 +38,14 @@ def main() -> None:
         *(relative_platform_path(path) for path in roc_files),
         *(relative_platform_path(path) for path in library_files),
     ]
+    license_source = ROOT / "THIRD_PARTY_LICENSES.md"
+    unpacked_size = sum(path.stat().st_size for path in (*roc_files, *library_files))
+    unpacked_size += license_source.stat().st_size
+    if unpacked_size > MAX_PLATFORM_BYTES:
+        raise SystemExit(
+            "Platform inputs exceed Roc's default 100 MiB transitive dependency limit: "
+            f"{unpacked_size} bytes"
+        )
 
     print(
         f"Bundling {len(roc_files)} .roc files and "
@@ -47,8 +56,10 @@ def main() -> None:
         print(f"  {path}")
     print("  THIRD_PARTY_LICENSES.md\n", flush=True)
 
+    print(f"Unpacked platform size: {unpacked_size} bytes\n")
+
     license_target = PLATFORM_DIR / "THIRD_PARTY_LICENSES.md"
-    shutil.copy2(ROOT / "THIRD_PARTY_LICENSES.md", license_target)
+    shutil.copy2(license_source, license_target)
     try:
         subprocess.run(
             [

@@ -24,6 +24,7 @@ jobs:
           version: nightly-new-compiler
       - uses: dtolnay/rust-toolchain@1.83.0
         with:
+          components: llvm-tools-preview
           targets: x86_64-unknown-linux-musl
       - name: Format, check, and test examples
         run: ./scripts/test.py --operation validate
@@ -83,6 +84,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.83.0
         with:
           targets: ${{ matrix.rust_target }}
+      - name: Install LLVM tools for Linux host stripping
+        if: endsWith(matrix.target, 'musl')
+        run: rustup component add llvm-tools-preview
       - name: Cross-compile every example
         shell: bash
         run: ./scripts/test.py --operation build --target "${{ matrix.target }}" --artifact-dir dist/example-binaries

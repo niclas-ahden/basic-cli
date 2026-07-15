@@ -41,6 +41,43 @@ def run(*args: str, env: dict[str, str] | None = None, check: bool = True) -> No
     subprocess.run(args, cwd=ROOT, env=env, check=check)
 
 
+def rust_host_target() -> str:
+    output = subprocess.check_output(["rustc", "-vV"], text=True)
+    for line in output.splitlines():
+        if line.startswith("host: "):
+            return line.removeprefix("host: ")
+    raise SystemExit("Could not determine the Rust host target")
+
+
+def find_llvm_strip() -> Path:
+    executable = shutil.which("llvm-strip")
+    if executable:
+        return Path(executable)
+
+    sysroot = Path(subprocess.check_output(["rustc", "--print", "sysroot"], text=True).strip())
+    executable = sysroot / "lib" / "rustlib" / rust_host_target() / "bin" / "llvm-strip"
+    if executable.is_file():
+        return executable
+
+    raise SystemExit(
+        "llvm-strip was not found; install it with "
+        "`rustup component add llvm-tools-preview`"
+    )
+
+
+def strip_linux_host(target_name: str) -> None:
+    if not target_name.endswith("musl"):
+        return
+
+    path = ROOT / "platform" / "targets" / target_name / "libhost.a"
+    before = path.stat().st_size
+    # ELF's strip-unneeded mode retains every symbol referenced by a
+    # relocation while dropping debug data and unused symbols.
+    run(str(find_llvm_strip()), "--strip-unneeded", str(path))
+    after = path.stat().st_size
+    print(f"Stripped {target_name} libhost.a: {before} -> {after} bytes")
+
+
 def detect_native_target() -> str:
     system = platform.system()
     machine = platform.machine().lower()
@@ -114,6 +151,7 @@ def build_unix_target(target_name: str, *, native: bool = False) -> None:
     qualifier = "native" if native else rust_target
     print(f"Building for {target_name} ({qualifier})...")
     copy_unix_host(target_name, rust_target, native=native)
+    strip_linux_host(target_name)
 
 
 def find_windows_sdk_lib_dir() -> Path:
