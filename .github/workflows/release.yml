@@ -293,16 +293,11 @@ jobs:
           github_token: ${{ github.token }}
 
       - name: Publish release
-        uses: roc-lang/release-package/actions/publish-release@d2560ead9f724bfaabfbc8134b8895e120171064
+        uses: roc-lang/release-package/actions/publish-release@48ccc909bd8f6ba60feb1d33d8b6ac1dc1c7af36
         with:
           release_version: ${{ needs.build.outputs.release_version }}
+          additional_assets: docs.tar.gz
           github_token: ${{ github.token }}
-
-      - name: Attach docs archive
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ needs.build.outputs.release_version }}
-        run: gh release upload "$RELEASE_VERSION" docs.tar.gz --repo "$GITHUB_REPOSITORY"
 
   publish-docs:
     name: Publish versioned docs and update examples
