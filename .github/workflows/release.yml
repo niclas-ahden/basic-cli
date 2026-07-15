@@ -365,30 +365,7 @@ jobs:
       - name: Restore published versioned docs
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          mkdir -p www .release/docs-downloads
-          releases_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")"
-          latest_stable="$(printf '%s' "$releases_json" | jq -r '[.[] | select(.draft == false and .prerelease == false)][0].tag_name // empty')"
-
-          printf '%s' "$releases_json" | jq -r '.[] | select(.draft == false) | .tag_name' | while IFS= read -r release_name; do
-            [ -n "$release_name" ] || continue
-            download_dir=".release/docs-downloads/$release_name"
-            mkdir -p "$download_dir"
-
-            if gh release download "$release_name" --pattern docs.tar.gz --dir "$download_dir" --clobber; then
-              mkdir -p "www/$release_name"
-              tar -xzf "$download_dir/docs.tar.gz" -C "www/$release_name" --strip-components=1
-              echo "Restored docs for $release_name"
-            else
-              echo "No docs.tar.gz asset for $release_name; skipping"
-            fi
-          done
-
-          if [ -n "$latest_stable" ]; then
-            sed "s/LATESTVERSION/$latest_stable/g" docs/index.html > www/index.html
-          fi
+        run: ./scripts/restore_release_docs.sh www
 
       - name: Snapshot existing docs
         uses: roc-lang/release-package/actions/docs-snapshot@d2560ead9f724bfaabfbc8134b8895e120171064
@@ -423,16 +400,14 @@ jobs:
           release_version: ${{ needs.build.outputs.release_version }}
           paths: |
             examples
-            www
           branch_prefix: release-followup
           base_branch: ${{ github.event.repository.default_branch }}
-          commit_message: Update docs and examples for ${{ needs.build.outputs.release_version }}
-          pr_title: Update docs and examples for ${{ needs.build.outputs.release_version }}
+          commit_message: Update examples for ${{ needs.build.outputs.release_version }}
+          pr_title: Update examples for ${{ needs.build.outputs.release_version }}
           pr_body: |
             Release follow-up for ${{ needs.build.outputs.release_version }}.
 
-            Updates checked-in examples to the published platform bundle and
-            adds the generated versioned documentation.
+            Updates checked-in examples to the published platform bundle.
           github_token: ${{ github.token }}
 
       - name: Create Pages tree
