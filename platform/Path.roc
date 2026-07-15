@@ -69,7 +69,6 @@ Path := [
 
 	## Return the type of the path if the path exists on disk.
 	##
-	## > [`File.type`](File#type!) does the same thing.
 	type! : Path => Try([IsFile, IsDir, IsSymLink], [PathErr(IOErr), ..])
 	type! = |path| {
 		Host.path_type!(to_raw(path))
@@ -107,6 +106,34 @@ Path := [
 	delete! : Path => Try({}, [PathErr(IOErr), ..])
 	delete! = |path| map_file_result(Host.file_delete!(to_raw(path)))
 
+	## Return the size of the file at this path in bytes.
+	size_in_bytes! : Path => Try(U64, [PathErr(IOErr), ..])
+	size_in_bytes! = |path| map_file_result(Host.file_size_in_bytes!(to_raw(path)))
+
+	## Check whether the file at this path has any executable bit set.
+	is_executable! : Path => Try(Bool, [PathErr(IOErr), ..])
+	is_executable! = |path| map_file_result(Host.file_is_executable!(to_raw(path)))
+
+	## Check whether the file at this path has a readable owner permission bit set.
+	is_readable! : Path => Try(Bool, [PathErr(IOErr), ..])
+	is_readable! = |path| map_file_result(Host.file_is_readable!(to_raw(path)))
+
+	## Check whether the file at this path has a writable owner permission bit set.
+	is_writable! : Path => Try(Bool, [PathErr(IOErr), ..])
+	is_writable! = |path| map_file_result(Host.file_is_writable!(to_raw(path)))
+
+	## Return the last accessed time as nanoseconds since the Unix epoch.
+	time_accessed! : Path => Try(U128, [PathErr(IOErr), ..])
+	time_accessed! = |path| map_file_result(Host.file_time_accessed!(to_raw(path)))
+
+	## Return the last modified time as nanoseconds since the Unix epoch.
+	time_modified! : Path => Try(U128, [PathErr(IOErr), ..])
+	time_modified! = |path| map_file_result(Host.file_time_modified!(to_raw(path)))
+
+	## Return the creation time as nanoseconds since the Unix epoch.
+	time_created! : Path => Try(U128, [PathErr(IOErr), ..])
+	time_created! = |path| map_file_result(Host.file_time_created!(to_raw(path)))
+
 	## Create a hard link at `link` pointing to `original`.
 	hard_link! : Path, Path => Try({}, [PathErr(IOErr), ..])
 	hard_link! = |original, link|
@@ -132,6 +159,14 @@ Path := [
 	## Delete a directory and all contents at this path.
 	delete_all! : Path => Try({}, [PathErr(IOErr), ..])
 	delete_all! = |path| map_dir_result(Host.dir_delete_all!(to_raw(path)))
+
+	## List the entries in the directory at this path.
+	list! : Path => Try(List(Path), [PathErr(IOErr), ..])
+	list! = |path|
+		match Host.dir_list!(to_raw(path)) {
+			Ok(paths) => Ok(paths.map(from_raw))
+			Err(DirErr(err)) => Err(PathErr(err))
+		}
 
 	## Create a UTF-8 text path.
 	utf8 : Str -> Path

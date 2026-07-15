@@ -1208,11 +1208,13 @@ pub enum HostIOErrTag {
     AlreadyExists = 0,
     BrokenPipe = 1,
     Interrupted = 2,
-    NotFound = 3,
-    Other = 4,
-    OutOfMemory = 5,
-    PermissionDenied = 6,
-    Unsupported = 7,
+    IsADirectory = 3,
+    NotADirectory = 4,
+    NotFound = 5,
+    Other = 6,
+    OutOfMemory = 7,
+    PermissionDenied = 8,
+    Unsupported = 9,
 }
 
 #[repr(C)]
@@ -1221,6 +1223,8 @@ pub union HostIOErrPayload {
     pub already_exists: [u8; 0],
     pub broken_pipe: [u8; 0],
     pub interrupted: [u8; 0],
+    pub is_adirectory: [u8; 0],
+    pub not_adirectory: [u8; 0],
     pub not_found: [u8; 0],
     pub other: core::mem::ManuallyDrop<RocStr>,
     pub out_of_memory: [u8; 0],
@@ -1522,11 +1526,13 @@ pub enum IOErrTag {
     AlreadyExists = 0,
     BrokenPipe = 1,
     Interrupted = 2,
-    NotFound = 3,
-    Other = 4,
-    OutOfMemory = 5,
-    PermissionDenied = 6,
-    Unsupported = 7,
+    IsADirectory = 3,
+    NotADirectory = 4,
+    NotFound = 5,
+    Other = 6,
+    OutOfMemory = 7,
+    PermissionDenied = 8,
+    Unsupported = 9,
 }
 
 #[repr(C)]
@@ -1535,6 +1541,8 @@ pub union IOErrPayload {
     pub already_exists: [u8; 0],
     pub broken_pipe: [u8; 0],
     pub interrupted: [u8; 0],
+    pub is_adirectory: [u8; 0],
+    pub not_adirectory: [u8; 0],
     pub not_found: [u8; 0],
     pub other: core::mem::ManuallyDrop<RocStr>,
     pub out_of_memory: [u8; 0],
@@ -5051,6 +5059,8 @@ impl HostIOErr {
             HostIOErrTag::AlreadyExists => {},
             HostIOErrTag::BrokenPipe => {},
             HostIOErrTag::Interrupted => {},
+            HostIOErrTag::IsADirectory => {},
+            HostIOErrTag::NotADirectory => {},
             HostIOErrTag::NotFound => {},
             HostIOErrTag::Other => {
                 let payload = value.payload_other();
@@ -5074,6 +5084,8 @@ impl HostIOErr {
             HostIOErrTag::AlreadyExists => {},
             HostIOErrTag::BrokenPipe => {},
             HostIOErrTag::Interrupted => {},
+            HostIOErrTag::IsADirectory => {},
+            HostIOErrTag::NotADirectory => {},
             HostIOErrTag::NotFound => {},
             HostIOErrTag::Other => {
                 let payload = value.payload_other();
@@ -5272,6 +5284,8 @@ impl IOErr {
             IOErrTag::AlreadyExists => {},
             IOErrTag::BrokenPipe => {},
             IOErrTag::Interrupted => {},
+            IOErrTag::IsADirectory => {},
+            IOErrTag::NotADirectory => {},
             IOErrTag::NotFound => {},
             IOErrTag::Other => {
                 let payload = value.payload_other();
@@ -5295,6 +5309,8 @@ impl IOErr {
             IOErrTag::AlreadyExists => {},
             IOErrTag::BrokenPipe => {},
             IOErrTag::Interrupted => {},
+            IOErrTag::IsADirectory => {},
+            IOErrTag::NotADirectory => {},
             IOErrTag::NotFound => {},
             IOErrTag::Other => {
                 let payload = value.payload_other();

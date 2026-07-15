@@ -145,17 +145,32 @@ run! = || {
 
 	# Example: prepared statements
 	# Note: This is faster if you execute the same prepared statement many times.
+	prepared_update = Sqlite.prepare!({
+		path: db_path,
+		query: "UPDATE todos SET status = status WHERE id = :id;",
+	}) ? |err| PrepareUpdateTodoFailed(err)
+
+	prepared_update.execute!([{ name: ":id", value: Integer(1) }]) ? |err| ExecutePreparedUpdateFailed(err)
+	# Reuse verifies that execution resets the statement before returning.
+	prepared_update.execute!([{ name: ":id", value: Integer(2) }]) ? |err| ReusePreparedUpdateFailed(err)
+
+	prepared_count = Sqlite.prepare!({
+		path: db_path,
+		query: "SELECT COUNT(*) as \"count\" FROM todos;",
+	}) ? |err| PrepareCountTodosFailed(err)
+	prepared_count_value = prepared_count.query!([], Sqlite.u64("count")) ? |err| QueryPreparedCountFailed(err)
+	expect prepared_count_value == count
+
 	prepared_query = Sqlite.prepare!({
 		path: db_path,
 		# sort by the length of the task description
 		query: "SELECT * FROM todos ORDER BY LENGTH(task);",
 	}) ? |err| PrepareSortedTodosFailed(err)
 
-	todos_sorted = Sqlite.query_many_prepared!({
-		stmt: prepared_query,
-		bindings: [],
-		rows: decode_task_status,
-	}) ? |err| QuerySortedTodosFailed(err)
+	todos_sorted = prepared_query.query_many!([], decode_task_status) ? |err| QuerySortedTodosFailed(err)
+	# Reuse verifies that querying resets the statement before returning.
+	todos_sorted_again = prepared_query.query_many!([], decode_task_status) ? |err| ReuseSortedTodosFailed(err)
+	expect todos_sorted_again.len() == todos_sorted.len()
 
 	print_line!("")?
 	print_line!("Todos sorted by length of task description:")?

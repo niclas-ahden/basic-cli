@@ -1,8 +1,7 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Stdout
-import pf.Dir
 import pf.Path
 
 # Create and inspect a small project workspace.
@@ -10,31 +9,42 @@ import pf.Path
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
 	# Best-effort cleanup from a previous interrupted run.
-	Dir.delete_all!("demo-workspace") ?? {}
+	workspace : Path
+	workspace = "demo-workspace"
+
+	workspace.delete_all!() ?? {}
 
 	# Create a directory
-	Dir.create!("demo-workspace")?
+	workspace.create_dir!()?
 
 	# Create a directory and its parents
-	Dir.create_all!("demo-workspace/src/components")?
+	components : Path
+	components = "demo-workspace/src/components"
+
+	components.create_all!()?
 
 	# Create a child directory
-	Dir.create!("demo-workspace/assets")?
+	assets : Path
+	assets = "demo-workspace/assets"
+
+	assets.create_dir!()?
 
 	# List the contents of a directory
-	paths = Dir.list!("demo-workspace")?
-	displayed = paths.map(Path.display)
+	paths = workspace.list!()?
+
+	displayed = paths.map(|path| path.display())
 
 	# Check the contents of the directory
 	expect paths.len() == 2
-	expect List.contains(displayed, "demo-workspace/src")
-	expect List.contains(displayed, "demo-workspace/assets")
+	expect displayed.contains("demo-workspace/src")
+	expect displayed.contains("demo-workspace/assets")
 
 	Stdout.line!("Workspace entries: ${Str.join_with(displayed, ", ")}")?
 
 	# Delete all directories recursively
-	Dir.delete_all!("demo-workspace")?
+	workspace.delete_all!()?
 
 	Stdout.line!("Workspace cleaned up.")?
+
 	Ok({})
 }

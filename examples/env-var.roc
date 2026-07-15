@@ -1,6 +1,6 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Stdout
 import pf.Env
 
@@ -9,10 +9,13 @@ import pf.Env
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
 	editor = Env.var!("EDITOR")?
+
 	Stdout.line!("Your favorite editor is ${OsStr.display(editor)}!")?
 
 	letters = Env.var_str!("LETTERS")?
-	joined_letters = Str.join_with(Str.split_on(letters, ","), " ")
+
+	joined_letters = Str.join_with(letters.split_on(","), " ")
+
 	Stdout.line!("Your favorite letters are: ${joined_letters}")?
 
 	Ok({})

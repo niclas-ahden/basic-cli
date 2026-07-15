@@ -17,6 +17,7 @@ import Path
 # the decoders are left unannotated and all decoder errors live in one closed set
 # of tags (see DecodeErr below for the documented shape).
 Sqlite := [].{
+
     ## A value accepted by a SQLite binding or returned from a column.
     Value : [
         Null,
@@ -34,7 +35,40 @@ Sqlite := [].{
     }
 
     ## Represents a prepared statement that can be executed many times.
-    Stmt : Host.SqliteStmt
+    Stmt := { host : Host.SqliteStmt }.{
+
+        ## Execute this prepared statement without returning rows.
+        execute! : Stmt, List(Binding) => Try({}, [RowsReturnedUseQueryInstead, SqliteErr(ErrCode, Str), ..])
+        execute! = |stmt, bindings| {
+            host_stmt = stmt_to_host(stmt)
+            sqlite_bind!(host_stmt, bindings)?
+            res = sqlite_step!(host_stmt)
+            sqlite_reset!(host_stmt)?
+            match res {
+                Ok(Done) => Ok({})
+                Ok(Row) => Err(RowsReturnedUseQueryInstead)
+                Err(e) => Err(e)
+            }
+        }
+
+        ## Execute this prepared query and decode exactly one row.
+        query! = |stmt, bindings, decode| {
+            host_stmt = stmt_to_host(stmt)
+            sqlite_bind!(host_stmt, bindings)?
+            res = decode_exactly_one_row!(host_stmt, decode)
+            sqlite_reset!(host_stmt)?
+            res
+        }
+
+        ## Execute this prepared query and decode all returned rows.
+        query_many! = |stmt, bindings, decode| {
+            host_stmt = stmt_to_host(stmt)
+            sqlite_bind!(host_stmt, bindings)?
+            res = decode_rows!(host_stmt, decode)
+            sqlite_reset!(host_stmt)?
+            res
+        }
+    }
 
     ## Represents various error codes that can be returned by Sqlite.
     ErrCode : [
@@ -90,58 +124,27 @@ Sqlite := [].{
     ## Prepare a `Stmt` for reuse by the prepared execute and query operations.
     prepare! : { path : Path.Path, query : Str } => Try(Stmt, [SqliteErr(ErrCode, Str), ..])
     prepare! = |{ path, query: q }|
-        sqlite_prepare!(Path.to_raw(path), q)
+        sqlite_prepare!(Path.to_raw(path), q).map_ok(|stmt| Stmt.{ host: stmt })
 
     ## Execute a SQL statement that **doesn't return any rows** (INSERT/UPDATE/DELETE).
     execute! : { path : Path.Path, query : Str, bindings : List(Binding) } => Try({}, [RowsReturnedUseQueryInstead, SqliteErr(ErrCode, Str), ..])
     execute! = |{ path, query: q, bindings }| {
         stmt = prepare!({ path, query: q })?
-        execute_prepared!({ stmt, bindings })
-    }
-
-    ## Execute a prepared SQL statement that **doesn't return any rows**.
-    execute_prepared! : { stmt : Stmt, bindings : List(Binding) } => Try({}, [RowsReturnedUseQueryInstead, SqliteErr(ErrCode, Str), ..])
-    execute_prepared! = |{ stmt, bindings }| {
-        sqlite_bind!(stmt, bindings)?
-        res = sqlite_step!(stmt)
-        sqlite_reset!(stmt)?
-        match res {
-            Ok(Done) => Ok({})
-            Ok(Row) => Err(RowsReturnedUseQueryInstead)
-            Err(e) => Err(e)
-        }
+        stmt.execute!(bindings)
     }
 
     ## Execute a SQL query and decode exactly one row into a value. `bindings`
     ## is a `List(Binding)` and `row` is a decoder built from the functions below.
     query! = |{ path, query: q, bindings, row }| {
         stmt = prepare!({ path, query: q })?
-        query_prepared!({ stmt, bindings, row })
-    }
-
-    ## Execute a prepared SQL query and decode exactly one row into a value.
-    ## Pass the `Stmt` from `prepare!`, a `List(Binding)`, and a row decoder.
-    query_prepared! = |{ stmt, bindings, row: decode }| {
-        sqlite_bind!(stmt, bindings)?
-        res = decode_exactly_one_row!(stmt, decode)
-        sqlite_reset!(stmt)?
-        res
+        stmt.query!(bindings, row)
     }
 
     ## Execute a SQL query and decode multiple rows into a list of values.
     ## `bindings` is a `List(Binding)` and `rows` is a row decoder.
     query_many! = |{ path, query: q, bindings, rows }| {
         stmt = prepare!({ path, query: q })?
-        query_many_prepared!({ stmt, bindings, rows })
-    }
-
-    ## Execute a prepared SQL query and decode multiple rows into a list of values.
-    ## Pass the `Stmt` from `prepare!`, a `List(Binding)`, and a row decoder.
-    query_many_prepared! = |{ stmt, bindings, rows: decode }| {
-        sqlite_bind!(stmt, bindings)?
-        res = decode_rows!(stmt, decode)
-        sqlite_reset!(stmt)?
-        res
+        stmt.query_many!(bindings, rows)
     }
 
     # ---- Row decoding combinators ----------------------------------------------
@@ -283,7 +286,6 @@ Sqlite := [].{
     ## Decode a nullable column to `[NotNull(F64), Null]`.
     nullable_f64 = |name| nullable_real_decoder(name, |r| Ok(r))
 
-
     ## Convert an `ErrCode` to a pretty string for display purposes.
     errcode_to_str = |code|
         match code {
@@ -323,10 +325,14 @@ Sqlite := [].{
 
 # ---- internal helpers (module-private) -----------------------------------------
 
+stmt_to_host : Sqlite.Stmt -> Host.SqliteStmt
+stmt_to_host = |stmt| stmt.host
+
 sqlite_prepare! = |raw_path, query|
     Host.sqlite_prepare!(raw_path, query)
         .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
 
+sqlite_bind! : Host.SqliteStmt, List({ name : Str, value : [Null, Real(F64), Integer(I64), String(Str), Bytes(List(U8))] }) => Try({}, [SqliteErr(Sqlite.ErrCode, Str), ..])
 sqlite_bind! = |stmt, bindings|
     Host.sqlite_bind!(stmt, bindings)
         .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
@@ -337,12 +343,18 @@ sqlite_column_value! = |stmt, index|
     Host.sqlite_column_value!(stmt, index)
         .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))
 
+sqlite_step! : Host.SqliteStmt => Try([Row, Done], [SqliteErr(Sqlite.ErrCode, Str), ..])
 sqlite_step! = |stmt|
     match Host.sqlite_step!(stmt) {
-        Ok(has_row) => if has_row { Ok(Row) } else { Ok(Done) }
+        Ok(has_row) => if has_row {
+            Ok(Row)
+        } else {
+            Ok(Done)
+        }
         Err({ code, message }) => Err(SqliteErr(code_from_i64(code), message))
     }
 
+sqlite_reset! : Host.SqliteStmt => Try({}, [SqliteErr(Sqlite.ErrCode, Str), ..])
 sqlite_reset! = |stmt|
     Host.sqlite_reset!(stmt)
         .map_err(|{ code, message }| SqliteErr(code_from_i64(code), message))

@@ -6,8 +6,8 @@ use std::net::TcpStream;
 use crate::roc_platform_abi::*;
 use crate::{roc_host, roc_u8_list_from_slice};
 
-// `Tcp.Stream` (a `Box(U64)`) is represented by the generated glue as `*mut u64`:
-// a boxed u64 holding a raw `*mut BufReader<TcpStream>`. The box is refcounted
+// The `Host.TcpStream` backing `Tcp.Stream` is represented by the generated glue
+// as `*mut u64`: a boxed u64 holding a raw `*mut BufReader<TcpStream>`. The box is refcounted
 // with `allocate_box`/`decref_box_with`; closing the socket happens in
 // `drop_tcp_stream` when the last reference is released. Each host fn that takes
 // a handle calls `release_tcp_stream` before returning to balance the incref Roc

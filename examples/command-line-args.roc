@@ -8,7 +8,9 @@ main! = |args| {
 	# Skip first arg (executable path), get the remaining args
 	match args.drop_first(1) {
 		[first_arg, ..] => {
+
 			Stdout.line!("received argument: ${OsStr.display(first_arg)}")?
+
 			match OsStr.to_raw(first_arg) {
 				Utf8(str) => {
 					Stdout.line!("UTF-8 argument text: ${Str.inspect(str)}")?
@@ -26,6 +28,7 @@ main! = |args| {
 					Stdout.line!("back to OsStr: ${Str.inspect(round_tripped_arg)}")?
 				}
 			}
+
 			Ok({})
 		}
 		[] => Err(MissingArgument)

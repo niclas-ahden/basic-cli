@@ -148,9 +148,17 @@ macro_rules! define_common_io_err {
                     payload: $payload { interrupted: [] },
                     tag: $tag::Interrupted,
                 },
+                io::ErrorKind::IsADirectory => $ty {
+                    payload: $payload { is_adirectory: [] },
+                    tag: $tag::IsADirectory,
+                },
                 io::ErrorKind::NotFound => $ty {
                     payload: $payload { not_found: [] },
                     tag: $tag::NotFound,
+                },
+                io::ErrorKind::NotADirectory => $ty {
+                    payload: $payload { not_adirectory: [] },
+                    tag: $tag::NotADirectory,
                 },
                 io::ErrorKind::OutOfMemory => $ty {
                     payload: $payload { out_of_memory: [] },
@@ -1337,8 +1345,8 @@ pub extern "C" fn hosted_file_read_utf8(path: UnixBytesOrUtf8OrWindowsU16s) -> F
 // ============================================================================
 // Buffered file readers
 //
-// `File.Reader` (a `Box(U64)`) is represented by the generated glue as `*mut u64`:
-// a boxed u64 holding a raw `*mut BufReader<fs::File>`. The box is refcounted
+// The `Host.FileReader` backing `File.Reader` is represented by the generated
+// glue as `*mut u64`: a boxed u64 holding a raw `*mut BufReader<fs::File>`. The box is refcounted
 // with `allocate_box`/`decref_box_with`; closing the file happens in
 // `drop_file_reader` when the last reference is released.
 // ----------------------------------------------------------------------------

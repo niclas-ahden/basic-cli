@@ -1,8 +1,7 @@
 app [main!] { pf: platform "../platform/main.roc" }
 
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Stdout
-import pf.File
 import pf.Path
 
 # Demonstrates error handling patterns
@@ -14,12 +13,31 @@ main! = |_args| {
 	file_name = "test-file.txt"
 
 	# Try to read a file that doesn't exist - should error
-	match File.read_utf8!("nonexistent-file.txt") {
+	missing_file : Path
+	missing_file = "nonexistent-file.txt"
+	match missing_file.read_utf8!() {
 		Ok(content) => Err(UnexpectedReadSuccess(content))?
-		Err(FileErr(NotFound)) => Stdout.line!("Expected error: File not found (NotFound)")?
-		Err(FileErr(PermissionDenied)) => Stdout.line!("Error: Permission denied")?
-		Err(FileErr(Other(msg))) => Stdout.line!("Error: ${msg}")?
+		Err(PathErr(NotFound)) => Stdout.line!("Expected error: Path not found (NotFound)")?
+		Err(PathErr(PermissionDenied)) => Stdout.line!("Error: Permission denied")?
+		Err(PathErr(Other(msg))) => Stdout.line!("Error: ${msg}")?
 		Err(_) => Stdout.line!("Error: Other file error")?
+	}
+
+	# Filesystem kind mismatches are portable typed errors.
+	directory : Path
+	directory = "examples"
+	match directory.read_bytes!() {
+		Err(PathErr(IsADirectory)) => Stdout.line!("Expected error: Path is a directory (IsADirectory)")?
+		Ok(_) => Err(UnexpectedDirectoryReadSuccess)?
+		Err(err) => Err(UnexpectedDirectoryReadError(err))?
+	}
+
+	regular_file : Path
+	regular_file = "LICENSE"
+	match regular_file.list!() {
+		Err(PathErr(NotADirectory)) => Stdout.line!("Expected error: Path is not a directory (NotADirectory)")?
+		Ok(_) => Err(UnexpectedFileListSuccess)?
+		Err(err) => Err(UnexpectedFileListError(err))?
 	}
 
 	file_name.write_utf8!("Hello from error-handling example!") ? |err| FileWriteFailed(err)

@@ -5,8 +5,8 @@ use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use crate::roc_platform_abi::*;
 use crate::{roc_host, roc_u8_list_from_slice};
 
-// The generated glue represents `Sqlite.Stmt` (a `Box(U64)`) as `*mut u64`: a
-// boxed u64 whose value we use to stash a raw `*mut SqliteStatement`. The box is
+// The generated glue represents the `Host.SqliteStmt` backing `Sqlite.Stmt` as
+// `*mut u64`: a boxed u64 whose value we use to stash a raw `*mut SqliteStatement`. The box is
 // allocated/refcounted with the generated `allocate_box`/`decref_box_with`
 // helpers; teardown (running `sqlite3_finalize`) happens in `drop_sqlite_stmt`
 // when the last reference is released. Each host fn that takes a handle calls

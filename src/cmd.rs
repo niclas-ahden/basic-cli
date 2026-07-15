@@ -40,9 +40,17 @@ fn cmd_io_err_from_io(error: &io::Error, roc_host: &RocHost) -> HostIOErr {
             payload: HostIOErrPayload { interrupted: [] },
             tag: HostIOErrTag::Interrupted,
         },
+        io::ErrorKind::IsADirectory => HostIOErr {
+            payload: HostIOErrPayload { is_adirectory: [] },
+            tag: HostIOErrTag::IsADirectory,
+        },
         io::ErrorKind::NotFound => HostIOErr {
             payload: HostIOErrPayload { not_found: [] },
             tag: HostIOErrTag::NotFound,
+        },
+        io::ErrorKind::NotADirectory => HostIOErr {
+            payload: HostIOErrPayload { not_adirectory: [] },
+            tag: HostIOErrTag::NotADirectory,
         },
         io::ErrorKind::OutOfMemory => HostIOErr {
             payload: HostIOErrPayload { out_of_memory: [] },
@@ -85,9 +93,17 @@ fn cmd_output_io_err_from_io(error: &io::Error, roc_host: &RocHost) -> IOErr {
             payload: IOErrPayload { interrupted: [] },
             tag: IOErrTag::Interrupted,
         },
+        io::ErrorKind::IsADirectory => IOErr {
+            payload: IOErrPayload { is_adirectory: [] },
+            tag: IOErrTag::IsADirectory,
+        },
         io::ErrorKind::NotFound => IOErr {
             payload: IOErrPayload { not_found: [] },
             tag: IOErrTag::NotFound,
+        },
+        io::ErrorKind::NotADirectory => IOErr {
+            payload: IOErrPayload { not_adirectory: [] },
+            tag: IOErrTag::NotADirectory,
         },
         io::ErrorKind::OutOfMemory => IOErr {
             payload: IOErrPayload { out_of_memory: [] },

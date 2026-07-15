@@ -10,6 +10,10 @@
 ##
 ## **Interrupted** - This operation was interrupted. Interrupted operations can typically be retried.
 ##
+## **IsADirectory** - A filesystem operation expected a non-directory path.
+##
+## **NotADirectory** - A filesystem operation expected a directory path.
+##
 ## **Unsupported** - This operation is unsupported on this platform. This means that the operation can never succeed.
 ##
 ## **OutOfMemory** - An operation could not be completed, because it failed to allocate enough memory.
@@ -19,7 +23,9 @@ IOErr := [
     AlreadyExists,
     BrokenPipe,
     Interrupted,
+    IsADirectory,
     NotFound,
+    NotADirectory,
     Other(Str),
     OutOfMemory,
     PermissionDenied,
