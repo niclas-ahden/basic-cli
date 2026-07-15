@@ -14,6 +14,7 @@ main! = |_args| {
 	# Try to read a file that doesn't exist - should error
 	missing_file : Path
 	missing_file = "nonexistent-file.txt"
+
 	match missing_file.read_utf8!() {
 		Ok(content) => Err(UnexpectedReadSuccess(content))?
 		Err(PathErr(NotFound)) => Stdout.line!("Expected error: Path not found (NotFound)")?
@@ -25,6 +26,7 @@ main! = |_args| {
 	# Filesystem kind mismatches are portable typed errors.
 	directory : Path
 	directory = "examples"
+
 	match directory.read_bytes!() {
 		Err(PathErr(IsADirectory)) => Stdout.line!("Expected error: Path is a directory (IsADirectory)")?
 		Ok(_) => Err(UnexpectedDirectoryReadSuccess)?
@@ -33,6 +35,7 @@ main! = |_args| {
 
 	regular_file : Path
 	regular_file = "LICENSE"
+
 	match regular_file.list!() {
 		Err(PathErr(NotADirectory)) => Stdout.line!("Expected error: Path is not a directory (NotADirectory)")?
 		Ok(_) => Err(UnexpectedFileListSuccess)?

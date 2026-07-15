@@ -536,6 +536,9 @@ def run_suite(bundle_url: str, operations: set[str], target: str, artifact_dir: 
         ):
             command("cargo", "build", "--locked", "--release", cwd=ROOT / "ci" / "rust_http_server")
         binaries: dict[str, Path] = {}
+        if "validate" in operations:
+            print("\n=== PLATFORM TEST ===")
+            command("roc", "test", ROOT / "platform" / "main.roc", *roc_extra_args())
         for stage in ("fmt", "check", "test"):
             if "validate" in operations:
                 run_stage(stage, defaults, apps, binaries, artifact_dir, target)

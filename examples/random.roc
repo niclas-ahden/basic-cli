@@ -1,7 +1,7 @@
 ## Generate random 32-bit and 64-bit seed values.
 app [main!] { pf: platform "../platform/main.roc" }
 
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Stdout
 import pf.Random
 

@@ -1,13 +1,11 @@
 ## Query a SQLite database and decode rows into application records.
 app [main!] { pf: platform "../platform/main.roc" }
 
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Env
 import pf.Stdout
 import pf.Sqlite
 import pf.Path
-
-# To run this example: check the README.md in this folder and set `export DB_PATH=./examples/todos.db`
 
 # Sql to create the table:
 # CREATE TABLE todos (
@@ -17,10 +15,7 @@ import pf.Path
 # );
 
 main! : List(OsStr) => Try({}, _)
-main! = |_args| run!()
-
-run! : () => Try({}, _)
-run! = || {
+main! = |_args| {
 	db_path = match Env.var!("DB_PATH") {
 		Ok(p) => Path.from_os_str(p)
 		Err(_) => "./examples/todos.db"

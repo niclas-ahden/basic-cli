@@ -37,6 +37,15 @@ OsStr := [
 	from_quote : Str -> Try(OsStr, [BadQuotedBytes(Str)])
 	from_quote = |str| Ok(Utf8(str))
 
+	## Build a UTF-8 OS string from an interpolated string literal.
+	from_interpolation : Str, Iter((Str, Str)) -> OsStr
+	from_interpolation = |first, rest|
+		Utf8(rest.fold(first, |acc, (interpolated, segment)| acc.concat(interpolated).concat(segment)))
+
+	## Parse and encode every OS string representation as a lossless tagged value.
+	parser_for : _
+	encoder_for : _
+
 	## Convert an OS string to a string if its raw representation is valid text.
 	to_str_try : OsStr -> Try(Str, [InvalidStr(U64)])
 	to_str_try = |os_str|
@@ -50,7 +59,8 @@ OsStr := [
 			WindowsU16s(u16s) => utf16_to_str(u16s)
 		}
 
-	## Convert an OS string to a display string, replacing invalid text with U+FFFD.
+	## Convert an OS string to a best-effort display string, replacing invalid text
+	## with U+FFFD. This representation is lossy and must not be used for roundtripping.
 	display : OsStr -> Str
 	display = |os_str|
 		match to_raw(os_str) {
@@ -75,6 +85,19 @@ OsStr := [
 					Err(_) => "OsStr.windows_u16s(${Str.inspect(u16s)})"
 				}
 			}
+
+	## Compare OS strings by their exact tagged representation.
+	is_eq : OsStr, OsStr -> Bool
+	is_eq = |left, right| to_raw(left) == to_raw(right)
+
+	## Hash OS strings consistently with exact tagged equality.
+	to_hash : OsStr, Hasher -> Hasher
+	to_hash = |os_str, hasher|
+		match to_raw(os_str) {
+			Utf8(str) => Str.to_hash(str, Hasher.write_u8(hasher, 0))
+			UnixBytes(bytes) => List.to_hash(bytes, Hasher.write_u8(hasher, 1))
+			WindowsU16s(u16s) => List.to_hash(u16s, Hasher.write_u8(hasher, 2))
+		}
 
 	## Expose the host ABI representation.
 	to_raw : OsStr -> [Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]
@@ -210,3 +233,23 @@ expect Str.inspect(OsStr.unix("abc")) == "OsStr.unix(\"abc\")"
 expect Str.inspect(OsStr.unix_bytes([97, 255, 98])) == "OsStr.unix_bytes([97, 255, 98])"
 expect Str.inspect(OsStr.windows("abc")) == "OsStr.windows(\"abc\")"
 expect Str.inspect(OsStr.windows_u16s([0xD800, 97])) == "OsStr.windows_u16s([55296, 97])"
+
+## Interpolation creates a UTF-8 representation.
+expect {
+	name = "config"
+	value : OsStr
+	value = "${name}.toml"
+	value == OsStr.utf8("config.toml")
+}
+
+## Equality and hashing preserve representation identity.
+expect OsStr.utf8("abc") != OsStr.unix("abc")
+expect Dict.single(OsStr.unix_bytes([97, 255]), "found").get(OsStr.unix_bytes([97, 255])) == Ok("found")
+
+## Generic codecs roundtrip non-text representations without loss.
+expect {
+	original = OsStr.windows_u16s([0xD800, 97])
+	decoded : Try(OsStr, Json.ParseErr)
+	decoded = Json.parse(Json.to_str(original))
+	decoded == Ok(original)
+}

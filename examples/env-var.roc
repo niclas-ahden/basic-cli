@@ -9,7 +9,7 @@ main! : List(OsStr) => Try({}, _)
 main! = |_args| {
 	editor = Env.var!("EDITOR")?
 
-	Stdout.line!("Your favorite editor is ${OsStr.display(editor)}!")?
+	Stdout.line!("Your favorite editor is ${editor.display()}!")?
 
 	letters = Env.var_str!("LETTERS")?
 

@@ -6,10 +6,7 @@ import pf.Stdout
 import pf.Cmd
 
 main! : List(OsStr) => Try({}, _)
-main! = |_args| run!()
-
-run! : () => Try({}, _)
-run! = || {
+main! = |_args| {
 	# Simplest way to execute a command (prints to your terminal).
 	Cmd.exec!("echo", ["Hello"]) ? |err| ExecEchoFailed(err)
 

@@ -1,6 +1,7 @@
 import IOErr exposing [IOErr]
 import Host
 import OsStr exposing [OsStr]
+import PathEncoding
 
 ## Construct and operate on byte-preserving paths. Native Unix
 ## bytes and Windows UTF-16 units are preserved across host effects; use
@@ -176,6 +177,30 @@ Path := [
 	from_quote : Str -> Try(Path, [BadQuotedBytes(Str)])
 	from_quote = |str| Ok(Utf8(str))
 
+	## Create a UTF-8 path from an interpolated string literal.
+	## This performs textual concatenation; use [join] for path-component joining.
+	from_interpolation : Str, Iter((Str, Str)) -> Path
+	from_interpolation = |first, rest|
+		Utf8(rest.fold(first, |acc, (interpolated, segment)| acc.concat(interpolated).concat(segment)))
+
+	## Parse and encode every path representation as a lossless tagged value.
+	parser_for : _
+	parser_for = |encoding| {
+		parse_raw = PathEncoding.parser_for(encoding)
+
+		|state| {
+			parsed = parse_raw(state)?
+			Ok({ value: path_from_encoding(parsed.value), rest: parsed.rest })
+		}
+	}
+
+	encoder_for : _
+	encoder_for = |encoding| {
+		encode_raw = PathEncoding.encoder_for(encoding)
+
+		|path, state| encode_raw(path_to_encoding(path), state)
+	}
+
 	## Create a Unix path from a Roc string by storing its UTF-8 bytes.
 	unix : Str -> Path
 	unix = |str| Unix(Str.to_utf8(str))
@@ -207,7 +232,8 @@ Path := [
 			Windows(u16s) => utf16_to_str(u16s)
 		}
 
-	## Convert a path to a display string, replacing invalid text with U+FFFD.
+	## Convert a path to a best-effort display string, replacing invalid text with
+	## U+FFFD. This representation is lossy and must not be used for roundtripping.
 	display : Path -> Str
 	display = |path|
 		match path {
@@ -232,6 +258,19 @@ Path := [
 					Err(_) => "Path.windows_u16s(${Str.inspect(u16s)})"
 				}
 			}
+
+	## Compare paths by their exact tagged representation.
+	is_eq : Path, Path -> Bool
+	is_eq = |left, right| to_raw(left) == to_raw(right)
+
+	## Hash paths consistently with exact tagged equality.
+	to_hash : Path, Hasher -> Hasher
+	to_hash = |path, hasher|
+		match to_raw(path) {
+			Utf8(str) => Str.to_hash(str, Hasher.write_u8(hasher, 0))
+			UnixBytes(bytes) => List.to_hash(bytes, Hasher.write_u8(hasher, 1))
+			WindowsU16s(u16s) => List.to_hash(u16s, Hasher.write_u8(hasher, 2))
+		}
 
 	## Returns everything after the last directory separator.
 	filename : Path -> Try(Path, [IsDirPath, EndsInDots])
@@ -314,6 +353,25 @@ Path := [
 			WindowsU16s(u16s) => Windows(u16s)
 		}
 }
+
+path_from_encoding : PathEncoding -> Path
+path_from_encoding = |encoded|
+	match encoded {
+		Utf8(str) => Path.utf8(str)
+		UnixBytes(bytes) => Path.unix_bytes(bytes)
+		WindowsU16s(u16s) => Path.windows_u16s(u16s)
+	}
+
+path_to_encoding : Path -> PathEncoding
+path_to_encoding = |path|
+	match Path.to_raw(path) {
+		Utf8(str) => PathEncoding.Utf8(str)
+		UnixBytes(bytes) => PathEncoding.UnixBytes(bytes)
+		WindowsU16s(u16s) => PathEncoding.WindowsU16s(u16s)
+	}
+
+expect path_from_encoding(PathEncoding.WindowsU16s([0xD800, 97])) == Path.windows_u16s([0xD800, 97])
+expect path_to_encoding(Path.unix_bytes([97, 255])) == PathEncoding.UnixBytes([97, 255])
 
 map_file_result : Try(a, [FileErr(IOErr)]) -> Try(a, [PathErr(IOErr), ..])
 map_file_result = |result|
@@ -554,6 +612,14 @@ expect Path.from_quote("config.txt") == Ok(Path.utf8("config.txt"))
 expect quoted_literal_path == Path.utf8("config.txt")
 expect path_identity("nested/config.txt") == Path.utf8("nested/config.txt")
 
+## Interpolation creates a UTF-8 representation.
+expect {
+	directory = "config"
+	path : Path
+	path = "${directory}/app.toml"
+	path == Path.utf8("config/app.toml")
+}
+
 ## Raw conversion roundtrips every representation without validating raw OS data.
 expect Path.to_raw(Path.unix_bytes([97, 255, 98])) == UnixBytes([97, 255, 98])
 expect Path.to_raw(Path.windows_u16s([0xD800, 97])) == WindowsU16s([0xD800, 97])
@@ -583,6 +649,10 @@ expect Str.inspect(Path.unix("abc")) == "Path.unix(\"abc\")"
 expect Str.inspect(Path.unix_bytes([97, 255, 98])) == "Path.unix_bytes([97, 255, 98])"
 expect Str.inspect(Path.windows("abc")) == "Path.windows(\"abc\")"
 expect Str.inspect(Path.windows_u16s([0xD800, 97])) == "Path.windows_u16s([55296, 97])"
+
+## Equality and hashing preserve representation identity.
+expect Path.utf8("abc") != Path.unix("abc")
+expect Dict.single(Path.unix_bytes([97, 255]), "found").get(Path.unix_bytes([97, 255])) == Ok("found")
 
 ## `filename` returns everything after the last separator.
 expect Path.filename(Path.unix("foo/bar.txt")) == Ok(Path.unix("bar.txt"))
