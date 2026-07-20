@@ -308,7 +308,7 @@ expect {
 
 ## Generic parsers validate encoded locale strings.
 expect {
-	decoded : Try(Locale, Json.ParseErr)
+	decoded : Try(Locale, [InvalidJson(Str)])
 	decoded = Json.parse("\"zh-Hant-TW\"")
 
 	match decoded {
@@ -318,7 +318,7 @@ expect {
 }
 
 expect {
-	decoded : Try(Locale, Json.ParseErr)
+	decoded : Try(Locale, [InvalidJson(Str)])
 	decoded = Json.parse("\"en_US\"")
 	decoded == Err(Json.invalid_json)
 }
