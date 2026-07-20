@@ -493,9 +493,16 @@ fn try_pool_acquire_err(error: RocStr) -> HostTcpPoolAcquireResult {
 pub extern "C" fn hosted_tcp_pool_acquire(pool_handle: *mut u64) -> HostTcpPoolAcquireResult {
     let roc_host = roc_host();
     let pool_id = unsafe { *pool_handle };
+    // Clone the pool's Arc BEFORE releasing our owned handle reference. On the
+    // Roc `Pool` value's last use, Roc hands ownership over without an incref,
+    // so `release_tcp_pool` drops the box to a zero refcount and runs
+    // `drop_tcp_pool`, which removes the registry entry. Looking the pool up
+    // first keeps it alive for the duration of this acquire (mirroring the
+    // "use the handle, then release it last" order the stream ops use).
+    let pool = get_pool(pool_id);
     release_tcp_pool(pool_handle, roc_host);
 
-    let pool = match get_pool(pool_id) {
+    let pool = match pool {
         Some(pool) => pool,
         None => {
             return try_pool_acquire_err(RocStr::from_str("Unrecognized: pool not found", roc_host))
