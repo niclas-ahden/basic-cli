@@ -37,6 +37,23 @@
       ]
     },
     {
+      "path": "examples/command-spawn.roc",
+      "platforms": { "windows": { "run": false } },
+      "reason": "Runtime scenario spawns Unix commands (cat, sort, sh, sleep)",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": [
+            "cat echoed: hello, pipes!",
+            "sort exit code: 0",
+            "poll saw exit code 7",
+            "stderr said: oops",
+            "all grouped children killed"
+          ]
+        }
+      ]
+    },
+    {
       "path": "examples/command.roc",
       "platforms": { "windows": { "run": false } },
       "reason": "Runtime scenario invokes Unix commands",
@@ -351,6 +368,20 @@
           "name": "connection-refused",
           "exit_code": 1,
           "contains": ["ConnectFailed"]
+        }
+      ]
+    },
+    {
+      "path": "examples/tcp-pool.roc",
+      "cases": [
+        {
+          "name": "server-available",
+          "helper": "tcp",
+          "contains": [
+            "echo said: hello pool",
+            "echo said: still the same conn",
+            "tcp pool ok"
+          ]
         }
       ]
     },
