@@ -11,6 +11,110 @@ Cmd :: {
 	program : OsStr,
 }.{
 
+	## A spawned child process with stdio pipes (see [Cmd.spawn!] and [Cmd.spawn_grouped!]).
+	##
+	## **Important**: `read_stdout!` and `read_stderr!` block until *exactly* N bytes
+	## have been read. If the stream reaches EOF before N bytes are available, the
+	## call returns `ReadFailed`. Use these when you know the exact message size
+	## (e.g., length-prefixed protocols) or use `wait!` to read all output at once.
+	##
+	## Call `close_stdin!` to signal EOF to the child process. Many programs
+	## (grep, cat, etc.) wait for stdin EOF before producing output.
+	##
+	## Remember to call `kill!` or `wait!` when done to clean up resources.
+	Child :: { id : U64 }.{
+
+		## Render the child without exposing its host handle.
+		to_inspect : Child -> Str
+		to_inspect = |_| "Cmd.Child(<opaque>)"
+
+		## Write bytes to the child's stdin.
+		write_stdin! : Child, List(U8) => Try({}, [WriteFailed(IOErr), ..])
+		write_stdin! = |child, bytes|
+			Host.cmd_child_write_stdin!(child.id, bytes).map_err(|err| WriteFailed(err))
+
+		## Read exactly `num_bytes` bytes from the child's stdout (blocking).
+		read_stdout! : Child, U64 => Try(List(U8), [ReadFailed(IOErr), ..])
+		read_stdout! = |child, num_bytes|
+			Host.cmd_child_read_stdout!(child.id, num_bytes).map_err(|err| ReadFailed(err))
+
+		## Read exactly `num_bytes` bytes from the child's stderr (blocking).
+		read_stderr! : Child, U64 => Try(List(U8), [ReadFailed(IOErr), ..])
+		read_stderr! = |child, num_bytes|
+			Host.cmd_child_read_stderr!(child.id, num_bytes).map_err(|err| ReadFailed(err))
+
+		## Close the child's stdin, signalling EOF.
+		close_stdin! : Child => Try({}, [CloseFailed(IOErr), ..])
+		close_stdin! = |child|
+			Host.cmd_child_close_stdin!(child.id).map_err(|err| CloseFailed(err))
+
+		## Kill the child process. For children spawned with [Cmd.spawn_grouped!],
+		## this kills the whole process tree.
+		kill! : Child => Try({}, [KillFailed(IOErr), ..])
+		kill! = |child|
+			Host.cmd_child_kill!(child.id).map_err(|err| KillFailed(err))
+
+		## Wait for the child to exit, returning its exit code and any remaining output.
+		wait! : Child => Try({ exit_code : I32, stdout : List(U8), stderr : List(U8) }, [WaitFailed(IOErr), ..])
+		wait! = |child|
+			match Host.cmd_child_wait!(child.id) {
+				Ok({ stderr_bytes, stdout_bytes, exit_code }) => Ok({ exit_code, stdout: stdout_bytes, stderr: stderr_bytes })
+				Err(err) => Err(WaitFailed(err))
+			}
+
+		## Check whether the child has exited, without blocking.
+		##
+		## Returns `Running` if the process is still executing, or
+		## `Exited({ exit_code, stdout, stderr })` once it has finished. After
+		## returning `Exited`, the process is cleaned up; subsequent calls fail.
+		poll! : Child => Try([Exited({ exit_code : I32, stdout : List(U8), stderr : List(U8) }), Running], [PollFailed(IOErr), ..])
+		poll! = |child|
+			match Host.cmd_child_poll!(child.id) {
+				Ok(Exited({ stderr_bytes, stdout_bytes, exit_code })) => Ok(Exited({ exit_code, stdout: stdout_bytes, stderr: stderr_bytes }))
+				Ok(Running) => Ok(Running)
+				Err(err) => Err(PollFailed(err))
+			}
+	}
+
+	## Spawn a child process with stdio pipes for bidirectional communication.
+	##
+	## ```roc
+	## child = Cmd.new_str("node").arg_str("repl.js").spawn!()?
+	## child.write_stdin!(Str.to_utf8("1+1\n"))?
+	## response = child.read_stdout!(100)?
+	## child.kill!()?
+	## ```
+	spawn! : Cmd => Try(Child, [SpawnFailed(IOErr), ..])
+	spawn! = |cmd|
+		match Host.cmd_spawn!(to_host_cmd(cmd), Bool.False) {
+			Ok(id) => Ok(Child.{ id: id })
+			Err(err) => Err(SpawnFailed(err))
+		}
+
+	## Spawn a child process that gets cleaned up when the parent exits.
+	##
+	## Use this for test servers, subprocesses, or anything that shouldn't
+	## outlive your program.
+	##
+	## **Linux and Windows**: children are guaranteed to die with the parent,
+	## even on SIGKILL (via `PR_SET_PDEATHSIG` / Job Objects). **macOS**: children
+	## die on normal exit, Ctrl+C, and crashes, but may survive `kill -9` of the
+	## parent (kernel limitation).
+	spawn_grouped! : Cmd => Try(Child, [SpawnFailed(IOErr), ..])
+	spawn_grouped! = |cmd|
+		match Host.cmd_spawn!(to_host_cmd(cmd), Bool.True) {
+			Ok(id) => Ok(Child.{ id: id })
+			Err(err) => Err(SpawnFailed(err))
+		}
+
+	## Kill all processes spawned via [Cmd.spawn_grouped!] and their children.
+	##
+	## This is called automatically on normal program exit, but you can call it
+	## explicitly for immediate cleanup.
+	kill_grouped! : {} => Try({}, [KillFailed(IOErr), ..])
+	kill_grouped! = |{}|
+		Host.cmd_kill_all_grouped!().map_err(|err| KillFailed(err))
+
 	## Simplest way to execute a command by name with arguments.
 	## Stdin, stdout, and stderr are inherited from the parent process.
 	##

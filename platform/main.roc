@@ -80,6 +80,21 @@ platform ""
 		"hosted_env_platform": Host.env_platform!,
 		"hosted_env_dict": Host.env_dict!,
 		"hosted_env_set_cwd": Host.env_set_cwd!,
+		# Child processes with piped stdio and TCP connection pools are likewise
+		# appended to preserve numbering.
+		"hosted_cmd_spawn": Host.cmd_spawn!,
+		"hosted_cmd_child_write_stdin": Host.cmd_child_write_stdin!,
+		"hosted_cmd_child_read_stdout": Host.cmd_child_read_stdout!,
+		"hosted_cmd_child_read_stderr": Host.cmd_child_read_stderr!,
+		"hosted_cmd_child_close_stdin": Host.cmd_child_close_stdin!,
+		"hosted_cmd_child_kill": Host.cmd_child_kill!,
+		"hosted_cmd_child_wait": Host.cmd_child_wait!,
+		"hosted_cmd_child_poll": Host.cmd_child_poll!,
+		"hosted_cmd_kill_all_grouped": Host.cmd_kill_all_grouped!,
+		"hosted_tcp_pool_create": Host.tcp_pool_create!,
+		"hosted_tcp_pool_acquire": Host.tcp_pool_acquire!,
+		"hosted_tcp_pool_release": Host.tcp_pool_release!,
+		"hosted_tcp_shutdown": Host.tcp_shutdown!,
 	}
 	targets: {
 		inputs_dir: "targets/",

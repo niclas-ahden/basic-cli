@@ -118,6 +118,10 @@ pub struct RocErasedCallablePayload {
     pub on_drop: Option<RocErasedCallableOnDrop>,
 }
 
+const _: () = assert!(core::mem::size_of::<RocErasedCallablePayload>() == 2 * core::mem::size_of::<usize>(), "RocErasedCallablePayload size mismatch");
+const _: () = assert!(core::mem::offset_of!(RocErasedCallablePayload, callable_fn_ptr) == 0, "RocErasedCallablePayload.callable_fn_ptr offset mismatch");
+const _: () = assert!(core::mem::offset_of!(RocErasedCallablePayload, on_drop) == core::mem::size_of::<usize>(), "RocErasedCallablePayload.on_drop offset mismatch");
+
 /// Runtime representation of `Box(function)`.
 pub type RocErasedCallable = *mut u8;
 
@@ -394,6 +398,12 @@ pub struct RocStr {
     pub length: usize,
 }
 
+const _: () = assert!(core::mem::size_of::<RocStr>() == 3 * core::mem::size_of::<usize>(), "RocStr size mismatch");
+const _: () = assert!(core::mem::align_of::<RocStr>() == core::mem::align_of::<usize>(), "RocStr alignment mismatch");
+const _: () = assert!(core::mem::offset_of!(RocStr, bytes) == 0, "RocStr.bytes offset mismatch");
+const _: () = assert!(core::mem::offset_of!(RocStr, capacity_or_alloc_ptr) == core::mem::size_of::<usize>(), "RocStr.capacity_or_alloc_ptr offset mismatch");
+const _: () = assert!(core::mem::offset_of!(RocStr, length) == 2 * core::mem::size_of::<usize>(), "RocStr.length offset mismatch");
+
 const ROC_STR_SIZE: usize = core::mem::size_of::<RocStr>();
 const ROC_SMALL_STR_MAX_LEN: usize = ROC_STR_SIZE - 1;
 const ROC_SMALL_STR_BIT: usize = isize::MIN as usize;
@@ -594,6 +604,12 @@ pub struct RocListWith<T, const ELEMENTS_REFCOUNTED: bool> {
     pub length: usize,
     pub capacity_or_alloc_ptr: usize,
 }
+
+const _: () = assert!(core::mem::size_of::<RocList<u8>>() == 3 * core::mem::size_of::<usize>(), "RocList size mismatch");
+const _: () = assert!(core::mem::align_of::<RocList<u8>>() == core::mem::align_of::<usize>(), "RocList alignment mismatch");
+const _: () = assert!(core::mem::offset_of!(RocList<u8>, elements) == 0, "RocList.elements offset mismatch");
+const _: () = assert!(core::mem::offset_of!(RocList<u8>, length) == core::mem::size_of::<usize>(), "RocList.length offset mismatch");
+const _: () = assert!(core::mem::offset_of!(RocList<u8>, capacity_or_alloc_ptr) == 2 * core::mem::size_of::<usize>(), "RocList.capacity_or_alloc_ptr offset mismatch");
 
 impl<T, const ELEMENTS_REFCOUNTED: bool> RocListWith<T, ELEMENTS_REFCOUNTED> {
     #[inline]
@@ -1126,6 +1142,35 @@ const _: () = assert!(core::mem::size_of::<AnonStruct69eee2ff6c448fed>() == 32, 
 #[cfg(target_pointer_width = "32")]
 const _: () = assert!(core::mem::align_of::<AnonStruct69eee2ff6c448fed>() == 4, "AnonStruct69eee2ff6c448fed alignment mismatch");
 
+/// Element type for __AnonStruct_cfa80bab6470cb35
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStructCfa80bab6470cb35 {
+    pub metadata: RocListWith<u8, false>,
+    pub stream: *mut u64,
+    pub fresh: bool,
+}
+
+/// Element type for __AnonStruct_cfa80bab6470cb35
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct AnonStructCfa80bab6470cb35 {
+    pub metadata: RocListWith<u8, false>,
+    pub stream: *mut u64,
+    pub fresh: bool,
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<AnonStructCfa80bab6470cb35>() == 40, "AnonStructCfa80bab6470cb35 size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<AnonStructCfa80bab6470cb35>() == 8, "AnonStructCfa80bab6470cb35 alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<AnonStructCfa80bab6470cb35>() == 20, "AnonStructCfa80bab6470cb35 size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<AnonStructCfa80bab6470cb35>() == 4, "AnonStructCfa80bab6470cb35 alignment mismatch");
+
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1137,7 +1182,7 @@ pub enum HostCmdExecExitCodeResultTag {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub union HostCmdExecExitCodeResultPayload {
-    pub err: core::mem::ManuallyDrop<HostIOErr>,
+    pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<i32>,
 }
 
@@ -1167,12 +1212,12 @@ pub struct HostCmdExecExitCodeResult {
 
 impl HostCmdExecExitCodeResult {
     #[cfg(target_pointer_width = "32")]
-    pub fn payload_err(&self) -> HostIOErr {
-        unsafe { core::ptr::read(self.payload.as_ptr() as *const HostIOErr) }
+    pub fn payload_err(&self) -> IOErr {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const IOErr) }
     }
 
     #[cfg(not(target_pointer_width = "32"))]
-    pub fn payload_err(&self) -> HostIOErr {
+    pub fn payload_err(&self) -> IOErr {
         unsafe { core::mem::ManuallyDrop::into_inner(self.payload.err) }
     }
 
@@ -1204,7 +1249,7 @@ const _: () = assert!(core::mem::offset_of!(HostCmdExecExitCodeResult, tag) == 1
 /// Tag discriminant for IOErr.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HostIOErrTag {
+pub enum IOErrTag {
     AlreadyExists = 0,
     BrokenPipe = 1,
     Interrupted = 2,
@@ -1219,7 +1264,7 @@ pub enum HostIOErrTag {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub union HostIOErrPayload {
+pub union IOErrPayload {
     pub already_exists: [u8; 0],
     pub broken_pipe: [u8; 0],
     pub interrupted: [u8; 0],
@@ -1235,28 +1280,28 @@ pub union HostIOErrPayload {
 #[cfg(target_pointer_width = "32")]
 #[repr(align(4))]
 #[derive(Clone, Copy)]
-pub struct HostIOErrPayloadAlignment;
+pub struct IOErrPayloadAlignment;
 
 /// Tag union: IOErr
 #[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct HostIOErr {
-    pub _payload_alignment: [HostIOErrPayloadAlignment; 0],
+pub struct IOErr {
+    pub _payload_alignment: [IOErrPayloadAlignment; 0],
     pub payload: [u8; 12],
-    pub tag: HostIOErrTag,
+    pub tag: IOErrTag,
 }
 
 /// Tag union: IOErr
 #[cfg(not(target_pointer_width = "32"))]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct HostIOErr {
-    pub payload: HostIOErrPayload,
-    pub tag: HostIOErrTag,
+pub struct IOErr {
+    pub payload: IOErrPayload,
+    pub tag: IOErrTag,
 }
 
-impl HostIOErr {
+impl IOErr {
     #[cfg(target_pointer_width = "32")]
     pub fn payload_other(&self) -> RocStr {
         unsafe { core::ptr::read(self.payload.as_ptr() as *const RocStr) }
@@ -1270,17 +1315,17 @@ impl HostIOErr {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::size_of::<HostIOErr>() == 32, "HostIOErr size mismatch");
+const _: () = assert!(core::mem::size_of::<IOErr>() == 32, "IOErr size mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::align_of::<HostIOErr>() == 8, "HostIOErr alignment mismatch");
+const _: () = assert!(core::mem::align_of::<IOErr>() == 8, "IOErr alignment mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::offset_of!(HostIOErr, tag) == 24, "HostIOErr tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(IOErr, tag) == 24, "IOErr tag offset mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::size_of::<HostIOErr>() == 16, "HostIOErr size mismatch");
+const _: () = assert!(core::mem::size_of::<IOErr>() == 16, "IOErr size mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::align_of::<HostIOErr>() == 4, "HostIOErr alignment mismatch");
+const _: () = assert!(core::mem::align_of::<IOErr>() == 4, "IOErr alignment mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::offset_of!(HostIOErr, tag) == 12, "HostIOErr tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(IOErr, tag) == 12, "IOErr tag offset mismatch");
 
 /// Tag discriminant for UnixBytesOrUtf8OrWindowsU16s.
 #[repr(u8)]
@@ -1518,87 +1563,6 @@ const _: () = assert!(core::mem::size_of::<FailedToGetExitCodeOrNonZeroExitCode>
 const _: () = assert!(core::mem::align_of::<FailedToGetExitCodeOrNonZeroExitCode>() == 4, "FailedToGetExitCodeOrNonZeroExitCode alignment mismatch");
 #[cfg(target_pointer_width = "32")]
 const _: () = assert!(core::mem::offset_of!(FailedToGetExitCodeOrNonZeroExitCode, tag) == 28, "FailedToGetExitCodeOrNonZeroExitCode tag offset mismatch");
-
-/// Tag discriminant for IOErr.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IOErrTag {
-    AlreadyExists = 0,
-    BrokenPipe = 1,
-    Interrupted = 2,
-    IsADirectory = 3,
-    NotADirectory = 4,
-    NotFound = 5,
-    Other = 6,
-    OutOfMemory = 7,
-    PermissionDenied = 8,
-    Unsupported = 9,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub union IOErrPayload {
-    pub already_exists: [u8; 0],
-    pub broken_pipe: [u8; 0],
-    pub interrupted: [u8; 0],
-    pub is_adirectory: [u8; 0],
-    pub not_adirectory: [u8; 0],
-    pub not_found: [u8; 0],
-    pub other: core::mem::ManuallyDrop<RocStr>,
-    pub out_of_memory: [u8; 0],
-    pub permission_denied: [u8; 0],
-    pub unsupported: [u8; 0],
-}
-
-#[cfg(target_pointer_width = "32")]
-#[repr(align(4))]
-#[derive(Clone, Copy)]
-pub struct IOErrPayloadAlignment;
-
-/// Tag union: IOErr
-#[cfg(target_pointer_width = "32")]
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct IOErr {
-    pub _payload_alignment: [IOErrPayloadAlignment; 0],
-    pub payload: [u8; 12],
-    pub tag: IOErrTag,
-}
-
-/// Tag union: IOErr
-#[cfg(not(target_pointer_width = "32"))]
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct IOErr {
-    pub payload: IOErrPayload,
-    pub tag: IOErrTag,
-}
-
-impl IOErr {
-    #[cfg(target_pointer_width = "32")]
-    pub fn payload_other(&self) -> RocStr {
-        unsafe { core::ptr::read(self.payload.as_ptr() as *const RocStr) }
-    }
-
-    #[cfg(not(target_pointer_width = "32"))]
-    pub fn payload_other(&self) -> RocStr {
-        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.other) }
-    }
-
-}
-
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::size_of::<IOErr>() == 32, "IOErr size mismatch");
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::align_of::<IOErr>() == 8, "IOErr alignment mismatch");
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::offset_of!(IOErr, tag) == 24, "IOErr tag offset mismatch");
-#[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::size_of::<IOErr>() == 16, "IOErr size mismatch");
-#[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::align_of::<IOErr>() == 4, "IOErr alignment mismatch");
-#[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::offset_of!(IOErr, tag) == 12, "IOErr tag offset mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -4203,43 +4167,189 @@ const _: () = assert!(core::mem::offset_of!(LINUXOrMACOSOrOTHEROrWINDOWS, tag) =
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HostEnvSetCwdResultTag {
+pub enum HostCmdChildCloseStdinResultTag {
     Err = 0,
     Ok = 1,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub union HostEnvSetCwdResultPayload {
-    pub err: core::mem::ManuallyDrop<IOErr>,
+pub union HostCmdChildCloseStdinResultPayload {
+    pub err: core::mem::ManuallyDrop<HostIOErr>,
     pub ok: [u8; 0],
 }
 
 #[cfg(target_pointer_width = "32")]
 #[repr(align(4))]
 #[derive(Clone, Copy)]
-pub struct HostEnvSetCwdResultPayloadAlignment;
+pub struct HostCmdChildCloseStdinResultPayloadAlignment;
 
 /// Tag union: Try
 #[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct HostEnvSetCwdResult {
-    pub _payload_alignment: [HostEnvSetCwdResultPayloadAlignment; 0],
+pub struct HostCmdChildCloseStdinResult {
+    pub _payload_alignment: [HostCmdChildCloseStdinResultPayloadAlignment; 0],
     pub payload: [u8; 16],
-    pub tag: HostEnvSetCwdResultTag,
+    pub tag: HostCmdChildCloseStdinResultTag,
 }
 
 /// Tag union: Try
 #[cfg(not(target_pointer_width = "32"))]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct HostEnvSetCwdResult {
-    pub payload: HostEnvSetCwdResultPayload,
-    pub tag: HostEnvSetCwdResultTag,
+pub struct HostCmdChildCloseStdinResult {
+    pub payload: HostCmdChildCloseStdinResultPayload,
+    pub tag: HostCmdChildCloseStdinResultTag,
 }
 
-impl HostEnvSetCwdResult {
+impl HostCmdChildCloseStdinResult {
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_err(&self) -> HostIOErr {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const HostIOErr) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_err(&self) -> HostIOErr {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.err) }
+    }
+
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<HostCmdChildCloseStdinResult>() == 40, "HostCmdChildCloseStdinResult size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<HostCmdChildCloseStdinResult>() == 8, "HostCmdChildCloseStdinResult alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::offset_of!(HostCmdChildCloseStdinResult, tag) == 32, "HostCmdChildCloseStdinResult tag offset mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<HostCmdChildCloseStdinResult>() == 20, "HostCmdChildCloseStdinResult size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<HostCmdChildCloseStdinResult>() == 4, "HostCmdChildCloseStdinResult alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::offset_of!(HostCmdChildCloseStdinResult, tag) == 16, "HostCmdChildCloseStdinResult tag offset mismatch");
+
+/// Tag discriminant for IOErr.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostIOErrTag {
+    AlreadyExists = 0,
+    BrokenPipe = 1,
+    Interrupted = 2,
+    IsADirectory = 3,
+    NotADirectory = 4,
+    NotFound = 5,
+    Other = 6,
+    OutOfMemory = 7,
+    PermissionDenied = 8,
+    Unsupported = 9,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union HostIOErrPayload {
+    pub already_exists: [u8; 0],
+    pub broken_pipe: [u8; 0],
+    pub interrupted: [u8; 0],
+    pub is_adirectory: [u8; 0],
+    pub not_adirectory: [u8; 0],
+    pub not_found: [u8; 0],
+    pub other: core::mem::ManuallyDrop<RocStr>,
+    pub out_of_memory: [u8; 0],
+    pub permission_denied: [u8; 0],
+    pub unsupported: [u8; 0],
+}
+
+#[cfg(target_pointer_width = "32")]
+#[repr(align(4))]
+#[derive(Clone, Copy)]
+pub struct HostIOErrPayloadAlignment;
+
+/// Tag union: IOErr
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostIOErr {
+    pub _payload_alignment: [HostIOErrPayloadAlignment; 0],
+    pub payload: [u8; 12],
+    pub tag: HostIOErrTag,
+}
+
+/// Tag union: IOErr
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostIOErr {
+    pub payload: HostIOErrPayload,
+    pub tag: HostIOErrTag,
+}
+
+impl HostIOErr {
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_other(&self) -> RocStr {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const RocStr) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_other(&self) -> RocStr {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.other) }
+    }
+
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<HostIOErr>() == 32, "HostIOErr size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<HostIOErr>() == 8, "HostIOErr alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::offset_of!(HostIOErr, tag) == 24, "HostIOErr tag offset mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<HostIOErr>() == 16, "HostIOErr size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<HostIOErr>() == 4, "HostIOErr alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::offset_of!(HostIOErr, tag) == 12, "HostIOErr tag offset mismatch");
+
+/// Tag discriminant for Try.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostCmdSpawnResultTag {
+    Err = 0,
+    Ok = 1,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union HostCmdSpawnResultPayload {
+    pub err: core::mem::ManuallyDrop<IOErr>,
+    pub ok: core::mem::ManuallyDrop<u64>,
+}
+
+#[cfg(target_pointer_width = "32")]
+#[repr(align(8))]
+#[derive(Clone, Copy)]
+pub struct HostCmdSpawnResultPayloadAlignment;
+
+/// Tag union: Try
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdSpawnResult {
+    pub _payload_alignment: [HostCmdSpawnResultPayloadAlignment; 0],
+    pub payload: [u8; 16],
+    pub tag: HostCmdSpawnResultTag,
+}
+
+/// Tag union: Try
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdSpawnResult {
+    pub payload: HostCmdSpawnResultPayload,
+    pub tag: HostCmdSpawnResultTag,
+}
+
+impl HostCmdSpawnResult {
     #[cfg(target_pointer_width = "32")]
     pub fn payload_err(&self) -> IOErr {
         unsafe { core::ptr::read(self.payload.as_ptr() as *const IOErr) }
@@ -4250,20 +4360,395 @@ impl HostEnvSetCwdResult {
         unsafe { core::mem::ManuallyDrop::into_inner(self.payload.err) }
     }
 
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_ok(&self) -> u64 {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const u64) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_ok(&self) -> u64 {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.ok) }
+    }
+
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::size_of::<HostEnvSetCwdResult>() == 40, "HostEnvSetCwdResult size mismatch");
+const _: () = assert!(core::mem::size_of::<HostCmdSpawnResult>() == 40, "HostCmdSpawnResult size mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::align_of::<HostEnvSetCwdResult>() == 8, "HostEnvSetCwdResult alignment mismatch");
+const _: () = assert!(core::mem::align_of::<HostCmdSpawnResult>() == 8, "HostCmdSpawnResult alignment mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::offset_of!(HostEnvSetCwdResult, tag) == 32, "HostEnvSetCwdResult tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(HostCmdSpawnResult, tag) == 32, "HostCmdSpawnResult tag offset mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::size_of::<HostEnvSetCwdResult>() == 20, "HostEnvSetCwdResult size mismatch");
+const _: () = assert!(core::mem::size_of::<HostCmdSpawnResult>() == 24, "HostCmdSpawnResult size mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::align_of::<HostEnvSetCwdResult>() == 4, "HostEnvSetCwdResult alignment mismatch");
+const _: () = assert!(core::mem::align_of::<HostCmdSpawnResult>() == 8, "HostCmdSpawnResult alignment mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::offset_of!(HostEnvSetCwdResult, tag) == 16, "HostEnvSetCwdResult tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(HostCmdSpawnResult, tag) == 16, "HostCmdSpawnResult tag offset mismatch");
+
+/// Tag discriminant for Try.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostCmdChildReadStderrResultTag {
+    Err = 0,
+    Ok = 1,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union HostCmdChildReadStderrResultPayload {
+    pub err: core::mem::ManuallyDrop<IOErr>,
+    pub ok: core::mem::ManuallyDrop<RocListWith<u8, false>>,
+}
+
+#[cfg(target_pointer_width = "32")]
+#[repr(align(4))]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildReadStderrResultPayloadAlignment;
+
+/// Tag union: Try
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildReadStderrResult {
+    pub _payload_alignment: [HostCmdChildReadStderrResultPayloadAlignment; 0],
+    pub payload: [u8; 16],
+    pub tag: HostCmdChildReadStderrResultTag,
+}
+
+/// Tag union: Try
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildReadStderrResult {
+    pub payload: HostCmdChildReadStderrResultPayload,
+    pub tag: HostCmdChildReadStderrResultTag,
+}
+
+impl HostCmdChildReadStderrResult {
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_err(&self) -> IOErr {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const IOErr) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_err(&self) -> IOErr {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.err) }
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_ok(&self) -> RocListWith<u8, false> {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const RocListWith<u8, false>) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_ok(&self) -> RocListWith<u8, false> {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.ok) }
+    }
+
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<HostCmdChildReadStderrResult>() == 40, "HostCmdChildReadStderrResult size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<HostCmdChildReadStderrResult>() == 8, "HostCmdChildReadStderrResult alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::offset_of!(HostCmdChildReadStderrResult, tag) == 32, "HostCmdChildReadStderrResult tag offset mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<HostCmdChildReadStderrResult>() == 20, "HostCmdChildReadStderrResult size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<HostCmdChildReadStderrResult>() == 4, "HostCmdChildReadStderrResult alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::offset_of!(HostCmdChildReadStderrResult, tag) == 16, "HostCmdChildReadStderrResult tag offset mismatch");
+
+/// Tag discriminant for Try.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostCmdChildWaitResultTag {
+    Err = 0,
+    Ok = 1,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union HostCmdChildWaitResultPayload {
+    pub err: core::mem::ManuallyDrop<IOErr>,
+    pub ok: core::mem::ManuallyDrop<AnonStruct3f89ee1e14924626>,
+}
+
+#[cfg(target_pointer_width = "32")]
+#[repr(align(4))]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildWaitResultPayloadAlignment;
+
+/// Tag union: Try
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildWaitResult {
+    pub _payload_alignment: [HostCmdChildWaitResultPayloadAlignment; 0],
+    pub payload: [u8; 28],
+    pub tag: HostCmdChildWaitResultTag,
+}
+
+/// Tag union: Try
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildWaitResult {
+    pub payload: HostCmdChildWaitResultPayload,
+    pub tag: HostCmdChildWaitResultTag,
+}
+
+impl HostCmdChildWaitResult {
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_err(&self) -> IOErr {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const IOErr) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_err(&self) -> IOErr {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.err) }
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_ok(&self) -> AnonStruct3f89ee1e14924626 {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const AnonStruct3f89ee1e14924626) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_ok(&self) -> AnonStruct3f89ee1e14924626 {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.ok) }
+    }
+
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<HostCmdChildWaitResult>() == 64, "HostCmdChildWaitResult size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<HostCmdChildWaitResult>() == 8, "HostCmdChildWaitResult alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::offset_of!(HostCmdChildWaitResult, tag) == 56, "HostCmdChildWaitResult tag offset mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<HostCmdChildWaitResult>() == 32, "HostCmdChildWaitResult size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<HostCmdChildWaitResult>() == 4, "HostCmdChildWaitResult alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::offset_of!(HostCmdChildWaitResult, tag) == 28, "HostCmdChildWaitResult tag offset mismatch");
+
+/// Tag discriminant for Try.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostCmdChildPollResultTag {
+    Err = 0,
+    Ok = 1,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union HostCmdChildPollResultPayload {
+    pub err: core::mem::ManuallyDrop<IOErr>,
+    pub ok: core::mem::ManuallyDrop<ExitedOrRunning>,
+}
+
+#[cfg(target_pointer_width = "32")]
+#[repr(align(4))]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildPollResultPayloadAlignment;
+
+/// Tag union: Try
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildPollResult {
+    pub _payload_alignment: [HostCmdChildPollResultPayloadAlignment; 0],
+    pub payload: [u8; 32],
+    pub tag: HostCmdChildPollResultTag,
+}
+
+/// Tag union: Try
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildPollResult {
+    pub payload: HostCmdChildPollResultPayload,
+    pub tag: HostCmdChildPollResultTag,
+}
+
+impl HostCmdChildPollResult {
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_err(&self) -> IOErr {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const IOErr) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_err(&self) -> IOErr {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.err) }
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_ok(&self) -> ExitedOrRunning {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const ExitedOrRunning) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_ok(&self) -> ExitedOrRunning {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.ok) }
+    }
+
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<HostCmdChildPollResult>() == 72, "HostCmdChildPollResult size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<HostCmdChildPollResult>() == 8, "HostCmdChildPollResult alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::offset_of!(HostCmdChildPollResult, tag) == 64, "HostCmdChildPollResult tag offset mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<HostCmdChildPollResult>() == 36, "HostCmdChildPollResult size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<HostCmdChildPollResult>() == 4, "HostCmdChildPollResult alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::offset_of!(HostCmdChildPollResult, tag) == 32, "HostCmdChildPollResult tag offset mismatch");
+
+/// Tag discriminant for ExitedOrRunning.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExitedOrRunningTag {
+    Exited = 0,
+    Running = 1,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union ExitedOrRunningPayload {
+    pub exited: core::mem::ManuallyDrop<AnonStruct3f89ee1e14924626>,
+    pub running: [u8; 0],
+}
+
+#[cfg(target_pointer_width = "32")]
+#[repr(align(4))]
+#[derive(Clone, Copy)]
+pub struct ExitedOrRunningPayloadAlignment;
+
+/// Tag union: ExitedOrRunning
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ExitedOrRunning {
+    pub _payload_alignment: [ExitedOrRunningPayloadAlignment; 0],
+    pub payload: [u8; 28],
+    pub tag: ExitedOrRunningTag,
+}
+
+/// Tag union: ExitedOrRunning
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ExitedOrRunning {
+    pub payload: ExitedOrRunningPayload,
+    pub tag: ExitedOrRunningTag,
+}
+
+impl ExitedOrRunning {
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_exited(&self) -> AnonStruct3f89ee1e14924626 {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const AnonStruct3f89ee1e14924626) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_exited(&self) -> AnonStruct3f89ee1e14924626 {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.exited) }
+    }
+
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<ExitedOrRunning>() == 64, "ExitedOrRunning size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<ExitedOrRunning>() == 8, "ExitedOrRunning alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::offset_of!(ExitedOrRunning, tag) == 56, "ExitedOrRunning tag offset mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<ExitedOrRunning>() == 32, "ExitedOrRunning size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<ExitedOrRunning>() == 4, "ExitedOrRunning alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::offset_of!(ExitedOrRunning, tag) == 28, "ExitedOrRunning tag offset mismatch");
+
+/// Tag discriminant for Try.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostTcpPoolAcquireResultTag {
+    Err = 0,
+    Ok = 1,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union HostTcpPoolAcquireResultPayload {
+    pub err: core::mem::ManuallyDrop<RocStr>,
+    pub ok: core::mem::ManuallyDrop<AnonStructCfa80bab6470cb35>,
+}
+
+#[cfg(target_pointer_width = "32")]
+#[repr(align(4))]
+#[derive(Clone, Copy)]
+pub struct HostTcpPoolAcquireResultPayloadAlignment;
+
+/// Tag union: Try
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostTcpPoolAcquireResult {
+    pub _payload_alignment: [HostTcpPoolAcquireResultPayloadAlignment; 0],
+    pub payload: [u8; 20],
+    pub tag: HostTcpPoolAcquireResultTag,
+}
+
+/// Tag union: Try
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostTcpPoolAcquireResult {
+    pub payload: HostTcpPoolAcquireResultPayload,
+    pub tag: HostTcpPoolAcquireResultTag,
+}
+
+impl HostTcpPoolAcquireResult {
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_err(&self) -> RocStr {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const RocStr) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_err(&self) -> RocStr {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.err) }
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    pub fn payload_ok(&self) -> AnonStructCfa80bab6470cb35 {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const AnonStructCfa80bab6470cb35) }
+    }
+
+    #[cfg(not(target_pointer_width = "32"))]
+    pub fn payload_ok(&self) -> AnonStructCfa80bab6470cb35 {
+        unsafe { core::mem::ManuallyDrop::into_inner(self.payload.ok) }
+    }
+
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<HostTcpPoolAcquireResult>() == 48, "HostTcpPoolAcquireResult size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<HostTcpPoolAcquireResult>() == 8, "HostTcpPoolAcquireResult alignment mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::offset_of!(HostTcpPoolAcquireResult, tag) == 40, "HostTcpPoolAcquireResult tag offset mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<HostTcpPoolAcquireResult>() == 24, "HostTcpPoolAcquireResult size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<HostTcpPoolAcquireResult>() == 4, "HostTcpPoolAcquireResult alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::offset_of!(HostTcpPoolAcquireResult, tag) == 20, "HostTcpPoolAcquireResult tag offset mismatch");
 
 /// Tag discriminant for OsStr.
 #[repr(u8)]
@@ -4355,14 +4840,14 @@ const _: () = assert!(core::mem::offset_of!(OsStr, tag) == 12, "OsStr tag offset
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TryType205Tag {
+pub enum TryType234Tag {
     Err = 0,
     Ok = 1,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub union TryType205Payload {
+pub union TryType234Payload {
     pub err: core::mem::ManuallyDrop<i32>,
     pub ok: [u8; 0],
 }
@@ -4370,28 +4855,28 @@ pub union TryType205Payload {
 #[cfg(target_pointer_width = "32")]
 #[repr(align(4))]
 #[derive(Clone, Copy)]
-pub struct TryType205PayloadAlignment;
+pub struct TryType234PayloadAlignment;
 
 /// Tag union: Try
 #[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct TryType205 {
-    pub _payload_alignment: [TryType205PayloadAlignment; 0],
+pub struct TryType234 {
+    pub _payload_alignment: [TryType234PayloadAlignment; 0],
     pub payload: [u8; 4],
-    pub tag: TryType205Tag,
+    pub tag: TryType234Tag,
 }
 
 /// Tag union: Try
 #[cfg(not(target_pointer_width = "32"))]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct TryType205 {
-    pub payload: TryType205Payload,
-    pub tag: TryType205Tag,
+pub struct TryType234 {
+    pub payload: TryType234Payload,
+    pub tag: TryType234Tag,
 }
 
-impl TryType205 {
+impl TryType234 {
     #[cfg(target_pointer_width = "32")]
     pub fn payload_err(&self) -> i32 {
         unsafe { core::ptr::read(self.payload.as_ptr() as *const i32) }
@@ -4405,17 +4890,17 @@ impl TryType205 {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::size_of::<TryType205>() == 8, "TryType205 size mismatch");
+const _: () = assert!(core::mem::size_of::<TryType234>() == 8, "TryType234 size mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::align_of::<TryType205>() == 4, "TryType205 alignment mismatch");
+const _: () = assert!(core::mem::align_of::<TryType234>() == 4, "TryType234 alignment mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::offset_of!(TryType205, tag) == 4, "TryType205 tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(TryType234, tag) == 4, "TryType234 tag offset mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::size_of::<TryType205>() == 8, "TryType205 size mismatch");
+const _: () = assert!(core::mem::size_of::<TryType234>() == 8, "TryType234 size mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::align_of::<TryType205>() == 4, "TryType205 alignment mismatch");
+const _: () = assert!(core::mem::align_of::<TryType234>() == 4, "TryType234 alignment mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::offset_of!(TryType205, tag) == 4, "TryType205 tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(TryType234, tag) == 4, "TryType234 tag offset mismatch");
 
 /// Return type record for Host.env_platform!
 /// Fields ordered by compiler-emitted ABI offsets.
@@ -4445,6 +4930,72 @@ const _: () = assert!(core::mem::align_of::<HostEnvPlatformRetRecord>() == 8, "H
 const _: () = assert!(core::mem::size_of::<HostEnvPlatformRetRecord>() == 32, "HostEnvPlatformRetRecord size mismatch");
 #[cfg(target_pointer_width = "32")]
 const _: () = assert!(core::mem::align_of::<HostEnvPlatformRetRecord>() == 4, "HostEnvPlatformRetRecord alignment mismatch");
+
+/// Arguments for Host.cmd_child_close_stdin!
+/// Roc signature: U64 => Try({}, IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildCloseStdinArgs {
+    pub arg0: u64,
+}
+
+/// Arguments for Host.cmd_child_kill!
+/// Roc signature: U64 => Try({}, IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildKillArgs {
+    pub arg0: u64,
+}
+
+/// Arguments for Host.cmd_child_poll!
+/// Roc signature: U64 => Try([Exited({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }), Running], IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildPollArgs {
+    pub arg0: u64,
+}
+
+/// Arguments for Host.cmd_child_read_stderr!
+/// Roc signature: U64, U64 => Try(List(U8), IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildReadStderrArgs {
+    pub arg0: u64,
+    pub arg1: u64,
+}
+
+/// Arguments for Host.cmd_child_read_stdout!
+/// Roc signature: U64, U64 => Try(List(U8), IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildReadStdoutArgs {
+    pub arg0: u64,
+    pub arg1: u64,
+}
+
+/// Arguments for Host.cmd_child_wait!
+/// Roc signature: U64 => Try({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }, IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildWaitArgs {
+    pub arg0: u64,
+}
+
+/// Arguments for Host.cmd_child_write_stdin!
+/// Roc signature: U64, List(U8) => Try({}, IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildWriteStdinArgs {
+    pub arg0: u64,
+    pub arg1: RocListWith<u8, false>,
+}
 
 /// Arguments for Host.cmd_exec_exit_code!
 /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] } => Try(I32, IOErr)
@@ -4515,6 +5066,16 @@ const _: () = assert!(core::mem::align_of::<HostCmdExecOutputArgs>() == 8, "Host
 const _: () = assert!(core::mem::size_of::<HostCmdExecOutputArgs>() == 44, "HostCmdExecOutputArgs size mismatch");
 #[cfg(target_pointer_width = "32")]
 const _: () = assert!(core::mem::align_of::<HostCmdExecOutputArgs>() == 4, "HostCmdExecOutputArgs alignment mismatch");
+
+/// Arguments for Host.cmd_spawn!
+/// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] }, Bool => Try(U64, IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdSpawnArgs {
+    pub arg0: AnonStruct32ddec9aa3de7110,
+    pub arg1: bool,
+}
 
 /// Arguments for Host.dir_create!
 /// Roc signature: [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] => Try({}, [DirErr(IOErr)])
@@ -4906,6 +5467,37 @@ pub struct HostTcpConnectArgs {
     pub arg1: u16,
 }
 
+/// Arguments for Host.tcp_pool_acquire!
+/// Roc signature: Host.TcpPool => Try({ fresh : Bool, metadata : List(U8), stream : Host.TcpStream }, Str)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostTcpPoolAcquireArgs {
+    pub arg0: *mut u64,
+}
+
+/// Arguments for Host.tcp_pool_create!
+/// Roc signature: Str, U16, U64 => Host.TcpPool
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostTcpPoolCreateArgs {
+    pub arg0: RocStr,
+    pub arg1: u16,
+    pub arg2: u64,
+}
+
+/// Arguments for Host.tcp_pool_release!
+/// Roc signature: Host.TcpStream, Bool, List(U8) => {}
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostTcpPoolReleaseArgs {
+    pub arg0: *mut u64,
+    pub arg1: bool,
+    pub arg2: RocListWith<u8, false>,
+}
+
 /// Arguments for Host.tcp_read_exactly!
 /// Roc signature: Host.TcpStream, U64 => Try(List(U8), Str)
 /// Refcounted fields are owned by the hosted function.
@@ -4936,6 +5528,15 @@ pub struct HostTcpReadUpToArgs {
     pub arg1: u64,
 }
 
+/// Arguments for Host.tcp_shutdown!
+/// Roc signature: Host.TcpStream => {}
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostTcpShutdownArgs {
+    pub arg0: *mut u64,
+}
+
 /// Arguments for Host.tcp_write!
 /// Roc signature: Host.TcpStream, List(U8) => Try({}, Str)
 /// Refcounted fields are owned by the hosted function.
@@ -4948,6 +5549,21 @@ pub struct HostTcpWriteArgs {
 
 // Platform Type Aliases
 
+pub type HostCmdChildKillResult = HostCmdChildCloseStdinResult;
+pub type HostCmdChildKillResultPayload = HostCmdChildCloseStdinResultPayload;
+pub type HostCmdChildKillResultTag = HostCmdChildCloseStdinResultTag;
+pub type HostCmdChildPollOk = ExitedOrRunning;
+pub type HostCmdChildPollOkPayload = ExitedOrRunningPayload;
+pub type HostCmdChildPollOkTag = ExitedOrRunningTag;
+pub type HostCmdChildPollOkExited = AnonStruct3f89ee1e14924626;
+pub type ExitedOrRunningExited = AnonStruct3f89ee1e14924626;
+pub type HostCmdChildReadStdoutResult = HostCmdChildReadStderrResult;
+pub type HostCmdChildReadStdoutResultPayload = HostCmdChildReadStderrResultPayload;
+pub type HostCmdChildReadStdoutResultTag = HostCmdChildReadStderrResultTag;
+pub type HostCmdChildWaitOk = AnonStruct3f89ee1e14924626;
+pub type HostCmdChildWriteStdinResult = HostCmdChildCloseStdinResult;
+pub type HostCmdChildWriteStdinResultPayload = HostCmdChildCloseStdinResultPayload;
+pub type HostCmdChildWriteStdinResultTag = HostCmdChildCloseStdinResultTag;
 pub type HostCmdExecExitCodeArg0 = AnonStruct32ddec9aa3de7110;
 pub type HostCmdExecExitCodeArg0Args = UnixBytesOrUtf8OrWindowsU16s;
 pub type HostCmdExecExitCodeArg0ArgsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
@@ -4968,6 +5584,16 @@ pub type HostCmdExecOutputErrTag = FailedToGetExitCodeOrNonZeroExitCodeTag;
 pub type HostCmdExecOutputErrNonZeroExitCode = AnonStruct3f89ee1e14924626;
 pub type HostCmdExecOutputOk = AnonStruct3e7554e024207e25;
 pub type FailedToGetExitCodeOrNonZeroExitCodeNonZeroExitCode = AnonStruct3f89ee1e14924626;
+pub type HostCmdKillAllGroupedResult = HostCmdChildCloseStdinResult;
+pub type HostCmdKillAllGroupedResultPayload = HostCmdChildCloseStdinResultPayload;
+pub type HostCmdKillAllGroupedResultTag = HostCmdChildCloseStdinResultTag;
+pub type HostCmdSpawnArg0 = AnonStruct32ddec9aa3de7110;
+pub type HostCmdSpawnArg0Args = UnixBytesOrUtf8OrWindowsU16s;
+pub type HostCmdSpawnArg0ArgsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
+pub type HostCmdSpawnArg0ArgsTag = UnixBytesOrUtf8OrWindowsU16sTag;
+pub type HostCmdSpawnArg0Envs = UnixBytesOrUtf8OrWindowsU16s;
+pub type HostCmdSpawnArg0EnvsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
+pub type HostCmdSpawnArg0EnvsTag = UnixBytesOrUtf8OrWindowsU16sTag;
 pub type HostDirCreateAllResult = HostDirCreateResult;
 pub type HostDirCreateAllResultPayload = HostDirCreateResultPayload;
 pub type HostDirCreateAllResultTag = HostDirCreateResultTag;
@@ -4988,6 +5614,9 @@ pub type HostEnvExePathOk = UnixBytesOrUtf8OrWindowsU16s;
 pub type HostEnvExePathOkPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
 pub type HostEnvExePathOkTag = UnixBytesOrUtf8OrWindowsU16sTag;
 pub type HostEnvPlatform = AnonStructBca0d23b5d625934;
+pub type HostEnvSetCwdResult = HostCmdChildCloseStdinResult;
+pub type HostEnvSetCwdResultPayload = HostCmdChildCloseStdinResultPayload;
+pub type HostEnvSetCwdResultTag = HostCmdChildCloseStdinResultTag;
 pub type HostEnvVarErr = EnvErrOrVarNotFound;
 pub type HostEnvVarErrPayload = EnvErrOrVarNotFoundPayload;
 pub type HostEnvVarErrTag = EnvErrOrVarNotFoundTag;
@@ -5065,6 +5694,7 @@ pub type HostStdoutWriteResultTag = HostStdoutLineResultTag;
 pub type HostStdoutWriteBytesResult = HostStdoutLineResult;
 pub type HostStdoutWriteBytesResultPayload = HostStdoutLineResultPayload;
 pub type HostStdoutWriteBytesResultTag = HostStdoutLineResultTag;
+pub type HostTcpPoolAcquireOk = AnonStructCfa80bab6470cb35;
 pub type HostTcpReadUntilResult = HostTcpReadExactlyResult;
 pub type HostTcpReadUntilResultPayload = HostTcpReadExactlyResultPayload;
 pub type HostTcpReadUntilResultTag = HostTcpReadExactlyResultTag;
@@ -5112,7 +5742,7 @@ impl HostCmdExecExitCodeResult {
     }
 }
 
-impl HostIOErr {
+impl IOErr {
     /// Recursively decrement Roc-owned payloads.
     ///
     /// # Safety
@@ -5121,19 +5751,19 @@ impl HostIOErr {
         let value = self;
         let _ = roc_host;
         match value.tag {
-            HostIOErrTag::AlreadyExists => {},
-            HostIOErrTag::BrokenPipe => {},
-            HostIOErrTag::Interrupted => {},
-            HostIOErrTag::IsADirectory => {},
-            HostIOErrTag::NotADirectory => {},
-            HostIOErrTag::NotFound => {},
-            HostIOErrTag::Other => {
+            IOErrTag::AlreadyExists => {},
+            IOErrTag::BrokenPipe => {},
+            IOErrTag::Interrupted => {},
+            IOErrTag::IsADirectory => {},
+            IOErrTag::NotADirectory => {},
+            IOErrTag::NotFound => {},
+            IOErrTag::Other => {
                 let payload = value.payload_other();
                 unsafe { payload.decref(roc_host); }
             },
-            HostIOErrTag::OutOfMemory => {},
-            HostIOErrTag::PermissionDenied => {},
-            HostIOErrTag::Unsupported => {},
+            IOErrTag::OutOfMemory => {},
+            IOErrTag::PermissionDenied => {},
+            IOErrTag::Unsupported => {},
         }
     }
 
@@ -5146,19 +5776,19 @@ impl HostIOErr {
         let value = self;
         let _ = amount;
         match value.tag {
-            HostIOErrTag::AlreadyExists => {},
-            HostIOErrTag::BrokenPipe => {},
-            HostIOErrTag::Interrupted => {},
-            HostIOErrTag::IsADirectory => {},
-            HostIOErrTag::NotADirectory => {},
-            HostIOErrTag::NotFound => {},
-            HostIOErrTag::Other => {
+            IOErrTag::AlreadyExists => {},
+            IOErrTag::BrokenPipe => {},
+            IOErrTag::Interrupted => {},
+            IOErrTag::IsADirectory => {},
+            IOErrTag::NotADirectory => {},
+            IOErrTag::NotFound => {},
+            IOErrTag::Other => {
                 let payload = value.payload_other();
                 unsafe { payload.incref(amount); }
             },
-            HostIOErrTag::OutOfMemory => {},
-            HostIOErrTag::PermissionDenied => {},
-            HostIOErrTag::Unsupported => {},
+            IOErrTag::OutOfMemory => {},
+            IOErrTag::PermissionDenied => {},
+            IOErrTag::Unsupported => {},
         }
     }
 }
@@ -5333,57 +5963,6 @@ impl FailedToGetExitCodeOrNonZeroExitCode {
                 let payload = value.payload_non_zero_exit_code();
                 unsafe { payload.incref(amount); }
             },
-        }
-    }
-}
-
-impl IOErr {
-    /// Recursively decrement Roc-owned payloads.
-    ///
-    /// # Safety
-    /// `self` must own one live Roc reference for each refcounted payload.
-    pub unsafe fn decref(self, roc_host: &RocHost) {
-        let value = self;
-        let _ = roc_host;
-        match value.tag {
-            IOErrTag::AlreadyExists => {},
-            IOErrTag::BrokenPipe => {},
-            IOErrTag::Interrupted => {},
-            IOErrTag::IsADirectory => {},
-            IOErrTag::NotADirectory => {},
-            IOErrTag::NotFound => {},
-            IOErrTag::Other => {
-                let payload = value.payload_other();
-                unsafe { payload.decref(roc_host); }
-            },
-            IOErrTag::OutOfMemory => {},
-            IOErrTag::PermissionDenied => {},
-            IOErrTag::Unsupported => {},
-        }
-    }
-
-    /// Increment Roc-owned payloads.
-    ///
-    /// # Safety
-    /// `self` must point at live Roc allocations. The retained references must
-    /// be balanced by later decrefs.
-    pub unsafe fn incref(self, amount: isize) {
-        let value = self;
-        let _ = amount;
-        match value.tag {
-            IOErrTag::AlreadyExists => {},
-            IOErrTag::BrokenPipe => {},
-            IOErrTag::Interrupted => {},
-            IOErrTag::IsADirectory => {},
-            IOErrTag::NotADirectory => {},
-            IOErrTag::NotFound => {},
-            IOErrTag::Other => {
-                let payload = value.payload_other();
-                unsafe { payload.incref(amount); }
-            },
-            IOErrTag::OutOfMemory => {},
-            IOErrTag::PermissionDenied => {},
-            IOErrTag::Unsupported => {},
         }
     }
 }
@@ -7017,7 +7596,7 @@ impl AnonStruct69eee2ff6c448fed {
     }
 }
 
-impl HostEnvSetCwdResult {
+impl HostCmdChildCloseStdinResult {
     /// Recursively decrement Roc-owned payloads.
     ///
     /// # Safety
@@ -7026,11 +7605,11 @@ impl HostEnvSetCwdResult {
         let value = self;
         let _ = roc_host;
         match value.tag {
-            HostEnvSetCwdResultTag::Err => {
+            HostCmdChildCloseStdinResultTag::Err => {
                 let payload = value.payload_err();
                 unsafe { payload.decref(roc_host); }
             },
-            HostEnvSetCwdResultTag::Ok => {},
+            HostCmdChildCloseStdinResultTag::Ok => {},
         }
     }
 
@@ -7043,12 +7622,320 @@ impl HostEnvSetCwdResult {
         let value = self;
         let _ = amount;
         match value.tag {
-            HostEnvSetCwdResultTag::Err => {
+            HostCmdChildCloseStdinResultTag::Err => {
                 let payload = value.payload_err();
                 unsafe { payload.incref(amount); }
             },
-            HostEnvSetCwdResultTag::Ok => {},
+            HostCmdChildCloseStdinResultTag::Ok => {},
         }
+    }
+}
+
+impl HostIOErr {
+    /// Recursively decrement Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted payload.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        let _ = roc_host;
+        match value.tag {
+            HostIOErrTag::AlreadyExists => {},
+            HostIOErrTag::BrokenPipe => {},
+            HostIOErrTag::Interrupted => {},
+            HostIOErrTag::IsADirectory => {},
+            HostIOErrTag::NotADirectory => {},
+            HostIOErrTag::NotFound => {},
+            HostIOErrTag::Other => {
+                let payload = value.payload_other();
+                unsafe { payload.decref(roc_host); }
+            },
+            HostIOErrTag::OutOfMemory => {},
+            HostIOErrTag::PermissionDenied => {},
+            HostIOErrTag::Unsupported => {},
+        }
+    }
+
+    /// Increment Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        let _ = amount;
+        match value.tag {
+            HostIOErrTag::AlreadyExists => {},
+            HostIOErrTag::BrokenPipe => {},
+            HostIOErrTag::Interrupted => {},
+            HostIOErrTag::IsADirectory => {},
+            HostIOErrTag::NotADirectory => {},
+            HostIOErrTag::NotFound => {},
+            HostIOErrTag::Other => {
+                let payload = value.payload_other();
+                unsafe { payload.incref(amount); }
+            },
+            HostIOErrTag::OutOfMemory => {},
+            HostIOErrTag::PermissionDenied => {},
+            HostIOErrTag::Unsupported => {},
+        }
+    }
+}
+
+impl HostCmdSpawnResult {
+    /// Recursively decrement Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted payload.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        let _ = roc_host;
+        match value.tag {
+            HostCmdSpawnResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.decref(roc_host); }
+            },
+            HostCmdSpawnResultTag::Ok => {},
+        }
+    }
+
+    /// Increment Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        let _ = amount;
+        match value.tag {
+            HostCmdSpawnResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.incref(amount); }
+            },
+            HostCmdSpawnResultTag::Ok => {},
+        }
+    }
+}
+
+impl HostCmdChildReadStderrResult {
+    /// Recursively decrement Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted payload.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        let _ = roc_host;
+        match value.tag {
+            HostCmdChildReadStderrResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.decref(roc_host); }
+            },
+            HostCmdChildReadStderrResultTag::Ok => {
+                let payload = value.payload_ok();
+                unsafe { payload.decref(roc_host); }
+            },
+        }
+    }
+
+    /// Increment Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        let _ = amount;
+        match value.tag {
+            HostCmdChildReadStderrResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.incref(amount); }
+            },
+            HostCmdChildReadStderrResultTag::Ok => {
+                let payload = value.payload_ok();
+                unsafe { payload.incref(amount); }
+            },
+        }
+    }
+}
+
+impl HostCmdChildWaitResult {
+    /// Recursively decrement Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted payload.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        let _ = roc_host;
+        match value.tag {
+            HostCmdChildWaitResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.decref(roc_host); }
+            },
+            HostCmdChildWaitResultTag::Ok => {
+                let payload = value.payload_ok();
+                unsafe { payload.decref(roc_host); }
+            },
+        }
+    }
+
+    /// Increment Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        let _ = amount;
+        match value.tag {
+            HostCmdChildWaitResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.incref(amount); }
+            },
+            HostCmdChildWaitResultTag::Ok => {
+                let payload = value.payload_ok();
+                unsafe { payload.incref(amount); }
+            },
+        }
+    }
+}
+
+impl HostCmdChildPollResult {
+    /// Recursively decrement Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted payload.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        let _ = roc_host;
+        match value.tag {
+            HostCmdChildPollResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.decref(roc_host); }
+            },
+            HostCmdChildPollResultTag::Ok => {
+                let payload = value.payload_ok();
+                unsafe { payload.decref(roc_host); }
+            },
+        }
+    }
+
+    /// Increment Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        let _ = amount;
+        match value.tag {
+            HostCmdChildPollResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.incref(amount); }
+            },
+            HostCmdChildPollResultTag::Ok => {
+                let payload = value.payload_ok();
+                unsafe { payload.incref(amount); }
+            },
+        }
+    }
+}
+
+impl ExitedOrRunning {
+    /// Recursively decrement Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted payload.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        let _ = roc_host;
+        match value.tag {
+            ExitedOrRunningTag::Exited => {
+                let payload = value.payload_exited();
+                unsafe { payload.decref(roc_host); }
+            },
+            ExitedOrRunningTag::Running => {},
+        }
+    }
+
+    /// Increment Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        let _ = amount;
+        match value.tag {
+            ExitedOrRunningTag::Exited => {
+                let payload = value.payload_exited();
+                unsafe { payload.incref(amount); }
+            },
+            ExitedOrRunningTag::Running => {},
+        }
+    }
+}
+
+impl HostTcpPoolAcquireResult {
+    /// Recursively decrement Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted payload.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        let _ = roc_host;
+        match value.tag {
+            HostTcpPoolAcquireResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.decref(roc_host); }
+            },
+            HostTcpPoolAcquireResultTag::Ok => {
+                let payload = value.payload_ok();
+                unsafe { payload.decref(roc_host); }
+            },
+        }
+    }
+
+    /// Increment Roc-owned payloads.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        let _ = amount;
+        match value.tag {
+            HostTcpPoolAcquireResultTag::Err => {
+                let payload = value.payload_err();
+                unsafe { payload.incref(amount); }
+            },
+            HostTcpPoolAcquireResultTag::Ok => {
+                let payload = value.payload_ok();
+                unsafe { payload.incref(amount); }
+            },
+        }
+    }
+}
+
+impl AnonStructCfa80bab6470cb35 {
+    /// Recursively decrement Roc-owned fields.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted field.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        unsafe { value.metadata.decref(roc_host); }
+        unsafe { decref_box_with(value.stream as RocBox, core::mem::align_of::<u64>(), false, None, roc_host); }
+    }
+
+    /// Increment Roc-owned fields.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        unsafe { value.metadata.incref(amount); }
+        unsafe { incref_box(value.stream as RocBox, amount); }
     }
 }
 
@@ -7101,7 +7988,7 @@ impl OsStr {
     }
 }
 
-impl TryType205 {
+impl TryType234 {
     /// Recursively decrement Roc-owned payloads.
     ///
     /// # Safety
@@ -7110,8 +7997,8 @@ impl TryType205 {
         let value = self;
         let _ = roc_host;
         match value.tag {
-            TryType205Tag::Err => {},
-            TryType205Tag::Ok => {},
+            TryType234Tag::Err => {},
+            TryType234Tag::Ok => {},
         }
     }
 
@@ -7124,8 +8011,8 @@ impl TryType205 {
         let value = self;
         let _ = amount;
         match value.tag {
-            TryType205Tag::Err => {},
-            TryType205Tag::Ok => {},
+            TryType234Tag::Err => {},
+            TryType234Tag::Ok => {},
         }
     }
 }
@@ -7152,6 +8039,34 @@ unsafe extern "C" {
 
 #[allow(improper_ctypes)]
 unsafe extern "C" {
+    /// Hosted symbol for Host.cmd_child_close_stdin!
+    /// Roc signature: U64 => Try({}, IOErr)
+    pub fn hosted_cmd_child_close_stdin(arg0: u64) -> HostCmdChildCloseStdinResult;
+
+    /// Hosted symbol for Host.cmd_child_kill!
+    /// Roc signature: U64 => Try({}, IOErr)
+    pub fn hosted_cmd_child_kill(arg0: u64) -> HostCmdChildCloseStdinResult;
+
+    /// Hosted symbol for Host.cmd_child_poll!
+    /// Roc signature: U64 => Try([Exited({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }), Running], IOErr)
+    pub fn hosted_cmd_child_poll(arg0: u64) -> HostCmdChildPollResult;
+
+    /// Hosted symbol for Host.cmd_child_read_stderr!
+    /// Roc signature: U64, U64 => Try(List(U8), IOErr)
+    pub fn hosted_cmd_child_read_stderr(arg0: u64, arg1: u64) -> HostCmdChildReadStderrResult;
+
+    /// Hosted symbol for Host.cmd_child_read_stdout!
+    /// Roc signature: U64, U64 => Try(List(U8), IOErr)
+    pub fn hosted_cmd_child_read_stdout(arg0: u64, arg1: u64) -> HostCmdChildReadStderrResult;
+
+    /// Hosted symbol for Host.cmd_child_wait!
+    /// Roc signature: U64 => Try({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }, IOErr)
+    pub fn hosted_cmd_child_wait(arg0: u64) -> HostCmdChildWaitResult;
+
+    /// Hosted symbol for Host.cmd_child_write_stdin!
+    /// Roc signature: U64, List(U8) => Try({}, IOErr)
+    pub fn hosted_cmd_child_write_stdin(arg0: u64, arg1: RocListWith<u8, false>) -> HostCmdChildCloseStdinResult;
+
     /// Hosted symbol for Host.cmd_exec_exit_code!
     /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] } => Try(I32, IOErr)
     pub fn hosted_cmd_host_exec_exit_code(arg0: HostCmdExecExitCodeArgs) -> HostCmdExecExitCodeResult;
@@ -7159,6 +8074,14 @@ unsafe extern "C" {
     /// Hosted symbol for Host.cmd_exec_output!
     /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] } => Try({ stderr_bytes : List(U8), stdout_bytes : List(U8) }, [FailedToGetExitCode(IOErr), NonZeroExitCode({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) })])
     pub fn hosted_cmd_host_exec_output(arg0: HostCmdExecOutputArgs) -> HostCmdExecOutputResult;
+
+    /// Hosted symbol for Host.cmd_kill_all_grouped!
+    /// Roc signature: {} => Try({}, IOErr)
+    pub fn hosted_cmd_kill_all_grouped() -> HostCmdChildCloseStdinResult;
+
+    /// Hosted symbol for Host.cmd_spawn!
+    /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] }, Bool => Try(U64, IOErr)
+    pub fn hosted_cmd_spawn(arg0: AnonStruct32ddec9aa3de7110, arg1: bool) -> HostCmdSpawnResult;
 
     /// Hosted symbol for Host.dir_create!
     /// Roc signature: [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] => Try({}, [DirErr(IOErr)])
@@ -7198,7 +8121,7 @@ unsafe extern "C" {
 
     /// Hosted symbol for Host.env_set_cwd!
     /// Roc signature: [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] => Try({}, IOErr)
-    pub fn hosted_env_set_cwd(arg0: UnixBytesOrUtf8OrWindowsU16s) -> HostEnvSetCwdResult;
+    pub fn hosted_env_set_cwd(arg0: UnixBytesOrUtf8OrWindowsU16s) -> HostCmdChildCloseStdinResult;
 
     /// Hosted symbol for Host.env_temp_dir!
     /// Roc signature: {} => [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]
@@ -7364,6 +8287,18 @@ unsafe extern "C" {
     /// Roc signature: Str, U16 => Try(Host.TcpStream, Str)
     pub fn hosted_tcp_connect(arg0: RocStr, arg1: u16) -> HostTcpConnectResult;
 
+    /// Hosted symbol for Host.tcp_pool_acquire!
+    /// Roc signature: Host.TcpPool => Try({ fresh : Bool, metadata : List(U8), stream : Host.TcpStream }, Str)
+    pub fn hosted_tcp_pool_acquire(arg0: *mut u64) -> HostTcpPoolAcquireResult;
+
+    /// Hosted symbol for Host.tcp_pool_create!
+    /// Roc signature: Str, U16, U64 => Host.TcpPool
+    pub fn hosted_tcp_pool_create(arg0: RocStr, arg1: u16, arg2: u64) -> *mut u64;
+
+    /// Hosted symbol for Host.tcp_pool_release!
+    /// Roc signature: Host.TcpStream, Bool, List(U8) => {}
+    pub fn hosted_tcp_pool_release(arg0: *mut u64, arg1: bool, arg2: RocListWith<u8, false>);
+
     /// Hosted symbol for Host.tcp_read_exactly!
     /// Roc signature: Host.TcpStream, U64 => Try(List(U8), Str)
     pub fn hosted_tcp_read_exactly(arg0: *mut u64, arg1: u64) -> HostTcpReadExactlyResult;
@@ -7375,6 +8310,10 @@ unsafe extern "C" {
     /// Hosted symbol for Host.tcp_read_up_to!
     /// Roc signature: Host.TcpStream, U64 => Try(List(U8), Str)
     pub fn hosted_tcp_read_up_to(arg0: *mut u64, arg1: u64) -> HostTcpReadExactlyResult;
+
+    /// Hosted symbol for Host.tcp_shutdown!
+    /// Roc signature: Host.TcpStream => {}
+    pub fn hosted_tcp_shutdown(arg0: *mut u64);
 
     /// Hosted symbol for Host.tcp_write!
     /// Roc signature: Host.TcpStream, List(U8) => Try({}, Str)
