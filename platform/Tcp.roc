@@ -61,6 +61,14 @@ Tcp :: [].{
 		write_utf8! = |stream, str| write!(stream, Str.to_utf8(str))
 	}
 
+	## A host-managed pool of TCP connections to one address (see [Tcp.pool!]).
+	Pool :: { host : Host.TcpPool }.{
+
+		## Render the pool without exposing its host handle.
+		to_inspect : Pool -> Str
+		to_inspect = |_| "Tcp.Pool(<opaque>)"
+	}
+
 	## Represents errors that can occur when connecting to a remote host.
 	ConnectErr : [
 		PermissionDenied,
@@ -97,6 +105,61 @@ Tcp :: [].{
 		Host.tcp_connect!(host, port)
 			.map_ok(|stream| Stream.{ host: stream })
 			.map_err(parse_connect_err)
+
+	## Close a TCP stream immediately by shutting the socket down in both
+	## directions. The underlying resources are freed when the last reference
+	## to the stream is dropped, but shutdown happens right away — use this to
+	## abandon a connection that is in an unknown protocol state (e.g. after an
+	## error mid-conversation), especially for streams acquired from a [Pool].
+	close! : Stream => {}
+	close! = |stream| Host.tcp_shutdown!(stream.host)
+
+	## Create a connection pool for the given address. Creating a pool does not
+	## connect; connections are dialed lazily by [Tcp.pool_acquire!].
+	##
+	## `max_connections` bounds the TOTAL number of connections the pool will
+	## have open at once (checked out + idle), like Axum/sqlx's
+	## `max_connections`. When the pool is at the cap, [Tcp.pool_acquire!]
+	## waits for a release instead of dialing, and fails with
+	## `TcpConnectErr(TimedOut)` if none frees up within 30 seconds. Idle
+	## connections unused for 10 minutes are closed and re-dialed on demand.
+	##
+	## The `Pool` value is an immutable handle to host-managed state, so it
+	## can be passed around freely and acquired from concurrently.
+	pool! : { host : Str, port : U16, max_connections : U64 } => Pool
+	pool! = |{ host, port, max_connections }|
+		Pool.{ host: Host.tcp_pool_create!(host, port, max_connections) }
+
+	## Check a connection out of the pool.
+	##
+	## Returns a recycled connection (`fresh: Bool.false`, plus whatever
+	## `metadata` it was released with) when one is available, otherwise dials
+	## a new one (`fresh: Bool.true`, empty `metadata`). If the pool is at
+	## `max_connections`, waits up to 30s for a release, then fails with
+	## `TcpConnectErr(TimedOut)`.
+	##
+	## `metadata` is a caller-owned blob stored with the idle connection at
+	## [Tcp.pool_release!] time — protocol libraries use it to persist
+	## per-connection session state (e.g. Postgres backend keys) across
+	## checkouts.
+	##
+	## Every acquired stream should be either [Tcp.pool_release!]d (to be
+	## reused) or dropped/[Tcp.close!]d — a dropped stream frees its pool slot
+	## when the last reference goes away.
+	pool_acquire! : Pool => Try({ stream : Stream, fresh : Bool, metadata : List(U8) }, [TcpConnectErr(ConnectErr), ..])
+	pool_acquire! = |pool|
+		match Host.tcp_pool_acquire!(pool.host) {
+			Ok(acquired) => Ok({ stream: Stream.{ host: acquired.stream }, fresh: acquired.fresh, metadata: acquired.metadata })
+			Err(err) => Err(TcpConnectErr(parse_connect_err(err)))
+		}
+
+	## Return a connection to its pool for another checkout to reuse, storing
+	## `metadata` alongside it. Only release connections that are in a
+	## known-good protocol state; after an error mid-conversation, use
+	## [Tcp.close!] instead.
+	pool_release! : { stream : Stream, metadata : List(U8) } => {}
+	pool_release! = |{ stream, metadata }|
+		Host.tcp_pool_release!(stream.host, Bool.True, metadata)
 
 	## Convert a `ConnectErr` to a `Str` you can print.
 	connect_err_to_str = |err|

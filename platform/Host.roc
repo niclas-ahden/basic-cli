@@ -122,4 +122,39 @@ Host :: [].{
 	}
 	env_dict! : () => List((NativeOsStr, NativeOsStr))
 	env_set_cwd! : NativePath => Try({}, IOErr)
+
+	# Child processes with piped stdio and TCP connection pools are likewise
+	# appended at the end to avoid renumbering the generated glue above.
+
+	## What `cmd_child_wait!` returns and `Exited` carries: the exit code plus
+	## whatever buffered output the child produced that was never read.
+	CmdChildExit : {
+		stderr_bytes : List(U8),
+		stdout_bytes : List(U8),
+		exit_code : I32,
+	}
+
+	CmdChildPoll : [Exited(CmdChildExit), Running]
+
+	## A host-managed pool of TCP connections (see `Tcp.Pool`).
+	TcpPool :: Box(U64)
+
+	## Spawn `Cmd` with piped stdin/stdout/stderr. The Bool selects grouped
+	## spawning: the child is placed in a managed group that dies with the
+	## parent, and is killed by `cmd_kill_all_grouped!`. Returns a process id
+	## into the host's process table.
+	cmd_spawn! : Cmd, Bool => Try(U64, IOErr)
+	cmd_child_write_stdin! : U64, List(U8) => Try({}, IOErr)
+	cmd_child_read_stdout! : U64, U64 => Try(List(U8), IOErr)
+	cmd_child_read_stderr! : U64, U64 => Try(List(U8), IOErr)
+	cmd_child_close_stdin! : U64 => Try({}, IOErr)
+	cmd_child_kill! : U64 => Try({}, IOErr)
+	cmd_child_wait! : U64 => Try(CmdChildExit, IOErr)
+	cmd_child_poll! : U64 => Try(CmdChildPoll, IOErr)
+	cmd_kill_all_grouped! : () => Try({}, IOErr)
+
+	tcp_pool_create! : Str, U16, U64 => TcpPool
+	tcp_pool_acquire! : TcpPool => Try({ fresh : Bool, metadata : List(U8), stream : TcpStream }, Str)
+	tcp_pool_release! : TcpStream, Bool, List(U8) => {}
+	tcp_shutdown! : TcpStream => {}
 }
