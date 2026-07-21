@@ -1375,7 +1375,7 @@ expect {
 
 ## Generic parsers validate and canonicalize encoded URL strings.
 expect {
-	decoded : Try(Url, Json.ParseErr)
+	decoded : Try(Url, [InvalidJson(Str)])
 	decoded = Json.parse("\"HTTPS://EXAMPLE.COM:443/a\"")
 
 	match decoded {
@@ -1385,7 +1385,7 @@ expect {
 }
 
 expect {
-	decoded : Try(Url, Json.ParseErr)
+	decoded : Try(Url, [InvalidJson(Str)])
 	decoded = Json.parse("\"not a url\"")
 	decoded == Err(Json.invalid_json)
 }
