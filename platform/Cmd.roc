@@ -166,7 +166,7 @@ Cmd :: {
 	new_str = |program| new(OsStr.from_str(program))
 
 	## Add a single argument to the command.
-	## ❗ Shell features like variable subsitition (e.g. `$FOO`), glob patterns (e.g. `*.txt`), ... are not available.
+	## ❗ Shell features like variable substitution (e.g. `$FOO`), glob patterns (e.g. `*.txt`), ... are not available.
 	##
 	## ```roc
 	## cmd = Cmd.new("ls").arg("-l")
@@ -182,7 +182,7 @@ Cmd :: {
 	arg_str = |cmd, a| arg(cmd, OsStr.from_str(a))
 
 	## Add multiple arguments to the command.
-	## ❗ Shell features like variable subsitition (e.g. `$FOO`), glob patterns (e.g. `*.txt`), ... are not available.
+	## ❗ Shell features like variable substitution (e.g. `$FOO`), glob patterns (e.g. `*.txt`), ... are not available.
 	##
 	## ```roc
 	## cmd = Cmd.new("ls").args(["-l", "-a"])

@@ -4,7 +4,7 @@ import Host
 ## This is useful for running an app like vim or a game in the terminal.
 Tty :: [].{
 
-	## Enable terminal [raw mode](https://en.wikipedia.org/wiki/Terminal_mode) to disable some default terminal bevahiour.
+	## Enable terminal [raw mode](https://en.wikipedia.org/wiki/Terminal_mode) to disable some default terminal behaviour.
 	##
 	## This leads to the following changes:
 	## - Input will not be echoed to the terminal screen.
