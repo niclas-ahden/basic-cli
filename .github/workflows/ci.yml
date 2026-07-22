@@ -33,9 +33,8 @@ jobs:
       - uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # ratchet:mlugg/setup-zig@v2.0.5
         with:
           version: 0.16.0
-      - uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427 # ratchet:roc-lang/setup-roc@v0.3.0
-        with:
-          version: nightly-new-compiler
+      - name: Install Roc
+        uses: ./.github/actions/setup-roc-pinned
       - name: Install Rust toolchain
         run: |
           rustup toolchain install "${{ needs.rust-version.outputs.version }}" --profile minimal --target x86_64-unknown-linux-musl --component llvm-tools-preview
@@ -51,9 +50,8 @@ jobs:
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v7
-      - uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427 # ratchet:roc-lang/setup-roc@v0.3.0
-        with:
-          version: nightly-new-compiler
+      - name: Install Roc
+        uses: ./.github/actions/setup-roc-pinned
       - name: Install Rust toolchain
         shell: bash
         run: |
@@ -95,9 +93,8 @@ jobs:
         uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # ratchet:mlugg/setup-zig@v2.0.5
         with:
           version: 0.16.0
-      - uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427 # ratchet:roc-lang/setup-roc@v0.3.0
-        with:
-          version: nightly-new-compiler
+      - name: Install Roc
+        uses: ./.github/actions/setup-roc-pinned
       - name: Install Rust toolchain
         shell: bash
         run: |
