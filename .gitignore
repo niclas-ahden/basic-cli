@@ -98,3 +98,7 @@ __pycache__/
 
 # Locally downloaded Roc nightly
 .roc-bin/
+
+# Pinned Roc compiler build (see .github/actions/setup-roc-pinned)
+.roc-src/
+.roc-bin/
