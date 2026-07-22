@@ -67,6 +67,13 @@ The operations can also be run independently:
 ./scripts/test.py --operation run --target x64musl --artifact-dir dist/example-binaries
 ```
 
+On Linux, run those native artifacts under Valgrind with the same cases and
+output assertions used by CI:
+
+```sh
+./scripts/test.py --operation run --target x64musl --artifact-dir dist/example-binaries --valgrind
+```
+
 For faster local iterations when the platform host is already built:
 
 ```sh

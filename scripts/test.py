@@ -34,6 +34,16 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC_PATH = ROOT / "scripts" / "test_spec.json"
 STAGES = ("fmt", "check", "test", "build", "run")
 DEFAULT_ARTIFACT_DIR = ROOT / "dist" / "example-binaries"
+VALGRIND_ARGS = (
+    "valgrind",
+    "--error-exitcode=99",
+    "--leak-check=full",
+    "--show-leak-kinds=all",
+    "--errors-for-leak-kinds=all",
+    "--track-origins=yes",
+    "--realloc-zero-bytes-frees=no",
+    f"--suppressions={ROOT / 'ci' / 'valgrind.supp'}",
+)
 
 
 def declared_targets() -> tuple[str, ...]:
@@ -358,18 +368,23 @@ def case_enabled(case: dict[str, object]) -> bool:
     return enabled
 
 
-def run_binary(app: dict[str, object], binary: Path, run_spec: dict[str, object]) -> None:
+def run_binary(
+    app: dict[str, object], binary: Path, run_spec: dict[str, object], *,
+    valgrind: bool,
+) -> None:
     source = ROOT / str(app["path"])
     case_name = str(run_spec["name"])
     print(f"\n--- {app['path']} [{case_name}] ---")
     args = [str(binary), *(expand(str(value), source) for value in run_spec.get("args", []))]
+    if valgrind:
+        args = [*VALGRIND_ARGS, *args]
     temporary_cwd = tempfile.TemporaryDirectory(prefix="basic-cli-case-") if run_spec.get("temp_cwd") else None
     cwd = Path(temporary_cwd.name) if temporary_cwd else Path(expand(str(run_spec.get("cwd", "{root}")), source))
     if "stdin_hex" in run_spec:
         stdin = bytes.fromhex(str(run_spec["stdin_hex"]))
     else:
         stdin = str(run_spec.get("stdin", "")).encode()
-    timeout = float(run_spec.get("timeout", 7))
+    timeout = float(run_spec.get("timeout", 7)) * (4 if valgrind else 1)
     fixtures = run_spec.get("fixtures", [])
     fixture_targets: list[Path] = []
     for fixture in fixtures:
@@ -406,7 +421,7 @@ def run_binary(app: dict[str, object], binary: Path, run_spec: dict[str, object]
 
 def run_stage(
     stage: str, defaults: dict[str, bool], apps: list[dict[str, object]],
-    binaries: dict[str, Path], build_dir: Path, target: str,
+    binaries: dict[str, Path], build_dir: Path, target: str, *, valgrind: bool = False,
 ) -> None:
     print(f"\n=== {stage.upper()} ===")
     for app in apps:
@@ -437,7 +452,7 @@ def run_stage(
                 raise SystemExit(f"{path}: run is enabled but build is disabled")
             for run_spec in run_cases(app):
                 if case_enabled(run_spec):
-                    run_binary(app, binary, run_spec)
+                    run_binary(app, binary, run_spec, valgrind=valgrind)
                 else:
                     print(f"SKIP run case: {path} [{run_spec['name']}]")
 
@@ -508,7 +523,7 @@ def load_artifact_binaries(target: str, artifact_dir: Path,
     return binaries
 
 
-def run_artifact_cases(target: str, artifact_dir: Path) -> None:
+def run_artifact_cases(target: str, artifact_dir: Path, *, valgrind: bool) -> None:
     defaults, apps = load_spec()
     binaries = load_artifact_binaries(target, artifact_dir, defaults, apps)
     if any(
@@ -517,10 +532,13 @@ def run_artifact_cases(target: str, artifact_dir: Path) -> None:
         for app in apps
     ):
         command("cargo", "build", "--locked", "--release", cwd=ROOT / "ci" / "rust_http_server")
-    run_stage("run", defaults, apps, binaries, artifact_dir, target)
+    run_stage("run", defaults, apps, binaries, artifact_dir, target, valgrind=valgrind)
 
 
-def run_suite(bundle_url: str, operations: set[str], target: str, artifact_dir: Path) -> None:
+def run_suite(
+    bundle_url: str, operations: set[str], target: str, artifact_dir: Path, *,
+    valgrind: bool,
+) -> None:
     defaults, apps = load_spec()
     sources = [ROOT / str(app["path"]) for app in apps]
     backups = {path: path.read_bytes() for path in sources}
@@ -548,7 +566,7 @@ def run_suite(bundle_url: str, operations: set[str], target: str, artifact_dir: 
         if "run" in operations:
             if not binaries:
                 binaries = load_artifact_binaries(target, artifact_dir, defaults, apps)
-            run_stage("run", defaults, apps, binaries, artifact_dir, target)
+            run_stage("run", defaults, apps, binaries, artifact_dir, target, valgrind=valgrind)
     finally:
         for path, contents in backups.items():
             path.write_bytes(contents)
@@ -573,15 +591,23 @@ def main() -> None:
     )
     parser.add_argument("--target", choices=declared_targets())
     parser.add_argument("--artifact-dir", type=Path, default=DEFAULT_ARTIFACT_DIR)
+    parser.add_argument(
+        "--valgrind", action="store_true",
+        help="run native example cases under Valgrind and fail on memory errors or leaks",
+    )
     args = parser.parse_args()
     if args.bundle_path and args.bundle_url:
         parser.error("--bundle-path and --bundle-url are mutually exclusive")
     target = args.target or detect_native_target()
     artifact_dir = args.artifact_dir.resolve()
+    if args.valgrind and shutil.which("valgrind") is None:
+        parser.error("--valgrind requires 'valgrind' on PATH")
+    if args.valgrind and args.operation not in ("all", "run"):
+        parser.error("--valgrind requires an operation that runs example cases")
     if args.operation == "run":
         if target != detect_native_target():
             raise SystemExit(f"Cannot run {target} artifacts on native target {detect_native_target()}")
-        run_artifact_cases(target, artifact_dir)
+        run_artifact_cases(target, artifact_dir, valgrind=args.valgrind)
         print("\n=== All native run cases passed! ===")
         return
 
@@ -604,7 +630,7 @@ def main() -> None:
     try:
         if args.bundle_url:
             print(f"\n=== Using provided bundle ===\nBundle: {args.bundle_url}")
-            run_suite(args.bundle_url, operations, target, artifact_dir)
+            run_suite(args.bundle_url, operations, target, artifact_dir, valgrind=args.valgrind)
         else:
             bundle = args.bundle_path
             if bundle is None:
@@ -617,7 +643,7 @@ def main() -> None:
                 raise SystemExit(f"Bundle does not exist: {bundle}")
             with BundleServer(bundle) as bundle_url:
                 print(f"Bundle: {bundle_url}")
-                run_suite(bundle_url, operations, target, artifact_dir)
+                run_suite(bundle_url, operations, target, artifact_dir, valgrind=args.valgrind)
     finally:
         if generated_bundle is not None:
             generated_bundle.unlink(missing_ok=True)

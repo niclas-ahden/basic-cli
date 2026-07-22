@@ -147,3 +147,25 @@ jobs:
       - name: Run native spec cases
         shell: bash
         run: ./scripts/test.py --operation run --target "${{ matrix.target }}" --artifact-dir dist/example-binaries
+
+  valgrind-examples:
+    name: run examples with Valgrind (x64musl)
+    needs: [rust-version, build-examples]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${{ needs.rust-version.outputs.version }}" --profile minimal
+          rustup default "${{ needs.rust-version.outputs.version }}"
+      - name: Install Valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes valgrind
+      - name: Download x64musl example binaries
+        uses: actions/download-artifact@v8
+        with:
+          name: basic-cli-example-binaries-x64musl
+          path: dist/example-binaries/x64musl
+      - name: Run native spec cases with Valgrind
+        run: ./scripts/test.py --operation run --target x64musl --artifact-dir dist/example-binaries --valgrind
