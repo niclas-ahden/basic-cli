@@ -11,6 +11,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def read_text(path: Path) -> str:
+    with path.open("r", encoding="utf-8", newline="") as file:
+        return file.read()
+
+
+def write_text(path: Path, content: str) -> None:
+    with path.open("w", encoding="utf-8", newline="") as file:
+        file.write(content)
+
+
 def replace_version_line(line: str, release_version: str) -> str:
     key, separator, _value = line.partition("=")
     if not separator or key.strip() != "version":
@@ -25,7 +35,7 @@ def replace_version_line(line: str, release_version: str) -> str:
 
 
 def update_cargo_package_version(manifest_path: Path, release_version: str) -> None:
-    lines = manifest_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    lines = read_text(manifest_path).splitlines(keepends=True)
     in_package_section = False
     updated = False
 
@@ -43,13 +53,13 @@ def update_cargo_package_version(manifest_path: Path, release_version: str) -> N
     if not updated:
         raise RuntimeError(f"could not find [package].version in {manifest_path}")
 
-    manifest_path.write_text("".join(lines), encoding="utf-8")
+    write_text(manifest_path, "".join(lines))
 
 
 def update_lockfile_package_version(
     lock_path: Path, package_name: str, release_version: str
 ) -> None:
-    lines = lock_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    lines = read_text(lock_path).splitlines(keepends=True)
     package_starts = [
         index for index, line in enumerate(lines) if line.strip() == "[[package]]"
     ]
@@ -76,7 +86,7 @@ def update_lockfile_package_version(
 
     version_line = matching_version_lines[0]
     lines[version_line] = replace_version_line(lines[version_line], release_version)
-    lock_path.write_text("".join(lines), encoding="utf-8")
+    write_text(lock_path, "".join(lines))
 
 
 def cargo_package(manifest_path: Path) -> tuple[str, str]:
