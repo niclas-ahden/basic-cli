@@ -16,6 +16,8 @@ import Path
 ## `Stmt`, and `ErrCode` types below; raw host ABI records remain internal.
 ##
 ## Database paths use basic-cli's byte-preserving `Path` type.
+## See the [host runtime behavior](https://github.com/roc-lang/basic-cli#host-runtime-behavior)
+## for connection caching and lifetime details.
 Sqlite :: [].{
 
 	## A value accepted by a SQLite binding or returned from a column.

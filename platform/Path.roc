@@ -2,6 +2,15 @@ import IOErr exposing [IOErr]
 import Host
 import OsStr exposing [OsStr]
 
+path_type_from_host : Host.PathType -> [IsFile, IsDir, IsSymLink, IsOther]
+path_type_from_host = |path_type|
+	match path_type {
+		File => IsFile
+		Dir => IsDir
+		SymLink => IsSymLink
+		Other => IsOther
+	}
+
 ## Construct and operate on byte-preserving paths. Native Unix
 ## bytes and Windows UTF-16 units are preserved across host effects; use
 ## `display` only when a lossy human-readable representation is appropriate.
@@ -21,8 +30,9 @@ Path := [
 
 	## Returns `Bool.True` if the path exists on disk and is pointing at a regular file.
 	##
-	## This function will traverse symbolic links to query information about the
-	## destination file. In case of broken symbolic links this will return `Bool.False`.
+	## This function does not traverse symbolic links; symbolic links (including
+	## broken ones) return `Bool.False`.
+	## Sockets, FIFOs, devices, and other special filesystem objects also return `Bool.False`.
 	is_file! : Path => Try(Bool, [PathErr(IOErr), ..])
 	is_file! = |path|
 		match type!(path) {
@@ -34,8 +44,9 @@ Path := [
 
 	## Returns `Bool.True` if the path exists on disk and is pointing at a directory.
 	##
-	## This function will traverse symbolic links to query information about the
-	## destination file. In case of broken symbolic links this will return `Bool.False`.
+	## This function does not traverse symbolic links; symbolic links (including
+	## broken ones) return `Bool.False`.
+	## Sockets, FIFOs, devices, and other special filesystem objects also return `Bool.False`.
 	is_dir! : Path => Try(Bool, [PathErr(IOErr), ..])
 	is_dir! = |path|
 		match type!(path) {
@@ -49,6 +60,7 @@ Path := [
 	##
 	## This function will not traverse symbolic links - it checks whether the path
 	## itself is a symlink.
+	## Sockets, FIFOs, devices, and other special filesystem objects return `Bool.False`.
 	is_sym_link! : Path => Try(Bool, [PathErr(IOErr), ..])
 	is_sym_link! = |path|
 		match type!(path) {
@@ -69,21 +81,14 @@ Path := [
 
 	## Return the type of the path if the path exists on disk.
 	##
-	type! : Path => Try([IsFile, IsDir, IsSymLink], [PathErr(IOErr), ..])
+	## `IsOther` represents sockets, FIFOs, block and character devices, and any
+	## platform-specific object that is not a regular file, directory, or symbolic
+	## link. On Windows this includes unrecognized reparse-point types.
+	type! : Path => Try([IsFile, IsDir, IsSymLink, IsOther], [PathErr(IOErr), ..])
 	type! = |path| {
 		Host.path_type!(to_raw(path))
 			.map_err(|err| PathErr(err))
-			.map_ok(
-				|path_type| {
-					if path_type.is_sym_link {
-						IsSymLink
-					} else if path_type.is_dir {
-						IsDir
-					} else {
-						IsFile
-					}
-				},
-			)
+			.map_ok(path_type_from_host)
 	}
 
 	## Read all bytes from a file at this path.
@@ -665,6 +670,15 @@ expect Path.ext(Path.windows("foo\\bar\\")) == Err(IsDirPath)
 expect Path.ext(Path.windows("foo\\bar..")) == Err(EndsInDots)
 expect Path.ext(Path.utf8("foo/bar/")) == Err(IsDirPath)
 expect Path.ext(Path.utf8("foo/bar..")) == Err(EndsInDots)
+
+## Host path types map exhaustively to the public API.
+expect path_type_from_host(File) == IsFile
+
+expect path_type_from_host(Dir) == IsDir
+
+expect path_type_from_host(SymLink) == IsSymLink
+
+expect path_type_from_host(Other) == IsOther
 
 ## `join` appends a representation-specific separator and text component.
 expect Path.join(Path.unix("foo"), "bar") == Path.unix("foo/bar")

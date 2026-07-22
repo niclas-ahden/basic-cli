@@ -8,6 +8,9 @@ import http.Response
 ## [`roc-lang/http`](https://github.com/roc-lang/http) `Request` and `Response`
 ## types. This module supplies effects and small JSON/UTF-8 conveniences while
 ## leaving pure request and response construction to that package.
+##
+## See the [host runtime behavior](https://github.com/roc-lang/basic-cli#host-runtime-behavior)
+## for HTTP protocol, TLS trust-store, and timeout details.
 Http :: [].{
 
 	## Errors raised by the host while sending a request, before a real HTTP

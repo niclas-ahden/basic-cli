@@ -27,11 +27,7 @@ Host :: [].{
 
 	FileReader :: Box(U64)
 
-	PathType : {
-		is_dir : Bool,
-		is_file : Bool,
-		is_sym_link : Bool,
-	}
+	PathType : [File, Dir, SymLink, Other]
 
 	SqliteStmt :: Box(U64)
 

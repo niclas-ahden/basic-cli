@@ -57,7 +57,7 @@ CI separates source validation, cross-target compilation, and native execution.
 Every example is compiled for each target declared in `platform/main.roc`:
 `x64mac`, `arm64mac`, `x64win`, `x64musl`, and `arm64musl`. Target-specific
 binary artifacts are then downloaded and executed on matching native runners;
-`arm64musl` remains compile-only until an arm64 Linux runner is available.
+this includes `arm64musl`, which runs on an arm64 Linux runner.
 
 The operations can also be run independently:
 
@@ -65,6 +65,13 @@ The operations can also be run independently:
 ./scripts/test.py --operation validate
 ./scripts/test.py --operation build --target x64musl --artifact-dir dist/example-binaries
 ./scripts/test.py --operation run --target x64musl --artifact-dir dist/example-binaries
+```
+
+On Linux, run those native artifacts under Valgrind with the same cases and
+output assertions used by CI:
+
+```sh
+./scripts/test.py --operation run --target x64musl --artifact-dir dist/example-binaries --valgrind
 ```
 
 For faster local iterations when the platform host is already built:

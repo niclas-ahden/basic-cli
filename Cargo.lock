@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "roc_host"
-version = "0.0.1"
+version = "0.21.0-rc4"
 dependencies = [
  "bytes",
  "command-group",
