@@ -26,22 +26,30 @@ x86-64 only.
 
 ## Host runtime behavior
 
-Some effects have host-level behavior that applications should account for:
+These current host-level limitations may affect application design:
 
-- HTTP and HTTPS use HTTP/1 only. HTTPS certificates are validated against
-  bundled WebPKI roots, not the operating system trust store. A certificate
-  trusted only through a locally installed OS root will therefore be rejected.
-  The timeout configured on an HTTP `Request` covers the request and response;
-  `NoTimeout` leaves it unbounded.
+- HTTP and HTTPS use HTTP/1 only. [Issue #455](https://github.com/roc-lang/basic-cli/issues/455)
+  tracks research into HTTP/2 support and its tradeoffs.
+- HTTPS certificates are validated against bundled WebPKI roots, not the
+  operating system trust store. A certificate trusted only through a locally
+  installed OS root will therefore be rejected. [Issue #454](https://github.com/roc-lang/basic-cli/issues/454)
+  tracks research into the appropriate trust configuration for basic-cli.
+- The timeout configured on an HTTP `Request` covers the request and response;
+  `NoTimeout` leaves it unbounded. Responses are buffered completely without a
+  configurable size limit ([issue #436](https://github.com/roc-lang/basic-cli/issues/436)),
+  and several network and TLS failures currently use a generic transport error
+  ([issue #438](https://github.com/roc-lang/basic-cli/issues/438)).
 - TCP connect, read, and write operations have no caller-configurable timeouts.
   They can block until the operation completes or the operating system returns
   an error. `Tcp.Stream.read_until!` and `read_line!` also have no size limit and
-  buffer until the delimiter or EOF.
+  buffer until the delimiter or EOF. [Issue #437](https://github.com/roc-lang/basic-cli/issues/437)
+  tracks timeout and bounded-read APIs.
 - SQLite caches one connection per database path for the life of the process.
   Reusing a path reuses its connection, so repeated use of `:memory:` accesses
   the same in-memory database. Using many distinct paths retains all of those
   connections. Prepared statements are finalized after their last reference is
-  dropped, but the cached connections remain open.
+  dropped, but the cached connections remain open. [Issue #435](https://github.com/roc-lang/basic-cli/issues/435)
+  tracks connection ownership and cleanup.
 
 ## Examples
 
