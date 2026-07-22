@@ -29,13 +29,9 @@ runs:
         path: .roc-bin
         key: roc-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.sha }}
 
-    # This must come BEFORE the MSVC setup below. Writing to GITHUB_PATH makes
-    # the runner rebuild PATH from its own tracked value, which discards the
-    # Path that msvc-dev-cmd exports through GITHUB_ENV. Doing it afterwards
-    # dropped the MSVC toolchain off PATH, so a later `cargo build` resolved
-    # `link` to Git Bash's coreutils `link` instead of MSVC's `link.exe` and
-    # failed with "extra operand". The directory does not exist yet at this
-    # point, which is fine: it is created before anything needs it.
+    # Done up front, before any step that might export environment of its own,
+    # so a GITHUB_PATH write can never clobber it. The directory does not exist
+    # yet at this point, which is fine: it is created before anything needs it.
     - name: Put Roc on PATH
       shell: bash
       run: echo "$GITHUB_WORKSPACE/.roc-bin" >> "$GITHUB_PATH"
@@ -55,10 +51,8 @@ runs:
         version: ${{ inputs.zig-version }}
         use-cache: true
 
-    # Building the compiler on Windows needs the MSVC environment.
-    - name: Setup MSVC
-      if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Windows'
-      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # ratchet:ilammy/msvc-dev-cmd@v1.13.0
+    # Deliberately NOT setting up the MSVC developer environment here. Should
+    # work without it?
 
     # Mirrors the workaround in roc-lang/nightlies: a stray llvm-config on the
     # arm64 Linux images gets picked up and breaks the build.
