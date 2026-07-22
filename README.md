@@ -44,12 +44,11 @@ These current host-level limitations may affect application design:
   an error. `Tcp.Stream.read_until!` and `read_line!` also have no size limit and
   buffer until the delimiter or EOF. [Issue #437](https://github.com/roc-lang/basic-cli/issues/437)
   tracks timeout and bounded-read APIs.
-- SQLite caches one connection per database path for the life of the process.
-  Reusing a path reuses its connection, so repeated use of `:memory:` accesses
-  the same in-memory database. Using many distinct paths retains all of those
-  connections. Prepared statements are finalized after their last reference is
-  dropped, but the cached connections remain open. [Issue #435](https://github.com/roc-lang/basic-cli/issues/435)
-  tracks connection ownership and cleanup.
+- SQLite keeps up to 16 recently used ordinary path connections open. A live
+  prepared statement keeps its connection open after cache eviction, and reused
+  paths continue sharing that live connection. The exact `:memory:` path is kept
+  open for the lifetime of its host thread, so repeated use accesses the same
+  in-memory database.
 
 ## Examples
 
