@@ -104,6 +104,12 @@ jobs:
           dry_run: ${{ github.event_name != 'workflow_dispatch' }}
           github_token: ${{ github.token }}
 
+      - name: Validate Cargo package version
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_VERSION: ${{ steps.validate.outputs.release_version }}
+        run: python3 scripts/check_release_version.py "$RELEASE_VERSION"
+
       - name: Validate release branch
         if: github.event_name == 'workflow_dispatch'
         env:
