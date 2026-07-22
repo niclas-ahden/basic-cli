@@ -17,7 +17,7 @@ Stdin :: [].{
 	## This function can read no more than 16,384 bytes at a time. Use [read_to_end!] if you need more.
 	##
 	## > This is typically used in combination with [Tty.enable_raw_mode!],
-	## which disables defaults terminal bevahiour and allows reading input
+	## which disables default terminal behaviour and allows reading input
 	## without buffering until Enter key is pressed.
 	bytes! : () => Try(List(U8), [EndOfFile, StdinErr(IOErr), ..])
 	bytes! = || widen_stdin_eof_err(Host.stdin_bytes!())

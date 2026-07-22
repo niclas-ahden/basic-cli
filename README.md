@@ -9,6 +9,40 @@ A Roc [platform](https://github.com/roc-lang/roc/wiki/Roc-concepts-explained#pla
 
 `basic-cli` supports command execution, directories, environment variables, files, HTTP, locales, paths, random seeds, sleeping, SQLite, standard input/output/error, TCP, terminal raw mode, and UTC time.
 
+## Supported targets
+
+The platform builds and runs on these targets in CI:
+
+| Roc target | Operating system | Architecture |
+| --- | --- | --- |
+| `x64mac` | macOS | x86-64 |
+| `arm64mac` | macOS | ARM64 |
+| `x64musl` | Linux (musl) | x86-64 |
+| `arm64musl` | Linux (musl) | ARM64 |
+| `x64win` | Windows | x86-64 |
+
+Other targets are not currently supported. In particular, Windows support is
+x86-64 only.
+
+## Host runtime behavior
+
+Some effects have host-level behavior that applications should account for:
+
+- HTTP and HTTPS use HTTP/1 only. HTTPS certificates are validated against
+  bundled WebPKI roots, not the operating system trust store. A certificate
+  trusted only through a locally installed OS root will therefore be rejected.
+  The timeout configured on an HTTP `Request` covers the request and response;
+  `NoTimeout` leaves it unbounded.
+- TCP connect, read, and write operations have no caller-configurable timeouts.
+  They can block until the operation completes or the operating system returns
+  an error. `Tcp.Stream.read_until!` and `read_line!` also have no size limit and
+  buffer until the delimiter or EOF.
+- SQLite caches one connection per database path for the life of the process.
+  Reusing a path reuses its connection, so repeated use of `:memory:` accesses
+  the same in-memory database. Using many distinct paths retains all of those
+  connections. Prepared statements are finalized after their last reference is
+  dropped, but the cached connections remain open.
+
 ## Examples
 
 The [examples](examples/) directory contains executable, application-shaped CLI

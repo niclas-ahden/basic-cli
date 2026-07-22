@@ -1,6 +1,9 @@
 import Host
 
 ## Connect to TCP servers and exchange buffered byte streams.
+##
+## See the [host runtime behavior](https://github.com/roc-lang/basic-cli#host-runtime-behavior)
+## for current timeout and buffering limitations.
 Tcp :: [].{
 
 	## Represents a TCP stream.
