@@ -123,14 +123,19 @@ jobs:
         include:
           - target: x64mac
             os: macos-26-intel
+            valgrind: false
           - target: arm64mac
             os: macos-26
+            valgrind: false
           - target: x64musl
             os: ubuntu-24.04
+            valgrind: true
           - target: arm64musl
             os: ubuntu-24.04-arm
+            valgrind: false
           - target: x64win
             os: windows-2025
+            valgrind: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -139,33 +144,21 @@ jobs:
         run: |
           rustup toolchain install "${{ needs.rust-version.outputs.version }}" --profile minimal
           rustup default "${{ needs.rust-version.outputs.version }}"
+      - name: Install Valgrind
+        if: matrix.valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes valgrind
       - name: Download native example binaries
         uses: actions/download-artifact@v8
         with:
           name: basic-cli-example-binaries-${{ matrix.target }}
           path: dist/example-binaries/${{ matrix.target }}
       - name: Run native spec cases
+        if: matrix.valgrind == false
         shell: bash
         run: ./scripts/test.py --operation run --target "${{ matrix.target }}" --artifact-dir dist/example-binaries
-
-  valgrind-examples:
-    name: run examples with Valgrind (x64musl)
-    needs: [rust-version, build-examples]
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install "${{ needs.rust-version.outputs.version }}" --profile minimal
-          rustup default "${{ needs.rust-version.outputs.version }}"
-      - name: Install Valgrind
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes valgrind
-      - name: Download x64musl example binaries
-        uses: actions/download-artifact@v8
-        with:
-          name: basic-cli-example-binaries-x64musl
-          path: dist/example-binaries/x64musl
       - name: Run native spec cases with Valgrind
-        run: ./scripts/test.py --operation run --target x64musl --artifact-dir dist/example-binaries --valgrind
+        if: matrix.valgrind
+        shell: bash
+        run: ./scripts/test.py --operation run --target "${{ matrix.target }}" --artifact-dir dist/example-binaries --valgrind
