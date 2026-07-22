@@ -659,7 +659,7 @@ fn try_locale_get_ok(value: RocStr) -> HostLocaleGetResult {
     }
 }
 
-fn try_path_type_ok(value: HostPathTypeOk) -> HostPathTypeResult {
+fn try_path_type_ok(value: PathType) -> HostPathTypeResult {
     HostPathTypeResult {
         payload: HostPathTypeResultPayload {
             ok: ManuallyDrop::new(value),
@@ -674,6 +674,36 @@ fn try_path_type_err(error: IOErr) -> HostPathTypeResult {
             err: ManuallyDrop::new(error),
         },
         tag: HostPathTypeResultTag::Err,
+    }
+}
+
+type PathType = HostPathTypeOk;
+
+fn path_type_from_metadata(metadata: &fs::Metadata) -> PathType {
+    let file_type = metadata.file_type();
+
+    if file_type.is_symlink() {
+        return PathType::SymLink;
+    }
+
+    // A Windows reparse point that Rust does not identify as a symbolic link
+    // is not necessarily a regular file or directory (for example, a junction).
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+        if metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return PathType::Other;
+        }
+    }
+
+    if file_type.is_dir() {
+        PathType::Dir
+    } else if file_type.is_file() {
+        PathType::File
+    } else {
+        PathType::Other
     }
 }
 
@@ -1818,14 +1848,7 @@ pub extern "C" fn hosted_path_type(path: UnixBytesOrUtf8OrWindowsU16s) -> HostPa
     };
 
     match path.symlink_metadata() {
-        Ok(metadata) => {
-            let file_type = metadata.file_type();
-            try_path_type_ok(HostPathTypeOk {
-                is_dir: metadata.is_dir(),
-                is_file: metadata.is_file(),
-                is_sym_link: file_type.is_symlink(),
-            })
-        }
+        Ok(metadata) => try_path_type_ok(path_type_from_metadata(&metadata)),
         Err(error) => try_path_type_err(path_io_err_from_io(&error, roc_host)),
     }
 }
@@ -2122,4 +2145,92 @@ pub fn rust_main(argc: i32, argv: *const *const c_char) -> i32 {
 
     set_roc_host(core::ptr::null_mut());
     exit_code
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static NEXT_TEST_DIR: AtomicUsize = AtomicUsize::new(0);
+
+    struct TestDir(PathBuf);
+
+    impl TestDir {
+        fn new() -> Self {
+            let sequence = NEXT_TEST_DIR.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "basic-cli-path-type-{}-{sequence}",
+                std::process::id()
+            ));
+            fs::create_dir(&path).unwrap();
+            Self(path)
+        }
+
+        fn join(&self, path: impl AsRef<Path>) -> PathBuf {
+            self.0.join(path)
+        }
+    }
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).unwrap();
+        }
+    }
+
+    fn classify(path: &Path) -> PathType {
+        path_type_from_metadata(&path.symlink_metadata().unwrap())
+    }
+
+    #[test]
+    fn classifies_regular_files_and_directories() {
+        let directory = TestDir::new();
+        let file = directory.join("file");
+        fs::write(&file, b"contents").unwrap();
+
+        assert_eq!(classify(&directory.0), PathType::Dir);
+        assert_eq!(classify(&file), PathType::File);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn classifies_symbolic_links() {
+        use std::os::unix::fs::symlink;
+
+        let directory = TestDir::new();
+        let target = directory.join("target");
+        let link = directory.join("link");
+        fs::write(&target, b"contents").unwrap();
+        symlink(&target, &link).unwrap();
+
+        assert_eq!(classify(&link), PathType::SymLink);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn classifies_fifo_as_other() {
+        use std::ffi::CString;
+        use std::os::unix::ffi::OsStrExt;
+
+        let directory = TestDir::new();
+        let fifo = directory.join("fifo");
+        let fifo_c_string = CString::new(fifo.as_os_str().as_bytes()).unwrap();
+        let result = unsafe { libc::mkfifo(fifo_c_string.as_ptr(), 0o600) };
+        assert_eq!(result, 0, "mkfifo failed: {}", io::Error::last_os_error());
+
+        assert_eq!(classify(&fifo), PathType::Other);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn classifies_unix_domain_socket_as_other() {
+        use std::os::unix::net::UnixListener;
+
+        let directory = TestDir::new();
+        let socket = directory.join("socket");
+        let _listener = UnixListener::bind(&socket).unwrap();
+
+        assert_eq!(classify(&socket), PathType::Other);
+    }
 }

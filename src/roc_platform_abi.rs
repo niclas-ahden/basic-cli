@@ -989,35 +989,6 @@ const _: () = assert!(core::mem::size_of::<AnonStruct8bbc5017d7a8cb36>() == 64, 
 #[cfg(target_pointer_width = "32")]
 const _: () = assert!(core::mem::align_of::<AnonStruct8bbc5017d7a8cb36>() == 8, "AnonStruct8bbc5017d7a8cb36 alignment mismatch");
 
-/// Element type for __AnonStruct_8dfa7f17f2083a52
-#[cfg(target_pointer_width = "32")]
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct AnonStruct8dfa7f17f2083a52 {
-    pub is_dir: bool,
-    pub is_file: bool,
-    pub is_sym_link: bool,
-}
-
-/// Element type for __AnonStruct_8dfa7f17f2083a52
-#[cfg(not(target_pointer_width = "32"))]
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct AnonStruct8dfa7f17f2083a52 {
-    pub is_dir: bool,
-    pub is_file: bool,
-    pub is_sym_link: bool,
-}
-
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::size_of::<AnonStruct8dfa7f17f2083a52>() == 3, "AnonStruct8dfa7f17f2083a52 size mismatch");
-#[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::align_of::<AnonStruct8dfa7f17f2083a52>() == 1, "AnonStruct8dfa7f17f2083a52 alignment mismatch");
-#[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::size_of::<AnonStruct8dfa7f17f2083a52>() == 3, "AnonStruct8dfa7f17f2083a52 size mismatch");
-#[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::align_of::<AnonStruct8dfa7f17f2083a52>() == 1, "AnonStruct8dfa7f17f2083a52 alignment mismatch");
-
 /// Element type for __AnonStruct_22cf486058afc711
 #[cfg(target_pointer_width = "32")]
 #[repr(C)]
@@ -2756,7 +2727,7 @@ pub enum HostPathTypeResultTag {
 #[derive(Clone, Copy)]
 pub union HostPathTypeResultPayload {
     pub err: core::mem::ManuallyDrop<IOErr>,
-    pub ok: core::mem::ManuallyDrop<AnonStruct8dfa7f17f2083a52>,
+    pub ok: core::mem::ManuallyDrop<DirOrFileOrOtherOrSymLink>,
 }
 
 #[cfg(target_pointer_width = "32")]
@@ -2795,12 +2766,12 @@ impl HostPathTypeResult {
     }
 
     #[cfg(target_pointer_width = "32")]
-    pub fn payload_ok(&self) -> AnonStruct8dfa7f17f2083a52 {
-        unsafe { core::ptr::read(self.payload.as_ptr() as *const AnonStruct8dfa7f17f2083a52) }
+    pub fn payload_ok(&self) -> DirOrFileOrOtherOrSymLink {
+        unsafe { core::ptr::read(self.payload.as_ptr() as *const DirOrFileOrOtherOrSymLink) }
     }
 
     #[cfg(not(target_pointer_width = "32"))]
-    pub fn payload_ok(&self) -> AnonStruct8dfa7f17f2083a52 {
+    pub fn payload_ok(&self) -> DirOrFileOrOtherOrSymLink {
         unsafe { core::mem::ManuallyDrop::into_inner(self.payload.ok) }
     }
 
@@ -2818,6 +2789,25 @@ const _: () = assert!(core::mem::size_of::<HostPathTypeResult>() == 20, "HostPat
 const _: () = assert!(core::mem::align_of::<HostPathTypeResult>() == 4, "HostPathTypeResult alignment mismatch");
 #[cfg(target_pointer_width = "32")]
 const _: () = assert!(core::mem::offset_of!(HostPathTypeResult, tag) == 16, "HostPathTypeResult tag offset mismatch");
+
+/// Tag union: DirOrFileOrOtherOrSymLink
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DirOrFileOrOtherOrSymLink {
+    Dir = 0,
+    File = 1,
+    Other = 2,
+    SymLink = 3,
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<DirOrFileOrOtherOrSymLink>() == 1, "DirOrFileOrOtherOrSymLink size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<DirOrFileOrOtherOrSymLink>() == 1, "DirOrFileOrOtherOrSymLink alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<DirOrFileOrOtherOrSymLink>() == 1, "DirOrFileOrOtherOrSymLink size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<DirOrFileOrOtherOrSymLink>() == 1, "DirOrFileOrOtherOrSymLink alignment mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -4355,14 +4345,14 @@ const _: () = assert!(core::mem::offset_of!(OsStr, tag) == 12, "OsStr tag offset
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TryType205Tag {
+pub enum TryType204Tag {
     Err = 0,
     Ok = 1,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub union TryType205Payload {
+pub union TryType204Payload {
     pub err: core::mem::ManuallyDrop<i32>,
     pub ok: [u8; 0],
 }
@@ -4370,28 +4360,28 @@ pub union TryType205Payload {
 #[cfg(target_pointer_width = "32")]
 #[repr(align(4))]
 #[derive(Clone, Copy)]
-pub struct TryType205PayloadAlignment;
+pub struct TryType204PayloadAlignment;
 
 /// Tag union: Try
 #[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct TryType205 {
-    pub _payload_alignment: [TryType205PayloadAlignment; 0],
+pub struct TryType204 {
+    pub _payload_alignment: [TryType204PayloadAlignment; 0],
     pub payload: [u8; 4],
-    pub tag: TryType205Tag,
+    pub tag: TryType204Tag,
 }
 
 /// Tag union: Try
 #[cfg(not(target_pointer_width = "32"))]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct TryType205 {
-    pub payload: TryType205Payload,
-    pub tag: TryType205Tag,
+pub struct TryType204 {
+    pub payload: TryType204Payload,
+    pub tag: TryType204Tag,
 }
 
-impl TryType205 {
+impl TryType204 {
     #[cfg(target_pointer_width = "32")]
     pub fn payload_err(&self) -> i32 {
         unsafe { core::ptr::read(self.payload.as_ptr() as *const i32) }
@@ -4405,17 +4395,17 @@ impl TryType205 {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::size_of::<TryType205>() == 8, "TryType205 size mismatch");
+const _: () = assert!(core::mem::size_of::<TryType204>() == 8, "TryType204 size mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::align_of::<TryType205>() == 4, "TryType205 alignment mismatch");
+const _: () = assert!(core::mem::align_of::<TryType204>() == 4, "TryType204 alignment mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::offset_of!(TryType205, tag) == 4, "TryType205 tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(TryType204, tag) == 4, "TryType204 tag offset mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::size_of::<TryType205>() == 8, "TryType205 size mismatch");
+const _: () = assert!(core::mem::size_of::<TryType204>() == 8, "TryType204 size mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::align_of::<TryType205>() == 4, "TryType205 alignment mismatch");
+const _: () = assert!(core::mem::align_of::<TryType204>() == 4, "TryType204 alignment mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::offset_of!(TryType205, tag) == 4, "TryType205 tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(TryType204, tag) == 4, "TryType204 tag offset mismatch");
 
 /// Return type record for Host.env_platform!
 /// Fields ordered by compiler-emitted ABI offsets.
@@ -4768,7 +4758,7 @@ const _: () = assert!(core::mem::size_of::<HostHttpSendRequestArgs>() == 64, "Ho
 const _: () = assert!(core::mem::align_of::<HostHttpSendRequestArgs>() == 8, "HostHttpSendRequestArgs alignment mismatch");
 
 /// Arguments for Host.path_type!
-/// Roc signature: [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] => Try({ is_dir : Bool, is_file : Bool, is_sym_link : Bool }, IOErr)
+/// Roc signature: [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] => Try([Dir, File, Other, SymLink], IOErr)
 /// Refcounted fields are owned by the hosted function.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -5034,7 +5024,7 @@ pub type HostHttpSendRequestErrPayload = BadBodyOrNetworkErrorOrOtherOrTimeoutPa
 pub type HostHttpSendRequestErrTag = BadBodyOrNetworkErrorOrOtherOrTimeoutTag;
 pub type HostHttpSendRequestOk = AnonStructBe6bcbc15f8a1360;
 pub type HostHttpSendRequestOkHeaders = AnonStruct77eaba63dfee299d;
-pub type HostPathTypeOk = AnonStruct8dfa7f17f2083a52;
+pub type HostPathTypeOk = DirOrFileOrOtherOrSymLink;
 pub type HostSqliteBindArg1 = AnonStruct2782504baf739389;
 pub type HostSqliteBindErr = AnonStruct22cf486058afc711;
 pub type HostSqliteColumnValueErr = AnonStruct22cf486058afc711;
@@ -6181,25 +6171,23 @@ impl HostPathTypeResult {
     }
 }
 
-impl AnonStruct8dfa7f17f2083a52 {
-    /// Recursively decrement Roc-owned fields.
+impl DirOrFileOrOtherOrSymLink {
+    /// Recursively decrement Roc-owned payloads.
     ///
     /// # Safety
-    /// `self` must own one live Roc reference for each refcounted field.
+    /// `self` must own one live Roc reference for each refcounted payload.
     pub unsafe fn decref(self, roc_host: &RocHost) {
-        let value = self;
-        let _ = value;
+        let _ = self;
         let _ = roc_host;
     }
 
-    /// Increment Roc-owned fields.
+    /// Increment Roc-owned payloads.
     ///
     /// # Safety
     /// `self` must point at live Roc allocations. The retained references must
     /// be balanced by later decrefs.
     pub unsafe fn incref(self, amount: isize) {
-        let value = self;
-        let _ = value;
+        let _ = self;
         let _ = amount;
     }
 }
@@ -7101,7 +7089,7 @@ impl OsStr {
     }
 }
 
-impl TryType205 {
+impl TryType204 {
     /// Recursively decrement Roc-owned payloads.
     ///
     /// # Safety
@@ -7110,8 +7098,8 @@ impl TryType205 {
         let value = self;
         let _ = roc_host;
         match value.tag {
-            TryType205Tag::Err => {},
-            TryType205Tag::Ok => {},
+            TryType204Tag::Err => {},
+            TryType204Tag::Ok => {},
         }
     }
 
@@ -7124,8 +7112,8 @@ impl TryType205 {
         let value = self;
         let _ = amount;
         match value.tag {
-            TryType205Tag::Err => {},
-            TryType205Tag::Ok => {},
+            TryType204Tag::Err => {},
+            TryType204Tag::Ok => {},
         }
     }
 }
@@ -7285,7 +7273,7 @@ unsafe extern "C" {
     pub fn hosted_locale_get() -> HostLocaleGetResult;
 
     /// Hosted symbol for Host.path_type!
-    /// Roc signature: [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] => Try({ is_dir : Bool, is_file : Bool, is_sym_link : Bool }, IOErr)
+    /// Roc signature: [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] => Try([Dir, File, Other, SymLink], IOErr)
     pub fn hosted_path_type(arg0: UnixBytesOrUtf8OrWindowsU16s) -> HostPathTypeResult;
 
     /// Hosted symbol for Host.random_seed_u32!
