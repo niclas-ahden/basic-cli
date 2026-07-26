@@ -165,6 +165,7 @@ fn cmd_to_std(cmd: &Cmd, roc_host: &RocHost) -> io::Result<std::process::Command
     }
 
     let envs = envs?;
+    debug_assert!(envs.len() % 2 == 0, "envs must come as key value pairs");
     for chunk in envs.chunks(2) {
         if let [key, value] = chunk {
             std_cmd.env(key, value);
@@ -239,6 +240,8 @@ pub extern "C" fn hosted_cmd_host_exec_exit_code(cmd: Cmd) -> CmdExitResult {
     match std_cmd.status() {
         Ok(status) => match status.code() {
             Some(code) => try_cmd_exit_ok(code),
+            // Signal death is an error for this API. The spawned child API
+            // reports it as exit code -1 instead, see child_exit_from.
             None => try_cmd_exit_err(cmd_output_io_err_other("Process was killed by signal", roc_host)),
         },
         Err(error) => try_cmd_exit_err(cmd_output_io_err_from_io(&error, roc_host)),
@@ -303,8 +306,11 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
 // need.
 
 use std::collections::VecDeque;
+use std::fs::File;
+use std::io::Read as _;
 use std::io::Write as _;
 use std::process::{ChildStdin, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, LazyLock, Mutex, MutexGuard};
 use std::thread;
 
@@ -321,10 +327,207 @@ type CmdBytesResult = HostCmdChildReadStderrResult;
 type CmdBytesResultPayload = HostCmdChildReadStderrResultPayload;
 type CmdBytesResultTag = HostCmdChildReadStderrResultTag;
 type ChildExit = AnonStruct3f89ee1e14924626;
+// `cmd_child_wait!` and `cmd_child_kill_wait!` return the same Roc type, so the
+// glue generator emits one struct and aliases the other name onto it.
+type ChildExitResult = HostCmdChildWaitResult;
+type ChildExitResultPayload = HostCmdChildWaitResultPayload;
+type ChildExitResultTag = HostCmdChildWaitResultTag;
 
 fn lock_or_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
+
+/// A child's stdout or stderr, as something we can duplicate into a plain
+/// `File`. Owning the pipe as a `File` is what lets the reader thread and a
+/// caller share it under one lock.
+#[cfg(unix)]
+trait PipeSource: std::os::fd::AsFd {}
+#[cfg(unix)]
+impl<T: std::os::fd::AsFd> PipeSource for T {}
+#[cfg(windows)]
+trait PipeSource: std::os::windows::io::AsHandle {}
+#[cfg(windows)]
+impl<T: std::os::windows::io::AsHandle> PipeSource for T {}
+
+/// Take our own read end for the pipe. On Unix it is switched to non-blocking,
+/// so a read can report "nothing there" instead of waiting.
+#[cfg(unix)]
+fn own_read_end<R: PipeSource>(pipe: &R) -> io::Result<File> {
+    use std::os::fd::AsRawFd;
+    let owned = pipe.as_fd().try_clone_to_owned()?;
+    let flags = unsafe { libc::fcntl(owned.as_raw_fd(), libc::F_GETFL) };
+    if flags == -1 {
+        return Err(io::Error::last_os_error());
+    }
+    if unsafe { libc::fcntl(owned.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK) } == -1 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(File::from(owned))
+}
+
+#[cfg(windows)]
+fn own_read_end<R: PipeSource>(pipe: &R) -> io::Result<File> {
+    use std::os::windows::io::AsHandle;
+    Ok(File::from(pipe.as_handle().try_clone_to_owned()?))
+}
+
+/// What a read that refuses to wait found in the pipe.
+enum PipeRead {
+    Data(usize),
+    /// Nothing there right now, though the pipe is still open.
+    Empty,
+    /// Every writer is gone.
+    Closed,
+}
+
+#[cfg(unix)]
+fn read_without_waiting(pipe: &File, buf: &mut [u8]) -> io::Result<PipeRead> {
+    loop {
+        return match (&*pipe).read(buf) {
+            Ok(0) => Ok(PipeRead::Closed),
+            Ok(n) => Ok(PipeRead::Data(n)),
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Ok(PipeRead::Empty),
+            // Retry on signal interruption rather than reporting an empty pipe,
+            // which a caller collecting a dead child's output would believe.
+            Err(ref e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => Err(e),
+        };
+    }
+}
+
+// `PeekNamedPipe` reports what an anonymous pipe is holding without consuming
+// it, which is how a Windows read can tell "nothing there" from "wait here".
+// kernel32 is already among the libraries the platform links (see `targets` in
+// platform/main.roc).
+#[cfg(windows)]
+#[link(name = "kernel32")]
+extern "system" {
+    fn PeekNamedPipe(
+        handle: *mut core::ffi::c_void,
+        buffer: *mut core::ffi::c_void,
+        buffer_size: u32,
+        bytes_read: *mut u32,
+        total_bytes_available: *mut u32,
+        bytes_left_this_message: *mut u32,
+    ) -> i32;
+}
+
+#[cfg(windows)]
+fn read_without_waiting(pipe: &File, buf: &mut [u8]) -> io::Result<PipeRead> {
+    use std::os::windows::io::AsRawHandle;
+
+    let mut available: u32 = 0;
+    let peeked = unsafe {
+        PeekNamedPipe(
+            pipe.as_raw_handle(),
+            core::ptr::null_mut(),
+            0,
+            core::ptr::null_mut(),
+            &mut available,
+            core::ptr::null_mut(),
+        )
+    };
+    if peeked == 0 {
+        let error = io::Error::last_os_error();
+        if error.kind() == io::ErrorKind::BrokenPipe {
+            return Ok(PipeRead::Closed);
+        }
+        return Err(error);
+    }
+    if available == 0 {
+        return Ok(PipeRead::Empty);
+    }
+
+    // Asking for no more than the peek promised keeps this read from waiting.
+    let want = (available as usize).min(buf.len());
+    loop {
+        return match (&*pipe).read(&mut buf[..want]) {
+            Ok(0) => Ok(PipeRead::Closed),
+            Ok(n) => Ok(PipeRead::Data(n)),
+            Err(ref e) if e.kind() == io::ErrorKind::BrokenPipe => Ok(PipeRead::Closed),
+            Err(ref e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => Err(e),
+        };
+    }
+}
+
+/// Wait until the pipe has something to say, without taking anything out of it.
+#[cfg(unix)]
+fn wait_for_pipe(pipe: &File) -> io::Result<()> {
+    use std::os::fd::AsRawFd;
+    let mut poll_fd = libc::pollfd {
+        fd: pipe.as_raw_fd(),
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    loop {
+        if unsafe { libc::poll(&mut poll_fd, 1, -1) } >= 0 {
+            return Ok(());
+        }
+        let error = io::Error::last_os_error();
+        if error.kind() != io::ErrorKind::Interrupted {
+            return Err(error);
+        }
+    }
+}
+
+/// Windows cannot wait on an anonymous pipe for readability, so look again in a
+/// moment instead. Only an idle stream pays for this: while output is flowing
+/// the reader never gets here.
+#[cfg(windows)]
+fn wait_for_pipe(_pipe: &File) -> io::Result<()> {
+    thread::sleep(std::time::Duration::from_millis(1));
+    Ok(())
+}
+
+/// Move what the pipe is holding into the buffer, and say whether it has
+/// closed. The caller must hold the stream lock: taking bytes out of the pipe
+/// only under the lock is what stops a chunk from living in a reader's hands,
+/// where neither the buffer nor the pipe accounts for it.
+///
+/// `budget` caps how many reads one turn may make. The reader thread uses it to
+/// give the lock back now and then, so that a child writing without pause
+/// cannot lock out the calls that read what it wrote. Passing None collects
+/// until the pipe runs dry, which is what a caller taking final delivery wants.
+fn collect_available(
+    pipe: &File,
+    state: &mut StreamState,
+    cv: &Condvar,
+    budget: Option<usize>,
+) -> io::Result<Collected> {
+    let mut chunk = [0u8; 16 * 1024];
+    let mut reads = 0;
+    loop {
+        if budget.is_some_and(|budget| reads >= budget) {
+            return Ok(Collected::More);
+        }
+        reads += 1;
+        match read_without_waiting(pipe, &mut chunk)? {
+            PipeRead::Data(n) => {
+                state.data.extend(&chunk[..n]);
+                cv.notify_all();
+            }
+            PipeRead::Empty => return Ok(Collected::Drained),
+            PipeRead::Closed => return Ok(Collected::Closed),
+        }
+    }
+}
+
+/// How a turn of [collect_available] ended.
+enum Collected {
+    /// The pipe ran dry.
+    Drained,
+    /// The turn's budget ran out with bytes still waiting.
+    More,
+    /// Every writer is gone.
+    Closed,
+}
+
+/// Reads one turn of the reader thread may make before handing the lock back.
+/// 128KB at a time keeps a chatty child from locking out the calls that read
+/// what it wrote, without making the common small-output case pay for extra
+/// round trips.
+const READ_BUDGET: usize = 8;
 
 /// Background reader that drains a child's stdout or stderr pipe into an
 /// in-memory buffer, starting at spawn time.
@@ -337,69 +540,106 @@ fn lock_or_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 /// The buffer is unbounded. A child that writes without limit grows it
 /// without limit, so we trade the deadlock for memory use. That is fine for
 /// the normal case of KB to MB of output.
+type SharedStream = Arc<(Mutex<StreamState>, Condvar)>;
+
 struct StreamReader {
-    shared: Arc<(Mutex<StreamState>, Condvar)>,
+    shared: SharedStream,
+    pipe: Option<Arc<File>>,
     handle: Option<thread::JoinHandle<()>>,
 }
 
 struct StreamState {
     data: VecDeque<u8>,
     eof: bool,
+    /// Set once nobody will look at `data` again, so the reader thread can
+    /// retire instead of buffering output for a reader that has gone away.
+    stop: bool,
     err: Option<io::Error>,
 }
 
 impl StreamReader {
     /// Start a thread draining `pipe` into a buffer. A None pipe gives back an
     /// already-closed reader with no bytes and immediate EOF.
-    fn spawn<R: io::Read + Send + 'static>(pipe: Option<R>) -> Self {
+    fn spawn<R: PipeSource>(pipe: Option<R>) -> io::Result<Self> {
+        let pipe = match &pipe {
+            Some(pipe) => Some(Arc::new(own_read_end(pipe)?)),
+            None => None,
+        };
+
         let shared = Arc::new((
             Mutex::new(StreamState {
                 data: VecDeque::new(),
                 eof: pipe.is_none(),
+                stop: false,
                 err: None,
             }),
             Condvar::new(),
         ));
 
-        let handle = pipe.map(|mut pipe| {
+        let handle = pipe.as_ref().map(|pipe| {
+            let pipe = Arc::clone(pipe);
             let shared = Arc::clone(&shared);
             thread::spawn(move || {
                 let (lock, cv) = &*shared;
-                let mut chunk = [0u8; 16 * 1024];
                 loop {
-                    match pipe.read(&mut chunk) {
-                        Ok(0) => {
-                            lock_or_recover(lock).eof = true;
-                            cv.notify_all();
-                            break;
+                    let collected = {
+                        let mut state = lock_or_recover(lock);
+                        if state.stop {
+                            return;
                         }
-                        Ok(n) => {
-                            lock_or_recover(lock).data.extend(&chunk[..n]);
-                            cv.notify_all();
+                        match collect_available(&pipe, &mut state, cv, Some(READ_BUDGET)) {
+                            Ok(collected) => collected,
+                            Err(e) => {
+                                state.err = Some(e);
+                                state.eof = true;
+                                cv.notify_all();
+                                return;
+                            }
                         }
-                        // Retry on signal interruption rather than treating it as EOF.
-                        Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
-                        Err(e) => {
+                    };
+
+                    match collected {
+                        Collected::Closed => {
                             let mut state = lock_or_recover(lock);
-                            state.err = Some(e);
                             state.eof = true;
                             cv.notify_all();
-                            break;
+                            return;
+                        }
+                        // More is waiting, so go straight back for it. The lock
+                        // was released on the way past, which was the point.
+                        Collected::More => {}
+                        // Wait for more outside the lock, so a caller can look
+                        // at the pipe while this thread has nothing in hand.
+                        Collected::Drained => {
+                            if let Err(e) = wait_for_pipe(&pipe) {
+                                let mut state = lock_or_recover(lock);
+                                state.err = Some(e);
+                                state.eof = true;
+                                cv.notify_all();
+                                return;
+                            }
                         }
                     }
                 }
             })
         });
 
-        StreamReader { shared, handle }
+        Ok(StreamReader {
+            shared,
+            pipe,
+            handle,
+        })
     }
 
     /// Block until exactly `num_bytes` are buffered, then take them from the
     /// front. If the stream reaches EOF with fewer bytes available it returns
     /// UnexpectedEof.
-    fn read_exact_n(&self, num_bytes: u64) -> io::Result<Vec<u8>> {
+    ///
+    /// Takes the shared state rather than `&self` so that callers can hand it a
+    /// clone and block on the read without holding the process table lock.
+    fn read_exact_n(shared: &SharedStream, num_bytes: u64) -> io::Result<Vec<u8>> {
         let n = num_bytes as usize;
-        let (lock, cv) = &*self.shared;
+        let (lock, cv) = &**shared;
         let mut state = lock_or_recover(lock);
         loop {
             if state.data.len() >= n {
@@ -415,11 +655,52 @@ impl StreamReader {
         }
     }
 
+    /// Take everything the child left behind without waiting for the pipe to
+    /// close. Only complete once the process is known to be gone: its writes
+    /// finished before it did, so everything it produced is either buffered
+    /// here already or sitting in the OS pipe, and this collects both.
+    ///
+    /// Holding the lock is what makes that airtight. The reader thread only
+    /// touches the pipe under the same lock, so while we have it no bytes are
+    /// in flight anywhere, and the pipe is ours to empty.
+    ///
+    /// This is what [StreamReader::drain_remaining] cannot do. Waiting for the
+    /// pipe to close means waiting for *every* process holding it, so a
+    /// grandchild that outlives the child can keep a caller waiting forever.
+    /// Output such a grandchild writes after this call is not collected, which
+    /// is the price of never waiting on it. The one survivor that can still
+    /// draw this out is one writing hard enough that the pipe never runs dry,
+    /// since that is the condition this stops on.
+    fn drain_pending(&mut self) -> io::Result<Vec<u8>> {
+        let (lock, cv) = &*self.shared;
+        let mut state = lock_or_recover(lock);
+
+        if let Some(pipe) = &self.pipe {
+            if !state.eof && !state.stop {
+                match collect_available(pipe, &mut state, cv, None) {
+                    Ok(Collected::Closed) => state.eof = true,
+                    Ok(_) => {}
+                    Err(e) => {
+                        state.stop = true;
+                        return Err(e);
+                    }
+                }
+            }
+        }
+
+        // The reader thread outlives us whenever something else still holds the
+        // pipe. Retire it rather than let it buffer output nobody will read.
+        state.stop = true;
+        if let Some(err) = state.err.take() {
+            return Err(err);
+        }
+        Ok(state.data.drain(..).collect())
+    }
+
     /// Wait for the stream to close and return everything still buffered.
-    /// Called by wait and poll once the child has exited or is about to. We
-    /// join the drain thread before taking the lock, not while holding it, so
-    /// we can't deadlock against the thread that needs the lock to push its
-    /// last bytes.
+    /// Called by wait once the child has exited or is about to. We join the
+    /// drain thread before taking the lock, not while holding it, so we can't
+    /// deadlock against the thread that needs the lock to push its last bytes.
     fn drain_remaining(&mut self) -> io::Result<Vec<u8>> {
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
@@ -466,14 +747,16 @@ impl ChildHandle {
 struct Process {
     child: ChildHandle,
     grouped: bool,
-    stdin: Option<ChildStdin>,
+    /// Behind its own lock so a write that blocks on a full pipe stalls only
+    /// this child, never the process table.
+    stdin: Arc<Mutex<Option<ChildStdin>>>,
     stdout: StreamReader,
     stderr: StreamReader,
 }
 
 static PROCESSES: LazyLock<Mutex<std::collections::HashMap<u64, Process>>> =
     LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
-static NEXT_PROCESS_ID: LazyLock<Mutex<u64>> = LazyLock::new(|| Mutex::new(1));
+static NEXT_PROCESS_ID: AtomicU64 = AtomicU64::new(1);
 
 fn process_not_found() -> io::Error {
     io::Error::new(io::ErrorKind::NotFound, "Process not found")
@@ -500,32 +783,42 @@ fn spawn_impl(cmd: &Cmd, grouped: bool, roc_host: &RocHost) -> io::Result<u64> {
         }
     }
 
-    let process = if grouped {
+    let (mut child, stdin, stdout_pipe, stderr_pipe) = if grouped {
         let mut child = std_cmd.group_spawn()?;
-        Process {
-            stdin: child.inner().stdin.take(),
-            stdout: StreamReader::spawn(child.inner().stdout.take()),
-            stderr: StreamReader::spawn(child.inner().stderr.take()),
-            child: ChildHandle::Grouped(child),
-            grouped,
-        }
+        let stdin = child.inner().stdin.take();
+        let stdout_pipe = child.inner().stdout.take();
+        let stderr_pipe = child.inner().stderr.take();
+        (ChildHandle::Grouped(child), stdin, stdout_pipe, stderr_pipe)
     } else {
         let mut child = std_cmd.spawn()?;
-        Process {
-            stdin: child.stdin.take(),
-            stdout: StreamReader::spawn(child.stdout.take()),
-            stderr: StreamReader::spawn(child.stderr.take()),
-            child: ChildHandle::Plain(child),
-            grouped,
+        let stdin = child.stdin.take();
+        let stdout_pipe = child.stdout.take();
+        let stderr_pipe = child.stderr.take();
+        (ChildHandle::Plain(child), stdin, stdout_pipe, stderr_pipe)
+    };
+
+    // The child is already running here. A reader that fails to start must
+    // take it down, or it runs on with no handle anywhere to reach it by.
+    let readers = StreamReader::spawn(stdout_pipe)
+        .and_then(|stdout| Ok((stdout, StreamReader::spawn(stderr_pipe)?)));
+    let (stdout, stderr) = match readers {
+        Ok(readers) => readers,
+        Err(error) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(error);
         }
     };
 
-    let process_id = {
-        let mut next_id = lock_or_recover(&NEXT_PROCESS_ID);
-        let id = *next_id;
-        *next_id += 1;
-        id
+    let process = Process {
+        child,
+        grouped,
+        stdin: Arc::new(Mutex::new(stdin)),
+        stdout,
+        stderr,
     };
+
+    let process_id = NEXT_PROCESS_ID.fetch_add(1, Ordering::Relaxed);
     lock_or_recover(&PROCESSES).insert(process_id, process);
     Ok(process_id)
 }
@@ -632,12 +925,17 @@ pub extern "C" fn hosted_cmd_child_write_stdin(
     bytes: RocListWith<u8, false>,
 ) -> CmdUnitResult {
     let roc_host = roc_host();
+    // Clone the stdin handle out of the table before writing. A write blocks
+    // when the child lets the pipe fill up, and other children must stay
+    // usable while it does.
     let result = (|| {
-        let mut processes = lock_or_recover(&PROCESSES);
-        let process = processes
-            .get_mut(&process_id)
-            .ok_or_else(process_not_found)?;
-        match process.stdin {
+        let stdin = {
+            let processes = lock_or_recover(&PROCESSES);
+            let process = processes.get(&process_id).ok_or_else(process_not_found)?;
+            Arc::clone(&process.stdin)
+        };
+        let mut stdin = lock_or_recover(&stdin);
+        match *stdin {
             Some(ref mut handle) => {
                 handle.write_all(bytes.as_slice())?;
                 handle.flush()
@@ -661,11 +959,7 @@ pub extern "C" fn hosted_cmd_child_read_stdout(process_id: u64, num_bytes: u64) 
             let process = processes.get(&process_id).ok_or_else(process_not_found)?;
             Arc::clone(&process.stdout.shared)
         };
-        StreamReader {
-            shared,
-            handle: None,
-        }
-        .read_exact_n(num_bytes)
+        StreamReader::read_exact_n(&shared, num_bytes)
     })();
     cmd_bytes_result(result, roc_host)
 }
@@ -679,11 +973,7 @@ pub extern "C" fn hosted_cmd_child_read_stderr(process_id: u64, num_bytes: u64) 
             let process = processes.get(&process_id).ok_or_else(process_not_found)?;
             Arc::clone(&process.stderr.shared)
         };
-        StreamReader {
-            shared,
-            handle: None,
-        }
-        .read_exact_n(num_bytes)
+        StreamReader::read_exact_n(&shared, num_bytes)
     })();
     cmd_bytes_result(result, roc_host)
 }
@@ -692,11 +982,12 @@ pub extern "C" fn hosted_cmd_child_read_stderr(process_id: u64, num_bytes: u64) 
 pub extern "C" fn hosted_cmd_child_close_stdin(process_id: u64) -> CmdUnitResult {
     let roc_host = roc_host();
     let result = (|| {
-        let mut processes = lock_or_recover(&PROCESSES);
-        let process = processes
-            .get_mut(&process_id)
-            .ok_or_else(process_not_found)?;
-        process.stdin = None;
+        let stdin = {
+            let processes = lock_or_recover(&PROCESSES);
+            let process = processes.get(&process_id).ok_or_else(process_not_found)?;
+            Arc::clone(&process.stdin)
+        };
+        *lock_or_recover(&stdin) = None;
         Ok(())
     })();
     cmd_unit_result(result, roc_host)
@@ -714,34 +1005,89 @@ pub extern "C" fn hosted_cmd_child_kill(process_id: u64) -> CmdUnitResult {
     cmd_unit_result(result, roc_host)
 }
 
+fn child_exit_result(
+    result: io::Result<(std::process::ExitStatus, Vec<u8>, Vec<u8>)>,
+    roc_host: &RocHost,
+) -> ChildExitResult {
+    match result {
+        Ok((status, stdout, stderr)) => ChildExitResult {
+            payload: ChildExitResultPayload {
+                ok: ManuallyDrop::new(child_exit_from(status, stdout, stderr, roc_host)),
+            },
+            tag: ChildExitResultTag::Ok,
+        },
+        Err(e) => ChildExitResult {
+            payload: ChildExitResultPayload {
+                err: ManuallyDrop::new(cmd_output_io_err_from_io(&e, roc_host)),
+            },
+            tag: ChildExitResultTag::Err,
+        },
+    }
+}
+
 #[no_mangle]
-pub extern "C" fn hosted_cmd_child_wait(process_id: u64) -> HostCmdChildWaitResult {
+pub extern "C" fn hosted_cmd_child_wait(process_id: u64) -> ChildExitResult {
     let roc_host = roc_host();
     let result = (|| {
         let mut process = lock_or_recover(&PROCESSES)
             .remove(&process_id)
             .ok_or_else(process_not_found)?;
         // The drain threads have been emptying the pipes since spawn. Collect
-        // what they buffered and wait for EOF, then reap the child.
-        let stdout = process.stdout.drain_remaining()?;
-        let stderr = process.stderr.drain_remaining()?;
+        // what they buffered and wait for EOF, then reap the child. Reap even
+        // when a drain fails, or the child lingers as a zombie.
+        let stdout = process.stdout.drain_remaining();
+        let stderr = process.stderr.drain_remaining();
         let status = process.child.wait()?;
+        Ok((status, stdout?, stderr?))
+    })();
+    child_exit_result(result, roc_host)
+}
+
+#[no_mangle]
+pub extern "C" fn hosted_cmd_child_kill_wait(process_id: u64) -> ChildExitResult {
+    let roc_host = roc_host();
+    let result = (|| {
+        let mut process = lock_or_recover(&PROCESSES)
+            .remove(&process_id)
+            .ok_or_else(process_not_found)?;
+
+        // A child that already exited on its own cannot be killed, and some
+        // platforms report that as an error. It is not one here: we still want
+        // the status and output below, and the real exit code is better than a
+        // synthesised one when a child beats us to the finish by a hair.
+        let killed = match process.child.kill() {
+            Ok(()) => Ok(()),
+            Err(error) => match process.child.try_wait() {
+                Ok(Some(_)) => Ok(()),
+                Ok(None) => Err(error),
+                Err(wait_error) => Err(wait_error),
+            },
+        };
+
+        if let Err(error) = killed {
+            // The child outlived our attempt on it, so put it back where
+            // `kill_grouped!` and the exit-time sweep can still find it.
+            lock_or_recover(&PROCESSES).insert(process_id, process);
+            return Err(error);
+        }
+
+        // Kill before collecting, the opposite order from `wait!`. The reader
+        // threads only see EOF once every writer has dropped the pipe, so
+        // draining a live child would block until it exited on its own, which
+        // is exactly what the caller is trying to avoid.
+        //
+        // Reaping first is what makes the collection below both complete and
+        // bounded: the child's writes finished before it died, so its output is
+        // already buffered or already in the pipe, and `drain_pending` takes
+        // both without waiting on a grandchild that outlived the kill. For a
+        // grouped child there is no such grandchild, since the whole tree went
+        // down with the group.
+        let status = process.child.wait()?;
+        let stdout = process.stdout.drain_pending()?;
+        let stderr = process.stderr.drain_pending()?;
         Ok((status, stdout, stderr))
     })();
-    match result {
-        Ok((status, stdout, stderr)) => HostCmdChildWaitResult {
-            payload: HostCmdChildWaitResultPayload {
-                ok: ManuallyDrop::new(child_exit_from(status, stdout, stderr, roc_host)),
-            },
-            tag: HostCmdChildWaitResultTag::Ok,
-        },
-        Err(e) => HostCmdChildWaitResult {
-            payload: HostCmdChildWaitResultPayload {
-                err: ManuallyDrop::new(cmd_output_io_err_from_io(&e, roc_host)),
-            },
-            tag: HostCmdChildWaitResultTag::Err,
-        },
-    }
+    child_exit_result(result, roc_host)
 }
 
 #[no_mangle]
@@ -753,9 +1099,13 @@ pub extern "C" fn hosted_cmd_child_poll(process_id: u64) -> HostCmdChildPollResu
             .get_mut(&process_id)
             .ok_or_else(process_not_found)?;
         match process.child.try_wait()? {
+            // The child is gone, so collect what it wrote without waiting for
+            // the pipe to close. Waiting would break the one promise `poll!`
+            // makes, since a surviving grandchild can hold the pipe open long
+            // after the child it belonged to has exited.
             Some(status) => {
-                let stdout = process.stdout.drain_remaining()?;
-                let stderr = process.stderr.drain_remaining()?;
+                let stdout = process.stdout.drain_pending()?;
+                let stderr = process.stderr.drain_pending()?;
                 processes.remove(&process_id);
                 Ok(Some((status, stdout, stderr)))
             }

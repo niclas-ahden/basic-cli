@@ -95,6 +95,7 @@ platform ""
 		"hosted_tcp_pool_acquire": Host.tcp_pool_acquire!,
 		"hosted_tcp_pool_release": Host.tcp_pool_release!,
 		"hosted_tcp_shutdown": Host.tcp_shutdown!,
+		"hosted_cmd_child_kill_wait": Host.cmd_child_kill_wait!,
 	}
 	targets: {
 		inputs_dir: "targets/",

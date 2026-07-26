@@ -23,7 +23,14 @@ Cmd :: {
 	## Call `close_stdin!` to signal EOF to the child process. Many programs
 	## (grep, cat, etc.) wait for stdin EOF before producing output.
 	##
-	## Remember to call `kill!` or `wait!` when done to clean up resources.
+	## Remember to call `kill!`, `kill_wait!` or `wait!` when done to clean up
+	## resources.
+	##
+	## `wait!` collects output by reading the pipes to end of file, which happens
+	## once every process holding them has exited. A child that leaves its own
+	## children behind can therefore keep `wait!` waiting after it is gone.
+	## `kill_wait!` and `poll!` never wait on such a grandchild: they take what
+	## the child itself wrote and return.
 	Child :: { id : U64 }.{
 
 		## Render the child without exposing its host handle.
@@ -50,11 +57,40 @@ Cmd :: {
 		close_stdin! = |child|
 			Host.cmd_child_close_stdin!(child.id).map_err(|err| CloseFailed(err))
 
-		## Kill the child process. For children spawned with [Cmd.spawn_grouped!],
-		## this kills the whole process tree.
+		## Kill the child process, discarding whatever it wrote. For children
+		## spawned with [Cmd.spawn_grouped!], this kills the whole process tree.
+		## Use [Child.kill_wait!] to keep the output.
 		kill! : Child => Try({}, [KillFailed(IOErr), ..])
 		kill! = |child|
 			Host.cmd_child_kill!(child.id).map_err(|err| KillFailed(err))
+
+		## Kill the child process and return what it wrote before dying.
+		##
+		## [Child.kill!] discards the buffered output. Use this when you stop a
+		## child yourself, on a timeout say, and still want to report what it
+		## managed to print.
+		##
+		## ```roc
+		## { exit_code, stdout, stderr } = child.kill_wait!()?
+		## ```
+		##
+		## A child that died from the kill reports exit code -1 on Unix, where the
+		## kill is a signal, and 1 on Windows, where the process or job object is
+		## terminated with that code. A child that had already exited on its own
+		## reports its real exit code instead, so on Windows a 1 cannot be told
+		## apart from a genuine exit code 1.
+		##
+		## Everything the child itself wrote is returned, including output that
+		## was still in flight when it died. Children of the child are a different
+		## matter: [Cmd.spawn_grouped!] takes the whole tree down, so there is
+		## nothing left to hear from, while a child from [Cmd.spawn!] leaves its
+		## own children running and whatever they write from now on is lost.
+		kill_wait! : Child => Try({ exit_code : I32, stdout : List(U8), stderr : List(U8) }, [KillFailed(IOErr), ..])
+		kill_wait! = |child|
+			match Host.cmd_child_kill_wait!(child.id) {
+				Ok({ stderr_bytes, stdout_bytes, exit_code }) => Ok({ exit_code, stdout: stdout_bytes, stderr: stderr_bytes })
+				Err(err) => Err(KillFailed(err))
+			}
 
 		## Wait for the child to exit, returning its exit code and any remaining output.
 		wait! : Child => Try({ exit_code : I32, stdout : List(U8), stderr : List(U8) }, [WaitFailed(IOErr), ..])
@@ -68,7 +104,11 @@ Cmd :: {
 		##
 		## Returns `Running` if the process is still executing, or
 		## `Exited({ exit_code, stdout, stderr })` once it has finished. After
-		## returning `Exited`, the process is cleaned up; subsequent calls fail.
+		## returning `Exited`, the process is cleaned up and subsequent calls fail.
+		##
+		## `Exited` carries everything the child itself wrote. As with
+		## [Child.kill_wait!], output written later by a surviving grandchild is
+		## not waited for.
 		poll! : Child => Try([Exited({ exit_code : I32, stdout : List(U8), stderr : List(U8) }), Running], [PollFailed(IOErr), ..])
 		poll! = |child|
 			match Host.cmd_child_poll!(child.id) {
@@ -102,6 +142,9 @@ Cmd :: {
 	## even on SIGKILL (via `PR_SET_PDEATHSIG` / Job Objects). **macOS**: children
 	## die on normal exit, Ctrl+C, and crashes, but may survive `kill -9` of the
 	## parent (kernel limitation).
+	##
+	## [Child.kill!] and [Child.kill_wait!] take down the whole tree for a child
+	## spawned this way, rather than just the child itself.
 	spawn_grouped! : Cmd => Try(Child, [SpawnFailed(IOErr), ..])
 	spawn_grouped! = |cmd|
 		match Host.cmd_spawn!(to_host_cmd(cmd), Bool.True) {

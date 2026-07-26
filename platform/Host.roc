@@ -122,8 +122,9 @@ Host :: [].{
 	# Child processes with piped stdio and TCP connection pools are likewise
 	# appended at the end to avoid renumbering the generated glue above.
 
-	## What `cmd_child_wait!` returns and `Exited` carries: the exit code plus
-	## whatever buffered output the child produced that was never read.
+	## What `cmd_child_wait!` and `cmd_child_kill_wait!` return and `Exited`
+	## carries: the exit code plus whatever buffered output the child produced
+	## that was never read.
 	CmdChildExit : {
 		stderr_bytes : List(U8),
 		stdout_bytes : List(U8),
@@ -153,4 +154,11 @@ Host :: [].{
 	tcp_pool_acquire! : TcpPool => Try({ fresh : Bool, metadata : List(U8), stream : TcpStream }, Str)
 	tcp_pool_release! : TcpStream, Bool, List(U8) => {}
 	tcp_shutdown! : TcpStream => {}
+
+	## Kill a child and collect what it wrote before dying, unlike
+	## `cmd_child_kill!` which drops the buffered output. A child that died from
+	## the kill reports exit code -1 on Unix and 1 on Windows. Collecting does
+	## not wait for the pipes to close, so a grandchild that survived the kill
+	## cannot stall the caller.
+	cmd_child_kill_wait! : U64 => Try(CmdChildExit, IOErr)
 }
