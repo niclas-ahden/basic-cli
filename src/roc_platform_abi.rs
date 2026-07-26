@@ -4453,14 +4453,14 @@ const _: () = assert!(core::mem::offset_of!(HostCmdChildReadStderrResult, tag) =
 /// Tag discriminant for Try.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HostCmdChildWaitResultTag {
+pub enum HostCmdChildKillWaitResultTag {
     Err = 0,
     Ok = 1,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub union HostCmdChildWaitResultPayload {
+pub union HostCmdChildKillWaitResultPayload {
     pub err: core::mem::ManuallyDrop<IOErr>,
     pub ok: core::mem::ManuallyDrop<AnonStruct3f89ee1e14924626>,
 }
@@ -4468,28 +4468,28 @@ pub union HostCmdChildWaitResultPayload {
 #[cfg(target_pointer_width = "32")]
 #[repr(align(4))]
 #[derive(Clone, Copy)]
-pub struct HostCmdChildWaitResultPayloadAlignment;
+pub struct HostCmdChildKillWaitResultPayloadAlignment;
 
 /// Tag union: Try
 #[cfg(target_pointer_width = "32")]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct HostCmdChildWaitResult {
-    pub _payload_alignment: [HostCmdChildWaitResultPayloadAlignment; 0],
+pub struct HostCmdChildKillWaitResult {
+    pub _payload_alignment: [HostCmdChildKillWaitResultPayloadAlignment; 0],
     pub payload: [u8; 28],
-    pub tag: HostCmdChildWaitResultTag,
+    pub tag: HostCmdChildKillWaitResultTag,
 }
 
 /// Tag union: Try
 #[cfg(not(target_pointer_width = "32"))]
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct HostCmdChildWaitResult {
-    pub payload: HostCmdChildWaitResultPayload,
-    pub tag: HostCmdChildWaitResultTag,
+pub struct HostCmdChildKillWaitResult {
+    pub payload: HostCmdChildKillWaitResultPayload,
+    pub tag: HostCmdChildKillWaitResultTag,
 }
 
-impl HostCmdChildWaitResult {
+impl HostCmdChildKillWaitResult {
     #[cfg(target_pointer_width = "32")]
     pub fn payload_err(&self) -> IOErr {
         unsafe { core::ptr::read(self.payload.as_ptr() as *const IOErr) }
@@ -4513,17 +4513,17 @@ impl HostCmdChildWaitResult {
 }
 
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::size_of::<HostCmdChildWaitResult>() == 64, "HostCmdChildWaitResult size mismatch");
+const _: () = assert!(core::mem::size_of::<HostCmdChildKillWaitResult>() == 64, "HostCmdChildKillWaitResult size mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::align_of::<HostCmdChildWaitResult>() == 8, "HostCmdChildWaitResult alignment mismatch");
+const _: () = assert!(core::mem::align_of::<HostCmdChildKillWaitResult>() == 8, "HostCmdChildKillWaitResult alignment mismatch");
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(core::mem::offset_of!(HostCmdChildWaitResult, tag) == 56, "HostCmdChildWaitResult tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(HostCmdChildKillWaitResult, tag) == 56, "HostCmdChildKillWaitResult tag offset mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::size_of::<HostCmdChildWaitResult>() == 32, "HostCmdChildWaitResult size mismatch");
+const _: () = assert!(core::mem::size_of::<HostCmdChildKillWaitResult>() == 32, "HostCmdChildKillWaitResult size mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::align_of::<HostCmdChildWaitResult>() == 4, "HostCmdChildWaitResult alignment mismatch");
+const _: () = assert!(core::mem::align_of::<HostCmdChildKillWaitResult>() == 4, "HostCmdChildKillWaitResult alignment mismatch");
 #[cfg(target_pointer_width = "32")]
-const _: () = assert!(core::mem::offset_of!(HostCmdChildWaitResult, tag) == 28, "HostCmdChildWaitResult tag offset mismatch");
+const _: () = assert!(core::mem::offset_of!(HostCmdChildKillWaitResult, tag) == 28, "HostCmdChildKillWaitResult tag offset mismatch");
 
 /// Tag discriminant for Try.
 #[repr(u8)]
@@ -4936,6 +4936,15 @@ pub struct HostCmdChildCloseStdinArgs {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HostCmdChildKillArgs {
+    pub arg0: u64,
+}
+
+/// Arguments for Host.cmd_child_kill_wait!
+/// Roc signature: U64 => Try({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }, IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdChildKillWaitArgs {
     pub arg0: u64,
 }
 
@@ -5542,6 +5551,7 @@ pub struct HostTcpWriteArgs {
 pub type HostCmdChildKillResult = HostCmdChildCloseStdinResult;
 pub type HostCmdChildKillResultPayload = HostCmdChildCloseStdinResultPayload;
 pub type HostCmdChildKillResultTag = HostCmdChildCloseStdinResultTag;
+pub type HostCmdChildKillWaitOk = AnonStruct3f89ee1e14924626;
 pub type HostCmdChildPollOk = ExitedOrRunning;
 pub type HostCmdChildPollOkPayload = ExitedOrRunningPayload;
 pub type HostCmdChildPollOkTag = ExitedOrRunningTag;
@@ -5550,6 +5560,9 @@ pub type ExitedOrRunningExited = AnonStruct3f89ee1e14924626;
 pub type HostCmdChildReadStdoutResult = HostCmdChildReadStderrResult;
 pub type HostCmdChildReadStdoutResultPayload = HostCmdChildReadStderrResultPayload;
 pub type HostCmdChildReadStdoutResultTag = HostCmdChildReadStderrResultTag;
+pub type HostCmdChildWaitResult = HostCmdChildKillWaitResult;
+pub type HostCmdChildWaitResultPayload = HostCmdChildKillWaitResultPayload;
+pub type HostCmdChildWaitResultTag = HostCmdChildKillWaitResultTag;
 pub type HostCmdChildWaitOk = AnonStruct3f89ee1e14924626;
 pub type HostCmdChildWriteStdinResult = HostCmdChildCloseStdinResult;
 pub type HostCmdChildWriteStdinResultPayload = HostCmdChildCloseStdinResultPayload;
@@ -7746,7 +7759,7 @@ impl HostCmdChildReadStderrResult {
     }
 }
 
-impl HostCmdChildWaitResult {
+impl HostCmdChildKillWaitResult {
     /// Recursively decrement Roc-owned payloads.
     ///
     /// # Safety
@@ -7755,11 +7768,11 @@ impl HostCmdChildWaitResult {
         let value = self;
         let _ = roc_host;
         match value.tag {
-            HostCmdChildWaitResultTag::Err => {
+            HostCmdChildKillWaitResultTag::Err => {
                 let payload = value.payload_err();
                 unsafe { payload.decref(roc_host); }
             },
-            HostCmdChildWaitResultTag::Ok => {
+            HostCmdChildKillWaitResultTag::Ok => {
                 let payload = value.payload_ok();
                 unsafe { payload.decref(roc_host); }
             },
@@ -7775,11 +7788,11 @@ impl HostCmdChildWaitResult {
         let value = self;
         let _ = amount;
         match value.tag {
-            HostCmdChildWaitResultTag::Err => {
+            HostCmdChildKillWaitResultTag::Err => {
                 let payload = value.payload_err();
                 unsafe { payload.incref(amount); }
             },
-            HostCmdChildWaitResultTag::Ok => {
+            HostCmdChildKillWaitResultTag::Ok => {
                 let payload = value.payload_ok();
                 unsafe { payload.incref(amount); }
             },
@@ -8035,6 +8048,10 @@ unsafe extern "C" {
     /// Roc signature: U64 => Try({}, IOErr)
     pub fn hosted_cmd_child_kill(arg0: u64) -> HostCmdChildCloseStdinResult;
 
+    /// Hosted symbol for Host.cmd_child_kill_wait!
+    /// Roc signature: U64 => Try({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }, IOErr)
+    pub fn hosted_cmd_child_kill_wait(arg0: u64) -> HostCmdChildKillWaitResult;
+
     /// Hosted symbol for Host.cmd_child_poll!
     /// Roc signature: U64 => Try([Exited({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }), Running], IOErr)
     pub fn hosted_cmd_child_poll(arg0: u64) -> HostCmdChildPollResult;
@@ -8049,7 +8066,7 @@ unsafe extern "C" {
 
     /// Hosted symbol for Host.cmd_child_wait!
     /// Roc signature: U64 => Try({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }, IOErr)
-    pub fn hosted_cmd_child_wait(arg0: u64) -> HostCmdChildWaitResult;
+    pub fn hosted_cmd_child_wait(arg0: u64) -> HostCmdChildKillWaitResult;
 
     /// Hosted symbol for Host.cmd_child_write_stdin!
     /// Roc signature: U64, List(U8) => Try({}, IOErr)

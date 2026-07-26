@@ -19,6 +19,27 @@
       ]
     },
     {
+      "path": "examples/command-kill-wait.roc",
+      "platforms": { "windows": { "run": false } },
+      "reason": "Runtime scenario spawns Unix commands (sh, sleep, yes, head)",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": [
+            "killed exit code: -1",
+            "killed stdout: out-before-kill",
+            "killed stderr: err-before-kill",
+            "raced exit code: 7, stdout: raced",
+            "silent: exit -1, 0 out bytes, 0 err bytes",
+            "noisy: exit -1, 500000 bytes",
+            "forked: exit -1, tree is gone",
+            "orphaner: exit -1, stdout: out-before-kill",
+            "second kill_wait: Err as expected"
+          ]
+        }
+      ]
+    },
+    {
       "path": "examples/command-line-args.roc",
       "cases": [
         {
@@ -33,6 +54,27 @@
           "name": "missing-argument",
           "exit_code": 1,
           "contains": ["Program exited with error: MissingArgument"]
+        }
+      ]
+    },
+    {
+      "path": "examples/command-spawn-windows.roc",
+      "platforms": { "linux": { "run": false }, "darwin": { "run": false } },
+      "reason": "Runtime scenario spawns Windows commands (cmd, sort, powershell)",
+      "cases": [
+        {
+          "name": "happy",
+          "timeout": 20,
+          "contains": [
+            "echo exit code: 0",
+            "echo said: hello",
+            "sort exit code: 0",
+            "apple",
+            "banana",
+            "cherry",
+            "killed exit code: 1",
+            "all grouped children killed"
+          ]
         }
       ]
     },
