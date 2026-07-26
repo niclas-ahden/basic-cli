@@ -21,8 +21,8 @@ main! = |_args| {
 	first = Tcp.pool_acquire!(pool)?
 	Stdout.line!("first acquire: fresh=${Str.inspect(first.fresh)} metadata=${Str.inspect(first.metadata)}")?
 
-	Tcp.Stream.write!(first.stream, Str.to_utf8("hello pool\n"))?
-	echoed = Tcp.Stream.read_until!(first.stream, 10)?
+	Tcp.Stream.write!(first.stream, Str.to_utf8("hello pool\n"), 5_000)?
+	echoed = Tcp.Stream.read_until!(first.stream, 10, 65_536, 5_000)?
 	Stdout.line!("echo said: ${Str.from_utf8_lossy(echoed).trim()}")?
 
 	# Release in a known-good state, parking session metadata alongside it.
@@ -32,8 +32,8 @@ main! = |_args| {
 	second = Tcp.pool_acquire!(pool)?
 	Stdout.line!("second acquire: fresh=${Str.inspect(second.fresh)} metadata=${Str.inspect(second.metadata)}")?
 
-	Tcp.Stream.write!(second.stream, Str.to_utf8("still the same conn\n"))?
-	echoed2 = Tcp.Stream.read_until!(second.stream, 10)?
+	Tcp.Stream.write!(second.stream, Str.to_utf8("still the same conn\n"), 5_000)?
+	echoed2 = Tcp.Stream.read_until!(second.stream, 10, 65_536, 5_000)?
 	Stdout.line!("echo said: ${Str.from_utf8_lossy(echoed2).trim()}")?
 
 	# A connection in an unknown protocol state should be closed, not

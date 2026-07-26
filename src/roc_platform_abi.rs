@@ -5457,13 +5457,14 @@ pub struct HostStdoutWriteBytesArgs {
 }
 
 /// Arguments for Host.tcp_connect!
-/// Roc signature: Str, U16 => Try(Host.TcpStream, Str)
+/// Roc signature: Str, U16, U64 => Try(Host.TcpStream, Str)
 /// Refcounted fields are owned by the hosted function.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HostTcpConnectArgs {
     pub arg0: RocStr,
     pub arg1: u16,
+    pub arg2: u64,
 }
 
 /// Arguments for Host.tcp_pool_acquire!
@@ -5498,33 +5499,37 @@ pub struct HostTcpPoolReleaseArgs {
 }
 
 /// Arguments for Host.tcp_read_exactly!
-/// Roc signature: Host.TcpStream, U64 => Try(List(U8), Str)
+/// Roc signature: Host.TcpStream, U64, U64 => Try(List(U8), Str)
 /// Refcounted fields are owned by the hosted function.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HostTcpReadExactlyArgs {
     pub arg0: *mut u64,
     pub arg1: u64,
+    pub arg2: u64,
 }
 
 /// Arguments for Host.tcp_read_until!
-/// Roc signature: Host.TcpStream, U8 => Try(List(U8), Str)
+/// Roc signature: Host.TcpStream, U8, U64, U64 => Try(List(U8), Str)
 /// Refcounted fields are owned by the hosted function.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HostTcpReadUntilArgs {
     pub arg0: *mut u64,
     pub arg1: u8,
+    pub arg2: u64,
+    pub arg3: u64,
 }
 
 /// Arguments for Host.tcp_read_up_to!
-/// Roc signature: Host.TcpStream, U64 => Try(List(U8), Str)
+/// Roc signature: Host.TcpStream, U64, U64 => Try(List(U8), Str)
 /// Refcounted fields are owned by the hosted function.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HostTcpReadUpToArgs {
     pub arg0: *mut u64,
     pub arg1: u64,
+    pub arg2: u64,
 }
 
 /// Arguments for Host.tcp_shutdown!
@@ -5537,13 +5542,14 @@ pub struct HostTcpShutdownArgs {
 }
 
 /// Arguments for Host.tcp_write!
-/// Roc signature: Host.TcpStream, List(U8) => Try({}, Str)
+/// Roc signature: Host.TcpStream, List(U8), U64 => Try({}, Str)
 /// Refcounted fields are owned by the hosted function.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct HostTcpWriteArgs {
     pub arg0: *mut u64,
     pub arg1: RocListWith<u8, false>,
+    pub arg2: u64,
 }
 
 // Platform Type Aliases
@@ -8289,8 +8295,8 @@ unsafe extern "C" {
     pub fn hosted_stdout_write_bytes(arg0: RocListWith<u8, false>) -> HostStdoutLineResult;
 
     /// Hosted symbol for Host.tcp_connect!
-    /// Roc signature: Str, U16 => Try(Host.TcpStream, Str)
-    pub fn hosted_tcp_connect(arg0: RocStr, arg1: u16) -> HostTcpConnectResult;
+    /// Roc signature: Str, U16, U64 => Try(Host.TcpStream, Str)
+    pub fn hosted_tcp_connect(arg0: RocStr, arg1: u16, arg2: u64) -> HostTcpConnectResult;
 
     /// Hosted symbol for Host.tcp_pool_acquire!
     /// Roc signature: Host.TcpPool => Try({ fresh : Bool, metadata : List(U8), stream : Host.TcpStream }, Str)
@@ -8305,24 +8311,24 @@ unsafe extern "C" {
     pub fn hosted_tcp_pool_release(arg0: *mut u64, arg1: bool, arg2: RocListWith<u8, false>);
 
     /// Hosted symbol for Host.tcp_read_exactly!
-    /// Roc signature: Host.TcpStream, U64 => Try(List(U8), Str)
-    pub fn hosted_tcp_read_exactly(arg0: *mut u64, arg1: u64) -> HostTcpReadExactlyResult;
+    /// Roc signature: Host.TcpStream, U64, U64 => Try(List(U8), Str)
+    pub fn hosted_tcp_read_exactly(arg0: *mut u64, arg1: u64, arg2: u64) -> HostTcpReadExactlyResult;
 
     /// Hosted symbol for Host.tcp_read_until!
-    /// Roc signature: Host.TcpStream, U8 => Try(List(U8), Str)
-    pub fn hosted_tcp_read_until(arg0: *mut u64, arg1: u8) -> HostTcpReadExactlyResult;
+    /// Roc signature: Host.TcpStream, U8, U64, U64 => Try(List(U8), Str)
+    pub fn hosted_tcp_read_until(arg0: *mut u64, arg1: u8, arg2: u64, arg3: u64) -> HostTcpReadExactlyResult;
 
     /// Hosted symbol for Host.tcp_read_up_to!
-    /// Roc signature: Host.TcpStream, U64 => Try(List(U8), Str)
-    pub fn hosted_tcp_read_up_to(arg0: *mut u64, arg1: u64) -> HostTcpReadExactlyResult;
+    /// Roc signature: Host.TcpStream, U64, U64 => Try(List(U8), Str)
+    pub fn hosted_tcp_read_up_to(arg0: *mut u64, arg1: u64, arg2: u64) -> HostTcpReadExactlyResult;
 
     /// Hosted symbol for Host.tcp_shutdown!
     /// Roc signature: Host.TcpStream => {}
     pub fn hosted_tcp_shutdown(arg0: *mut u64);
 
     /// Hosted symbol for Host.tcp_write!
-    /// Roc signature: Host.TcpStream, List(U8) => Try({}, Str)
-    pub fn hosted_tcp_write(arg0: *mut u64, arg1: RocListWith<u8, false>) -> HostTcpWriteResult;
+    /// Roc signature: Host.TcpStream, List(U8), U64 => Try({}, Str)
+    pub fn hosted_tcp_write(arg0: *mut u64, arg1: RocListWith<u8, false>, arg2: u64) -> HostTcpWriteResult;
 
     /// Hosted symbol for Host.tty_disable_raw_mode!
     /// Roc signature: {} => {}
