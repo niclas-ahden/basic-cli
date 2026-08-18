@@ -25,8 +25,8 @@ main! = |_args| {
 	Stdout.line!("sort exit code: ${result.exit_code.to_str()}")?
 	Stdout.line!("sort output:\n${Str.from_utf8_lossy(result.stdout)}")?
 
-	# --- poll! on a short-lived grouped child ---
-	sleeper = Cmd.new_str("sh").args_str(["-c", "exit 7"]).spawn_grouped!()?
+	# --- poll! on a short-lived leashed child ---
+	sleeper = Cmd.new_str("sh").args_str(["-c", "exit 7"]).spawn_leashed!()?
 	poll_loop!(sleeper, 0)?
 
 	# --- stderr capture ---
@@ -35,10 +35,10 @@ main! = |_args| {
 	Stdout.line!("stderr said: ${Str.from_utf8_lossy(err_out)}")?
 	_ = errorer.wait!()?
 
-	# --- grouped children get killed en masse ---
-	_lingerer = Cmd.new_str("sleep").args_str(["100"]).spawn_grouped!()?
-	Cmd.kill_grouped!({})?
-	Stdout.line!("all grouped children killed")?
+	# --- leashed children get killed en masse ---
+	_lingerer = Cmd.new_str("sleep").args_str(["100"]).spawn_leashed!()?
+	Cmd.kill_leashed!({})?
+	Stdout.line!("all leashed children killed")?
 
 	Ok({})
 }

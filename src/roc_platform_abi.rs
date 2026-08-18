@@ -7933,9 +7933,9 @@ pub type HostCmdExecOutputErrTag = FailedToGetExitCodeOrNonZeroExitCodeTag;
 pub type HostCmdExecOutputErrNonZeroExitCode = AnonStruct3f89ee1e14924626;
 pub type HostCmdExecOutputOk = AnonStruct3e7554e024207e25;
 pub type FailedToGetExitCodeOrNonZeroExitCodeNonZeroExitCode = AnonStruct3f89ee1e14924626;
-pub type HostCmdKillAllGroupedResult = HostCmdChildCloseStdinResult;
-pub type HostCmdKillAllGroupedResultPayload = HostCmdChildCloseStdinResultPayload;
-pub type HostCmdKillAllGroupedResultTag = HostCmdChildCloseStdinResultTag;
+pub type HostCmdKillAllLeashedResult = HostCmdChildCloseStdinResult;
+pub type HostCmdKillAllLeashedResultPayload = HostCmdChildCloseStdinResultPayload;
+pub type HostCmdKillAllLeashedResultTag = HostCmdChildCloseStdinResultTag;
 pub type HostCmdSpawnArg0 = AnonStruct32ddec9aa3de7110;
 pub type HostCmdSpawnArg0Args = UnixBytesOrUtf8OrWindowsU16s;
 pub type HostCmdSpawnArg0ArgsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
@@ -10426,9 +10426,9 @@ unsafe extern "C" {
     /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] } => Try({ stderr_bytes : List(U8), stdout_bytes : List(U8) }, [FailedToGetExitCode(IOErr), NonZeroExitCode({ exit_code : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) })])
     pub fn hosted_cmd_host_exec_output(arg0: HostCmdExecOutputArgs) -> HostCmdExecOutputResult;
 
-    /// Hosted symbol for Host.cmd_kill_all_grouped!
+    /// Hosted symbol for Host.cmd_kill_all_leashed!
     /// Roc signature: {} => Try({}, IOErr)
-    pub fn hosted_cmd_kill_all_grouped() -> HostCmdChildCloseStdinResult;
+    pub fn hosted_cmd_kill_all_leashed() -> HostCmdChildCloseStdinResult;
 
     /// Hosted symbol for Host.cmd_spawn!
     /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] }, Bool => Try(U64, IOErr)

@@ -136,9 +136,9 @@ Host :: [].{
 	## A host-managed pool of TCP connections (see `Tcp.Pool`).
 	TcpPool :: Box(U64)
 
-	## Spawn `Cmd` with piped stdin/stdout/stderr. The Bool selects grouped
+	## Spawn `Cmd` with piped stdin/stdout/stderr. The Bool selects leashed
 	## spawning: the child is placed in a managed group that dies with the
-	## parent, and is killed by `cmd_kill_all_grouped!`. Returns a process id
+	## parent, and is killed by `cmd_kill_all_leashed!`. Returns a process id
 	## into the host's process table.
 	cmd_spawn! : Cmd, Bool => Try(U64, IOErr)
 	cmd_child_write_stdin! : U64, List(U8) => Try({}, IOErr)
@@ -148,7 +148,7 @@ Host :: [].{
 	cmd_child_kill! : U64 => Try({}, IOErr)
 	cmd_child_wait! : U64 => Try(CmdChildExit, IOErr)
 	cmd_child_poll! : U64 => Try(CmdChildPoll, IOErr)
-	cmd_kill_all_grouped! : () => Try({}, IOErr)
+	cmd_kill_all_leashed! : () => Try({}, IOErr)
 
 	tcp_pool_create! : Str, U16, U64 => TcpPool
 	tcp_pool_acquire! : TcpPool => Try({ fresh : Bool, metadata : List(U8), stream : TcpStream }, Str)

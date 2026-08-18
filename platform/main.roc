@@ -90,7 +90,7 @@ platform ""
 		"hosted_cmd_child_kill": Host.cmd_child_kill!,
 		"hosted_cmd_child_wait": Host.cmd_child_wait!,
 		"hosted_cmd_child_poll": Host.cmd_child_poll!,
-		"hosted_cmd_kill_all_grouped": Host.cmd_kill_all_grouped!,
+		"hosted_cmd_kill_all_leashed": Host.cmd_kill_all_leashed!,
 		"hosted_tcp_pool_create": Host.tcp_pool_create!,
 		"hosted_tcp_pool_acquire": Host.tcp_pool_acquire!,
 		"hosted_tcp_pool_release": Host.tcp_pool_release!,

@@ -14,13 +14,13 @@ import pf.Stdout
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
 	# --- spawn!, then collect the output with wait! ---
-	greeter = Cmd.new_str("cmd").args_str(["/c", "echo hello"]).spawn_grouped!()?
+	greeter = Cmd.new_str("cmd").args_str(["/c", "echo hello"]).spawn_leashed!()?
 	greeted = greeter.wait!()?
 	Stdout.line!("echo exit code: ${greeted.exit_code.to_str()}")?
 	Stdout.line!("echo said: ${Str.from_utf8_lossy(greeted.stdout).trim()}")?
 
 	# --- write to stdin, close it, read what the child made of it ---
-	sorter = Cmd.new_str("sort").spawn_grouped!()?
+	sorter = Cmd.new_str("sort").spawn_leashed!()?
 	sorter.write_stdin!(Str.to_utf8("banana\r\napple\r\ncherry\r\n"))?
 	sorter.close_stdin!()?
 	sorted = sorter.wait!()?
@@ -33,17 +33,17 @@ main! = |_args| {
 	# gives on Unix.
 	waiter = Cmd.new_str("powershell")
 		.args_str(["-NoProfile", "-Command", "Write-Output ready; Start-Sleep 100"])
-		.spawn_grouped!()?
+		.spawn_leashed!()?
 	_marker = waiter.read_stdout!(7)?
 	stopped = waiter.kill_wait!()?
 	Stdout.line!("killed exit code: ${stopped.exit_code.to_str()}")?
 
-	# --- grouped children get cleaned up en masse ---
+	# --- leashed children get cleaned up en masse ---
 	_lingerer = Cmd.new_str("powershell")
 		.args_str(["-NoProfile", "-Command", "Start-Sleep 100"])
-		.spawn_grouped!()?
-	Cmd.kill_grouped!({})?
-	Stdout.line!("all grouped children killed")?
+		.spawn_leashed!()?
+	Cmd.kill_leashed!({})?
+	Stdout.line!("all leashed children killed")?
 
 	Ok({})
 }

@@ -2189,8 +2189,8 @@ pub fn rust_main(argc: i32, argv: *const *const c_char) -> i32 {
     let args_list = build_args_list(argc, argv, &roc_host);
     let mut exit_code = unsafe { roc_main(args_list) };
 
-    // Children from `Cmd.spawn_grouped!` must not outlive the program.
-    cmd::kill_all_grouped_children();
+    // Children from `Cmd.spawn_leashed!` must not outlive the program.
+    cmd::kill_all_leashed_children();
 
     if DEBUG_OR_EXPECT_CALLED.load(Ordering::Acquire) && exit_code == 0 {
         exit_code = 1;

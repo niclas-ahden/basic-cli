@@ -294,7 +294,7 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
 }
 
 // ============================================================================
-// Spawned child processes with piped stdio (Cmd.spawn! / Cmd.spawn_grouped!)
+// Spawned child processes with piped stdio (Cmd.spawn! / Cmd.spawn_leashed!)
 // ============================================================================
 //
 // Children live in a global table keyed by `u64` handles; the Roc side holds
@@ -314,6 +314,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, LazyLock, Mutex, MutexGuard};
 use std::thread;
 
+#[cfg(not(unix))]
 use command_group::{CommandGroup, GroupChild};
 
 /// The Cmd record as generated for `Host.cmd_spawn!` (same layout as
@@ -714,29 +715,57 @@ impl StreamReader {
     }
 }
 
-/// A spawned child, either standalone or in a process group (spawn_grouped).
+/// A spawned child, either standalone or leashed. On Unix a leashed child
+/// lives in the process group its Watchdog leads; on Windows it lives in a
+/// Job Object (via command-group) that dies with this process.
 enum ChildHandle {
     Plain(std::process::Child),
-    Grouped(GroupChild),
+    #[cfg(unix)]
+    Leashed {
+        child: std::process::Child,
+        /// The group the Watchdog founded, or the child's own pid when the
+        /// watchdog fork failed and the child leads its own group instead.
+        pgid: libc::pid_t,
+    },
+    #[cfg(not(unix))]
+    Leashed(GroupChild),
 }
 
 impl ChildHandle {
     fn kill(&mut self) -> io::Result<()> {
         match self {
             ChildHandle::Plain(c) => c.kill(),
-            ChildHandle::Grouped(c) => c.kill(),
+            // The whole group goes down at once, watchdog included. std's
+            // Child::kill would take down only the direct child and leave
+            // grandchildren running.
+            #[cfg(unix)]
+            ChildHandle::Leashed { pgid, .. } => {
+                if unsafe { libc::kill(-*pgid, libc::SIGKILL) } == 0 {
+                    Ok(())
+                } else {
+                    Err(io::Error::last_os_error())
+                }
+            }
+            #[cfg(not(unix))]
+            ChildHandle::Leashed(c) => c.kill(),
         }
     }
     fn wait(&mut self) -> io::Result<std::process::ExitStatus> {
         match self {
             ChildHandle::Plain(c) => c.wait(),
-            ChildHandle::Grouped(c) => c.wait(),
+            #[cfg(unix)]
+            ChildHandle::Leashed { child, .. } => child.wait(),
+            #[cfg(not(unix))]
+            ChildHandle::Leashed(c) => c.wait(),
         }
     }
     fn try_wait(&mut self) -> io::Result<Option<std::process::ExitStatus>> {
         match self {
             ChildHandle::Plain(c) => c.try_wait(),
-            ChildHandle::Grouped(c) => c.try_wait(),
+            #[cfg(unix)]
+            ChildHandle::Leashed { child, .. } => child.try_wait(),
+            #[cfg(not(unix))]
+            ChildHandle::Leashed(c) => c.try_wait(),
         }
     }
 }
@@ -746,12 +775,186 @@ impl ChildHandle {
 /// raw handle that we write to on demand.
 struct Process {
     child: ChildHandle,
-    grouped: bool,
+    leashed: bool,
     /// Behind its own lock so a write that blocks on a full pipe stalls only
     /// this child, never the process table.
     stdin: Arc<Mutex<Option<ChildStdin>>>,
     stdout: StreamReader,
     stderr: StreamReader,
+    /// Present for leashed children on Unix, None when its fork failed.
+    /// Never read, held so its Drop runs when the entry leaves the table.
+    #[cfg(unix)]
+    _watchdog: Option<Watchdog>,
+}
+
+/// Takes a leashed child's whole process group down when this process dies,
+/// however it dies. A forked helper leads the group and blocks reading a pipe
+/// whose write end lives only in this process, so any death of this process
+/// closes the pipe, the read returns EOF, and the helper SIGKILLs the group.
+/// This is what cleans up after Ctrl+C, crashes, and `kill -9`, none of which
+/// run the exit sweep in `rust_main`. Linux additionally has PDEATHSIG, but
+/// that covers only the direct child, while the group kill here also reaps
+/// grandchildren.
+///
+/// The helper forks before the child spawns and founds the group itself, so
+/// the group provably exists by the time the child joins it, and the pgid is
+/// pinned against reuse for exactly as long as the leash is held. The helper
+/// execs nothing (no /bin/sh required on the system, so this works in
+/// scratch containers) and blocks every signal, so nothing short of SIGKILL
+/// can strip the leash.
+///
+/// The liveness pipe is deliberately separate from the child's stdin. Closing
+/// a child's stdin is the normal way to signal end of input and must not read
+/// as a death sentence.
+#[cfg(unix)]
+struct Watchdog {
+    /// The helper's pid, which is also the pgid of the group it leads.
+    pgid: libc::pid_t,
+    /// Closing this is what wakes the watchdog, see Drop.
+    liveness: Option<io::PipeWriter>,
+}
+
+#[cfg(unix)]
+impl Watchdog {
+    /// A watchdog that fails to fork is reported as None rather than as a
+    /// spawn failure: the child still spawns, leading its own group, which is
+    /// the behavior all leashed children had before watchdogs existed.
+    fn fork() -> Option<Watchdog> {
+        use std::os::fd::AsRawFd;
+        let (reader, writer) = io::pipe().ok()?;
+        // The helper's fd sweep bound has to be taken on this side of the
+        // fork: getrlimit is not on the async-signal-safe list.
+        let fd_limit = fd_sweep_limit();
+        match unsafe { libc::fork() } {
+            -1 => None,
+            0 => unsafe { watchdog_main(reader.as_raw_fd(), fd_limit) },
+            helper => {
+                let watchdog = Watchdog {
+                    pgid: helper,
+                    liveness: Some(writer),
+                };
+                // Found the group from this side as well: the helper's own
+                // setpgid may not have run yet, and the child joins the group
+                // as soon as this returns. setpgid on a forked child that has
+                // not exec'd cannot fail with EACCES, which is what makes the
+                // group's existence deterministic rather than a race.
+                if unsafe { libc::setpgid(helper, helper) } == 0 {
+                    Some(watchdog)
+                } else {
+                    // Dropping the watchdog wakes and reaps the helper.
+                    None
+                }
+            }
+        }
+    }
+}
+
+/// The body of the forked watchdog helper.
+///
+/// SAFETY FENCE: this runs in the child of a fork from a multithreaded
+/// process, where POSIX allows only async-signal-safe operations until
+/// _exit. Everything in here must stay raw libc: no allocation, no locks, no
+/// panics, no Rust std I/O. (`io::Error::last_os_error().raw_os_error()` is
+/// fine, it only reads errno.)
+#[cfg(unix)]
+unsafe fn watchdog_main(liveness_fd: libc::c_int, fd_limit: libc::c_int) -> ! {
+    // Block everything blockable: handlers inherited from the host can never
+    // run in here, and stray signals to the group cannot quietly kill the
+    // watchdog and strip the leash.
+    let mut all: libc::sigset_t = std::mem::zeroed();
+    libc::sigfillset(&mut all);
+    libc::sigprocmask(libc::SIG_BLOCK, &all, std::ptr::null_mut());
+
+    // Found the group. The parent does this too, whoever runs first wins.
+    libc::setpgid(0, 0);
+
+    // Keep only the liveness read end. Everything else inherited from the
+    // fork gets closed, most importantly the liveness write ends of sibling
+    // watchdogs, which would otherwise never reach EOF while this helper
+    // lives, and the host's own stdio pipes.
+    libc::dup2(liveness_fd, 0);
+    close_fds_from(1, fd_limit);
+
+    // Nothing is ever written to the pipe, so the only successful read is
+    // EOF, and it means the sole holder of the write end, the host process,
+    // is gone. Signals are blocked, but stay robust against EINTR anyway.
+    let mut byte = 0u8;
+    loop {
+        let n = libc::read(0, &mut byte as *mut u8 as *mut libc::c_void, 1);
+        if n >= 0 || io::Error::last_os_error().raw_os_error() != Some(libc::EINTR) {
+            break;
+        }
+    }
+
+    // Nuke the group, but only if this helper actually leads it: killing by
+    // explicit pgid (never kill(0)) cannot hit the host's own group through
+    // some earlier setpgid failure.
+    let own_pid = libc::getpid();
+    if libc::getpgrp() == own_pid {
+        libc::kill(-own_pid, libc::SIGKILL);
+    }
+    libc::_exit(0)
+}
+
+/// Close every fd in [first, limit) inside the forked helper. Only
+/// async-signal-safe calls, see the fence on watchdog_main.
+#[cfg(unix)]
+unsafe fn close_fds_from(first: libc::c_int, limit: libc::c_int) {
+    // One syscall on Linux 5.9+. The loop covers older kernels and the
+    // Unixes without close_range (macOS).
+    #[cfg(target_os = "linux")]
+    if libc::syscall(
+        libc::SYS_close_range,
+        first as libc::c_uint,
+        libc::c_uint::MAX,
+        0 as libc::c_uint,
+    ) == 0
+    {
+        return;
+    }
+    close_fds_loop(first, limit);
+}
+
+/// The fallback sweep for platforms without close_range. Factored out so the
+/// tests can exercise it on Linux, where close_range normally shadows it.
+/// Async-signal-safe.
+#[cfg(unix)]
+unsafe fn close_fds_loop(first: libc::c_int, limit: libc::c_int) {
+    for fd in first..limit {
+        libc::close(fd);
+    }
+}
+
+/// Upper bound for the helper's fd sweep: fd numbers are capped by the soft
+/// NOFILE limit. Clamped in case the limit is set to unlimited.
+#[cfg(unix)]
+fn fd_sweep_limit() -> libc::c_int {
+    let mut rl = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    let soft = if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut rl) } == 0 {
+        rl.rlim_cur
+    } else {
+        1024
+    };
+    soft.min(1 << 20) as libc::c_int
+}
+
+#[cfg(unix)]
+impl Drop for Watchdog {
+    fn drop(&mut self) {
+        // Dropping the write end wakes the watchdog, which group-kills any
+        // stragglers (the child itself is dead or already being killed
+        // whenever its Process entry is dropped) and dies with them, being in
+        // the same group. The wait is bounded by that and keeps the helper
+        // from lingering as a zombie.
+        self.liveness.take();
+        let mut status: libc::c_int = 0;
+        while unsafe { libc::waitpid(self.pgid, &mut status, 0) } == -1
+            && io::Error::last_os_error().raw_os_error() == Some(libc::EINTR)
+        {}
+    }
 }
 
 static PROCESSES: LazyLock<Mutex<std::collections::HashMap<u64, Process>>> =
@@ -762,33 +965,84 @@ fn process_not_found() -> io::Error {
     io::Error::new(io::ErrorKind::NotFound, "Process not found")
 }
 
-fn spawn_impl(cmd: &Cmd, grouped: bool, roc_host: &RocHost) -> io::Result<u64> {
+/// The Unix leash: fork the watchdog, found the group, and spawn the child
+/// into it. Shared by spawn_impl and the tests, so the tests exercise the
+/// real path.
+///
+/// Three things stop a leashed child from outliving this process: the exit
+/// sweep in rust_main on normal exits, the Watchdog on deaths that skip it
+/// (Ctrl+C, crashes, kill -9), and on Linux also PDEATHSIG, which needs no
+/// second process and fires without the watchdog's EOF latency.
+#[cfg(unix)]
+fn leash_spawn(
+    std_cmd: &mut std::process::Command,
+) -> io::Result<(std::process::Child, libc::pid_t, Option<Watchdog>)> {
+    use std::os::unix::process::CommandExt;
+
+    #[cfg(target_os = "linux")]
+    unsafe {
+        std_cmd.pre_exec(|| {
+            if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) == -1 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+
+    // The watchdog forks first and founds the group, so the group already
+    // exists when the child joins it: no retry loop, and no window in which
+    // the child runs without its leash pinned. When the fork failed the
+    // child leads its own group, unleashed, which is the pre-watchdog
+    // behavior.
+    let watchdog = Watchdog::fork();
+    std_cmd.process_group(watchdog.as_ref().map_or(0, |w| w.pgid));
+    let child = std_cmd.spawn()?;
+    let pgid = watchdog
+        .as_ref()
+        .map_or(child.id() as libc::pid_t, |w| w.pgid);
+    Ok((child, pgid, watchdog))
+}
+
+fn spawn_impl(cmd: &Cmd, leashed: bool, roc_host: &RocHost) -> io::Result<u64> {
     let mut std_cmd = cmd_to_std(cmd, roc_host)?;
     std_cmd.stdin(Stdio::piped());
     std_cmd.stdout(Stdio::piped());
     std_cmd.stderr(Stdio::piped());
 
-    // On Linux the child dies with the parent (reliable even when the parent
-    // is SIGKILLed); elsewhere the managed group still catches normal exits.
-    #[cfg(target_os = "linux")]
-    if grouped {
-        use std::os::unix::process::CommandExt;
-        unsafe {
-            std_cmd.pre_exec(|| {
-                if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) == -1 {
-                    return Err(io::Error::last_os_error());
-                }
-                Ok(())
-            });
-        }
-    }
+    #[cfg(unix)]
+    let (mut child, stdin, stdout_pipe, stderr_pipe, watchdog) = if leashed {
+        let (mut child, pgid, watchdog) = leash_spawn(&mut std_cmd)?;
+        let stdin = child.stdin.take();
+        let stdout_pipe = child.stdout.take();
+        let stderr_pipe = child.stderr.take();
+        (
+            ChildHandle::Leashed { child, pgid },
+            stdin,
+            stdout_pipe,
+            stderr_pipe,
+            watchdog,
+        )
+    } else {
+        let mut child = std_cmd.spawn()?;
+        let stdin = child.stdin.take();
+        let stdout_pipe = child.stdout.take();
+        let stderr_pipe = child.stderr.take();
+        (
+            ChildHandle::Plain(child),
+            stdin,
+            stdout_pipe,
+            stderr_pipe,
+            None,
+        )
+    };
 
-    let (mut child, stdin, stdout_pipe, stderr_pipe) = if grouped {
+    #[cfg(not(unix))]
+    let (mut child, stdin, stdout_pipe, stderr_pipe) = if leashed {
         let mut child = std_cmd.group_spawn()?;
         let stdin = child.inner().stdin.take();
         let stdout_pipe = child.inner().stdout.take();
         let stderr_pipe = child.inner().stderr.take();
-        (ChildHandle::Grouped(child), stdin, stdout_pipe, stderr_pipe)
+        (ChildHandle::Leashed(child), stdin, stdout_pipe, stderr_pipe)
     } else {
         let mut child = std_cmd.spawn()?;
         let stdin = child.stdin.take();
@@ -812,10 +1066,12 @@ fn spawn_impl(cmd: &Cmd, grouped: bool, roc_host: &RocHost) -> io::Result<u64> {
 
     let process = Process {
         child,
-        grouped,
+        leashed,
         stdin: Arc::new(Mutex::new(stdin)),
         stdout,
         stderr,
+        #[cfg(unix)]
+        _watchdog: watchdog,
     };
 
     let process_id = NEXT_PROCESS_ID.fetch_add(1, Ordering::Relaxed);
@@ -829,16 +1085,16 @@ fn kill_process(process: &mut Process) -> io::Result<()> {
     Ok(())
 }
 
-/// Kill every grouped child still in the table. Called from `rust_main` on
-/// program exit and from `hosted_cmd_kill_all_grouped`.
-pub(crate) fn kill_all_grouped_children() {
+/// Kill every leashed child still in the table. Called from `rust_main` on
+/// program exit and from `hosted_cmd_kill_all_leashed`.
+pub(crate) fn kill_all_leashed_children() {
     let mut processes = lock_or_recover(&PROCESSES);
-    let grouped_ids: Vec<u64> = processes
+    let leashed_ids: Vec<u64> = processes
         .iter()
-        .filter(|(_, p)| p.grouped)
+        .filter(|(_, p)| p.leashed)
         .map(|(id, _)| *id)
         .collect();
-    for id in grouped_ids {
+    for id in leashed_ids {
         if let Some(mut process) = processes.remove(&id) {
             let _ = kill_process(&mut process);
         }
@@ -895,7 +1151,7 @@ fn child_exit_from(status: std::process::ExitStatus, stdout: Vec<u8>, stderr: Ve
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_cmd_spawn(cmd: SpawnCmd, grouped: bool) -> HostCmdSpawnResult {
+pub extern "C" fn hosted_cmd_spawn(cmd: SpawnCmd, leashed: bool) -> HostCmdSpawnResult {
     let roc_host = roc_host();
     let cmd = Cmd {
         args: cmd.args,
@@ -903,7 +1159,7 @@ pub extern "C" fn hosted_cmd_spawn(cmd: SpawnCmd, grouped: bool) -> HostCmdSpawn
         program: cmd.program,
         clear_envs: cmd.clear_envs,
     };
-    match spawn_impl(&cmd, grouped, roc_host) {
+    match spawn_impl(&cmd, leashed, roc_host) {
         Ok(id) => HostCmdSpawnResult {
             payload: HostCmdSpawnResultPayload {
                 ok: ManuallyDrop::new(id),
@@ -1066,7 +1322,7 @@ pub extern "C" fn hosted_cmd_child_kill_wait(process_id: u64) -> ChildExitResult
 
         if let Err(error) = killed {
             // The child outlived our attempt on it, so put it back where
-            // `kill_grouped!` and the exit-time sweep can still find it.
+            // `kill_leashed!` and the exit-time sweep can still find it.
             lock_or_recover(&PROCESSES).insert(process_id, process);
             return Err(error);
         }
@@ -1080,7 +1336,7 @@ pub extern "C" fn hosted_cmd_child_kill_wait(process_id: u64) -> ChildExitResult
         // bounded: the child's writes finished before it died, so its output is
         // already buffered or already in the pipe, and `drain_pending` takes
         // both without waiting on a grandchild that outlived the kill. For a
-        // grouped child there is no such grandchild, since the whole tree went
+        // leashed child there is no such grandchild, since the whole tree went
         // down with the group.
         let status = process.child.wait()?;
         let stdout = process.stdout.drain_pending()?;
@@ -1143,7 +1399,537 @@ pub extern "C" fn hosted_cmd_child_poll(process_id: u64) -> HostCmdChildPollResu
 }
 
 #[no_mangle]
-pub extern "C" fn hosted_cmd_kill_all_grouped() -> CmdUnitResult {
-    kill_all_grouped_children();
+pub extern "C" fn hosted_cmd_kill_all_leashed() -> CmdUnitResult {
+    kill_all_leashed_children();
     cmd_unit_ok()
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::io::BufRead as _;
+    use std::os::unix::process::ExitStatusExt as _;
+    use std::time::Duration;
+
+    /// Polls until `pid` no longer exists. Zombies still "exist" for
+    /// kill(0), so for another process's orphans this also waits out the
+    /// reparent-to-init and reap that follows their parent's death.
+    fn wait_until_gone(pid: libc::pid_t) {
+        for _ in 0..1000 {
+            if unsafe { libc::kill(pid, 0) } == -1 {
+                return;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        panic!("process {pid} still alive after 10s");
+    }
+
+    fn sleeper() -> std::process::Command {
+        let mut cmd = std::process::Command::new("sleep");
+        cmd.arg("600");
+        cmd
+    }
+
+    #[test]
+    fn dropping_the_watchdog_takes_the_group_down() {
+        let (mut child, pgid, watchdog) = leash_spawn(&mut sleeper()).unwrap();
+        let watchdog = watchdog.expect("watchdog fork failed");
+        assert_eq!(pgid, watchdog.pgid);
+        drop(watchdog);
+        let status = child.wait().unwrap();
+        assert_eq!(status.signal(), Some(libc::SIGKILL));
+        wait_until_gone(pgid);
+    }
+
+    #[test]
+    fn the_pgid_stays_pinned_after_the_child_exits() {
+        let mut cmd = std::process::Command::new("true");
+        let (mut child, pgid, watchdog) = leash_spawn(&mut cmd).unwrap();
+        assert!(watchdog.is_some(), "watchdog fork failed");
+        child.wait().unwrap();
+        // The group must survive its founding child: the helper holds it, so
+        // an exit-time kill(-pgid) can never hit a recycled group.
+        assert_eq!(
+            unsafe { libc::kill(-pgid, 0) },
+            0,
+            "group vanished with the child"
+        );
+        drop(watchdog);
+        wait_until_gone(pgid);
+    }
+
+    /// Two leashes: the second helper forks while the first one's liveness
+    /// write end is open in this process, so only the fd sweep keeps it from
+    /// holding that write end and stalling the first leash's EOF.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn the_helper_keeps_only_its_liveness_fd() {
+        let (mut child_a, _pgid_a, watchdog_a) = leash_spawn(&mut sleeper()).unwrap();
+        let (mut child_b, pgid_b, watchdog_b) = leash_spawn(&mut sleeper()).unwrap();
+        assert!(watchdog_b.is_some(), "watchdog fork failed");
+        let fd_dir = format!("/proc/{pgid_b}/fd");
+        let mut fds: Vec<String> = Vec::new();
+        for _ in 0..300 {
+            fds = std::fs::read_dir(&fd_dir)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+                .collect();
+            if fds == ["0"] {
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(fds, ["0"], "helper still holds inherited fds");
+        drop(watchdog_a);
+        drop(watchdog_b);
+        let _ = child_a.wait();
+        let _ = child_b.wait();
+    }
+
+    /// Parses the fake host's stdout for the tree it leashed: pgid and child
+    /// from its own "leash-host" line, the grandchild pid from the relayed
+    /// "leash-grandchild" line.
+    fn read_tree_announcement(
+        reader: impl std::io::BufRead,
+    ) -> (libc::pid_t, libc::pid_t, libc::pid_t) {
+        let mut pgid: libc::pid_t = 0;
+        let mut child: libc::pid_t = 0;
+        let mut grandchild: libc::pid_t = 0;
+        for line in reader.lines() {
+            let line = line.unwrap();
+            if let Some(rest) = line.strip_prefix("leash-host ") {
+                let mut parts = rest.split(' ');
+                pgid = parts.next().unwrap().parse().unwrap();
+                child = parts.next().unwrap().parse().unwrap();
+            } else if let Some(rest) = line.strip_prefix("leash-grandchild ") {
+                grandchild = rest.trim().parse().unwrap();
+            }
+            if pgid != 0 && grandchild != 0 {
+                break;
+            }
+        }
+        (pgid, child, grandchild)
+    }
+
+    /// Re-runs this test binary as a disposable host (the ignored fake_host
+    /// test below), which leashes a child-plus-grandchild tree, announces
+    /// the pids on stdout, and dies the way `mode` says. The leash must take
+    /// the whole tree down for every way the host can die, including the
+    /// ones that skip all cleanup.
+    fn host_death_takes_the_tree_down(mode: &str) {
+        let exe = std::env::current_exe().unwrap();
+        let mut host = std::process::Command::new(exe)
+            .args(["cmd::tests::fake_host", "--exact", "--ignored", "--nocapture"])
+            .env("LEASH_TEST_DEATH_MODE", mode)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let stdout = std::io::BufReader::new(host.stdout.take().unwrap());
+        let (pgid, child, grandchild) = read_tree_announcement(stdout);
+        assert!(
+            pgid > 0 && child > 0 && grandchild > 0,
+            "fake host never announced its tree (mode {mode})"
+        );
+        host.wait().unwrap();
+        wait_until_gone(child);
+        wait_until_gone(grandchild);
+        // The watchdog helper must not linger either.
+        wait_until_gone(pgid);
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_exits_without_cleanup() {
+        host_death_takes_the_tree_down("exit");
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_is_sigkilled() {
+        host_death_takes_the_tree_down("sigkill");
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_aborts() {
+        host_death_takes_the_tree_down("abort");
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_is_sigtermed() {
+        host_death_takes_the_tree_down("sigterm");
+    }
+
+    /// Runs the close_range-less sweep (the macOS path, shadowed by the
+    /// close_range syscall on modern Linux) in a forked child and asserts it
+    /// closes exactly the fds at or above the floor. Only async-signal-safe
+    /// calls in the child: fcntl and _exit.
+    #[test]
+    fn the_fallback_fd_sweep_closes_only_fds_at_or_above_the_floor() {
+        use std::os::fd::AsRawFd as _;
+        let (reader, writer) = io::pipe().unwrap();
+        let probe_a = reader.as_raw_fd();
+        let probe_b = writer.as_raw_fd();
+        assert!(probe_a >= 3 && probe_b >= 3);
+        let limit = fd_sweep_limit();
+        match unsafe { libc::fork() } {
+            -1 => panic!("fork failed"),
+            0 => unsafe {
+                close_fds_loop(3, limit);
+                let mut failures = 0;
+                for fd in [0, 1, 2] {
+                    if libc::fcntl(fd, libc::F_GETFD) == -1 {
+                        failures |= 1; // swept below the floor
+                    }
+                }
+                for fd in [probe_a, probe_b] {
+                    if libc::fcntl(fd, libc::F_GETFD) != -1 {
+                        failures |= 2; // missed an fd above the floor
+                    }
+                }
+                libc::_exit(failures);
+            },
+            pid => {
+                let mut status: libc::c_int = 0;
+                assert_ne!(unsafe { libc::waitpid(pid, &mut status, 0) }, -1);
+                assert!(libc::WIFEXITED(status), "sweep child died abnormally");
+                assert_eq!(
+                    libc::WEXITSTATUS(status),
+                    0,
+                    "1 = swept below floor, 2 = missed above floor"
+                );
+            }
+        }
+    }
+
+    /// True once the helper's sigprocmask has run, so the signal test below
+    /// cannot race the helper's startup. Read from /proc on Linux, from
+    /// `ps -o blocked=` elsewhere.
+    #[cfg(target_os = "linux")]
+    fn helper_blocks_sigterm(pid: libc::pid_t) -> bool {
+        let Ok(status) = std::fs::read_to_string(format!("/proc/{pid}/status")) else {
+            return false;
+        };
+        status.lines().any(|line| {
+            line.strip_prefix("SigBlk:").is_some_and(|hex| {
+                u64::from_str_radix(hex.trim(), 16)
+                    .is_ok_and(|mask| mask >> (libc::SIGTERM - 1) & 1 == 1)
+            })
+        })
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn helper_blocks_sigterm(pid: libc::pid_t) -> bool {
+        let Ok(out) = std::process::Command::new("ps")
+            .args(["-p", &pid.to_string(), "-o", "blocked="])
+            .output()
+        else {
+            return false;
+        };
+        let text = String::from_utf8_lossy(&out.stdout);
+        u64::from_str_radix(text.trim().trim_start_matches("0x"), 16)
+            .is_ok_and(|mask| mask >> (libc::SIGTERM - 1) & 1 == 1)
+    }
+
+    /// Only SIGKILL may strip the leash: a catchable signal sent to the
+    /// whole group kills the child but must leave the helper (and with it
+    /// the backstop and the pgid pin) standing.
+    #[test]
+    fn a_signal_to_the_group_does_not_strip_the_leash() {
+        let (mut child, pgid, watchdog) = leash_spawn(&mut sleeper()).unwrap();
+        assert!(watchdog.is_some(), "watchdog fork failed");
+        for _ in 0..1000 {
+            if helper_blocks_sigterm(pgid) {
+                break;
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert!(helper_blocks_sigterm(pgid), "helper never blocked signals");
+        assert_eq!(unsafe { libc::kill(-pgid, libc::SIGTERM) }, 0);
+        let status = child.wait().unwrap();
+        assert_eq!(status.signal(), Some(libc::SIGTERM));
+        assert_eq!(
+            unsafe { libc::kill(-pgid, 0) },
+            0,
+            "the SIGTERM stripped the leash"
+        );
+        drop(watchdog);
+        wait_until_gone(pgid);
+    }
+
+    /// The slave side of a PTY master: ptsname_r where it exists, plain
+    /// ptsname elsewhere (fine here, the tests hold no other PTYs).
+    #[cfg(target_os = "linux")]
+    fn pty_slave_path(master: std::os::fd::RawFd) -> String {
+        let mut name = [0 as libc::c_char; 128];
+        assert_eq!(
+            unsafe { libc::ptsname_r(master, name.as_mut_ptr(), name.len()) },
+            0
+        );
+        unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) }
+            .to_str()
+            .unwrap()
+            .to_owned()
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn pty_slave_path(master: std::os::fd::RawFd) -> String {
+        let name = unsafe { libc::ptsname(master) };
+        assert!(!name.is_null(), "ptsname failed");
+        unsafe { std::ffi::CStr::from_ptr(name) }
+            .to_str()
+            .unwrap()
+            .to_owned()
+    }
+
+    /// Ctrl+C at a real terminal: SIGINT goes to the foreground process
+    /// group only. The fake host becomes a session leader on a fresh PTY, so
+    /// the ^C written to the master kills it, while the leash group sits
+    /// outside the foreground group, survives the keystroke, and is then
+    /// taken down by the watchdog noticing the host's death.
+    #[test]
+    fn tree_dies_when_the_host_gets_ctrl_c() {
+        use std::os::fd::{AsRawFd as _, FromRawFd as _};
+        use std::os::unix::process::CommandExt as _;
+
+        let master = unsafe { libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY) };
+        assert!(master >= 0, "posix_openpt failed");
+        let master = unsafe { std::fs::File::from_raw_fd(master) };
+        unsafe {
+            assert_eq!(libc::grantpt(master.as_raw_fd()), 0);
+            assert_eq!(libc::unlockpt(master.as_raw_fd()), 0);
+        }
+        let slave_path = pty_slave_path(master.as_raw_fd());
+        let slave = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&slave_path)
+            .unwrap();
+
+        // Make sure the line discipline turns ^C into SIGINT.
+        unsafe {
+            let mut tio: libc::termios = std::mem::zeroed();
+            assert_eq!(libc::tcgetattr(slave.as_raw_fd(), &mut tio), 0);
+            tio.c_lflag |= libc::ISIG;
+            assert_eq!(libc::tcsetattr(slave.as_raw_fd(), libc::TCSANOW, &tio), 0);
+        }
+
+        let exe = std::env::current_exe().unwrap();
+        let mut cmd = std::process::Command::new(exe);
+        cmd.args(["cmd::tests::fake_host", "--exact", "--ignored", "--nocapture"])
+            .env("LEASH_TEST_DEATH_MODE", "sigint")
+            .stdin(Stdio::from(slave))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
+        unsafe {
+            cmd.pre_exec(|| {
+                // Fresh session with the PTY (on fd 0) as the controlling
+                // terminal and this process's group in the foreground.
+                if libc::setsid() == -1 {
+                    return Err(io::Error::last_os_error());
+                }
+                if libc::ioctl(0, libc::TIOCSCTTY as _, 0) == -1 {
+                    return Err(io::Error::last_os_error());
+                }
+                if libc::tcsetpgrp(0, libc::getpgrp()) == -1 {
+                    return Err(io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+        let mut host = cmd.spawn().unwrap();
+        let reader = std::io::BufReader::new(host.stdout.take().unwrap());
+        let (pgid, child, grandchild) = read_tree_announcement(reader);
+        assert!(
+            pgid > 0 && child > 0 && grandchild > 0,
+            "fake host never announced its tree"
+        );
+
+        assert_eq!(
+            unsafe { libc::write(master.as_raw_fd(), b"\x03".as_ptr().cast(), 1) },
+            1
+        );
+        let status = host.wait().unwrap();
+        assert_eq!(status.signal(), Some(libc::SIGINT), "host did not die from ^C");
+        wait_until_gone(child);
+        wait_until_gone(grandchild);
+        wait_until_gone(pgid);
+    }
+
+    /// Not a test: the disposable host that host_death_takes_the_tree_down
+    /// re-execs. Ignored so normal runs skip it; a bare `--ignored` run
+    /// without the env var makes it a no-op.
+    #[test]
+    #[ignore]
+    fn fake_host() {
+        let Ok(mode) = std::env::var("LEASH_TEST_DEATH_MODE") else {
+            return;
+        };
+        let mut cmd = std::process::Command::new("sh");
+        cmd.args([
+            "-c",
+            "sleep 600 & echo leash-grandchild $!; exec sleep 600",
+        ]);
+        cmd.stdout(Stdio::piped());
+        let (mut child, pgid, watchdog) = leash_spawn(&mut cmd).unwrap();
+        // Relay the grandchild announcement rather than letting the sh write
+        // it to the shared stdout: reading it here is what guarantees the
+        // grandchild exists before this host dies, otherwise the group kill
+        // races the echo and the tree is announced incompletely.
+        let mut reader = std::io::BufReader::new(child.stdout.take().unwrap());
+        let mut announcement = String::new();
+        reader.read_line(&mut announcement).unwrap();
+        print!("{announcement}");
+        println!("leash-host {} {}", pgid, child.id());
+        std::io::stdout().flush().unwrap();
+        // Neither the watchdog nor the child may be dropped: a Drop here
+        // would clean the tree up and the death below would prove nothing.
+        std::mem::forget(watchdog);
+        std::mem::forget(child);
+        match mode.as_str() {
+            "exit" => std::process::exit(0),
+            "sigkill" => {
+                unsafe { libc::raise(libc::SIGKILL) };
+            }
+            "abort" => std::process::abort(),
+            "sigterm" => {
+                unsafe { libc::raise(libc::SIGTERM) };
+            }
+            // For the Ctrl+C test: stay alive until the ^C on the
+            // controlling terminal delivers SIGINT.
+            "sigint" => loop {
+                thread::sleep(Duration::from_secs(600));
+            },
+            other => panic!("unknown death mode {other}"),
+        }
+        panic!("still alive after death mode {mode}");
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use super::*;
+    use std::io::BufRead as _;
+    use std::io::Write as _;
+    use std::time::Duration;
+
+    /// Polls tasklist until `pid` no longer exists. The padded needle keeps
+    /// pid 123 from matching pid 1234's row.
+    fn wait_until_gone(pid: u32) {
+        let filter = format!("PID eq {pid}");
+        let needle = format!(" {pid} ");
+        for _ in 0..100 {
+            let out = std::process::Command::new("tasklist")
+                .args(["/NH", "/FI", &filter])
+                .output()
+                .unwrap();
+            if !String::from_utf8_lossy(&out.stdout).contains(&needle) {
+                return;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+        panic!("process {pid} still alive after 10s");
+    }
+
+    /// The Windows spin on the unix death matrix: re-runs this binary as a
+    /// disposable host that leashes a powershell child plus a ping
+    /// grandchild through the real Job Object path (group_spawn), announces
+    /// the pids, and dies per `mode`. Kill-on-close must take the whole job
+    /// down for every way the host can die.
+    fn host_death_takes_the_tree_down(mode: &str) {
+        let exe = std::env::current_exe().unwrap();
+        let mut host = std::process::Command::new(exe)
+            .args([
+                "cmd::windows_tests::fake_host",
+                "--exact",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env("LEASH_TEST_DEATH_MODE", mode)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let reader = std::io::BufReader::new(host.stdout.take().unwrap());
+        let mut child: u32 = 0;
+        let mut grandchild: u32 = 0;
+        for line in reader.lines() {
+            let line = line.unwrap();
+            if let Some(rest) = line.strip_prefix("leash-host ") {
+                child = rest.trim().parse().unwrap();
+            } else if let Some(rest) = line.strip_prefix("leash-grandchild ") {
+                grandchild = rest.trim().parse().unwrap();
+            }
+            if child != 0 && grandchild != 0 {
+                break;
+            }
+        }
+        assert!(
+            child > 0 && grandchild > 0,
+            "fake host never announced its tree (mode {mode})"
+        );
+        if mode == "hang" {
+            // An outside TerminateProcess: the kill -9 analog.
+            let killed = std::process::Command::new("taskkill")
+                .args(["/F", "/PID", &host.id().to_string()])
+                .status()
+                .unwrap();
+            assert!(killed.success(), "taskkill failed");
+        }
+        host.wait().unwrap();
+        wait_until_gone(child);
+        wait_until_gone(grandchild);
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_exits_without_cleanup() {
+        host_death_takes_the_tree_down("exit");
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_aborts() {
+        host_death_takes_the_tree_down("abort");
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_is_terminated() {
+        host_death_takes_the_tree_down("hang");
+    }
+
+    /// Not a test: the disposable host, see the unix twin for the pattern.
+    #[test]
+    #[ignore]
+    fn fake_host() {
+        let Ok(mode) = std::env::var("LEASH_TEST_DEATH_MODE") else {
+            return;
+        };
+        let mut cmd = std::process::Command::new("powershell");
+        cmd.args([
+            "-NoProfile",
+            "-Command",
+            "$p = Start-Process ping -ArgumentList '-n','600','127.0.0.1' -PassThru -WindowStyle Hidden; \
+             Write-Host ('leash-grandchild ' + $p.Id); Start-Sleep -Seconds 600",
+        ]);
+        cmd.stdout(Stdio::piped());
+        let mut child = cmd.group_spawn().unwrap();
+        // Relaying the announcement guarantees the grandchild exists before
+        // this host dies, same as the unix fake host.
+        let mut reader = std::io::BufReader::new(child.inner().stdout.take().unwrap());
+        let mut announcement = String::new();
+        reader.read_line(&mut announcement).unwrap();
+        print!("{announcement}");
+        println!("leash-host {}", child.id());
+        std::io::stdout().flush().unwrap();
+        // Not dropped: a Drop here would close the job handle and clean the
+        // tree up before the death below gets to prove anything.
+        std::mem::forget(child);
+        match mode.as_str() {
+            "exit" => std::process::exit(0),
+            "abort" => std::process::abort(),
+            // For the terminated test: stay alive until the outside
+            // taskkill lands.
+            "hang" => loop {
+                thread::sleep(Duration::from_secs(600));
+            },
+            other => panic!("unknown death mode {other}"),
+        }
+    }
 }

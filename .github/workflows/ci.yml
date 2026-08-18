@@ -47,6 +47,21 @@ jobs:
       - name: Format, check, and test examples
         run: ./scripts/test.py --operation validate
 
+  validate-macos:
+    name: validate sources (macos)
+    needs: rust-version
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Roc
+        uses: ./.github/actions/setup-roc-pinned
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "${{ needs.rust-version.outputs.version }}" --profile minimal --target aarch64-apple-darwin
+          rustup default "${{ needs.rust-version.outputs.version }}"
+      - name: Format, check, and test examples
+        run: ./scripts/test.py --operation validate
+
   validate-windows:
     name: validate sources (windows)
     needs: rust-version

@@ -13,7 +13,7 @@ Cmd :: {
 	program : OsStr,
 }.{
 
-	## A spawned child process with stdio pipes (see [Cmd.spawn!] and [Cmd.spawn_grouped!]).
+	## A spawned child process with stdio pipes (see [Cmd.spawn!] and [Cmd.spawn_leashed!]).
 	##
 	## **Important**: `read_stdout!` and `read_stderr!` block until *exactly* N bytes
 	## have been read. If the stream reaches EOF before N bytes are available, the
@@ -58,7 +58,7 @@ Cmd :: {
 			Host.cmd_child_close_stdin!(child.id).map_err(|err| CloseFailed(err))
 
 		## Kill the child process, discarding whatever it wrote. For children
-		## spawned with [Cmd.spawn_grouped!], this kills the whole process tree.
+		## spawned with [Cmd.spawn_leashed!], this kills the whole process tree.
 		## Use [Child.kill_wait!] to keep the output.
 		kill! : Child => Try({}, [KillFailed(IOErr), ..])
 		kill! = |child|
@@ -82,7 +82,7 @@ Cmd :: {
 		##
 		## Everything the child itself wrote is returned, including output that
 		## was still in flight when it died. Children of the child are a different
-		## matter: [Cmd.spawn_grouped!] takes the whole tree down, so there is
+		## matter: [Cmd.spawn_leashed!] takes the whole tree down, so there is
 		## nothing left to hear from, while a child from [Cmd.spawn!] leaves its
 		## own children running and whatever they write from now on is lost.
 		kill_wait! : Child => Try({ exit_code : I32, stdout : List(U8), stderr : List(U8) }, [KillFailed(IOErr), ..])
@@ -138,27 +138,28 @@ Cmd :: {
 	## Use this for test servers, subprocesses, or anything that shouldn't
 	## outlive your program.
 	##
-	## **Linux and Windows**: children are guaranteed to die with the parent,
-	## even on SIGKILL (via `PR_SET_PDEATHSIG` / Job Objects). **macOS**: children
-	## die on normal exit, Ctrl+C, and crashes, but may survive `kill -9` of the
-	## parent (kernel limitation).
+	## On every platform the whole process group dies with the parent, however
+	## the parent dies: normal exit, Ctrl+C, a crash, or `kill -9`. On Unix a
+	## watchdog process in the child's group takes the group down when the
+	## parent disappears (Linux backs it up with `PR_SET_PDEATHSIG` for the
+	## direct child), and Windows uses Job Objects.
 	##
 	## [Child.kill!] and [Child.kill_wait!] take down the whole tree for a child
 	## spawned this way, rather than just the child itself.
-	spawn_grouped! : Cmd => Try(Child, [SpawnFailed(IOErr), ..])
-	spawn_grouped! = |cmd|
+	spawn_leashed! : Cmd => Try(Child, [SpawnFailed(IOErr), ..])
+	spawn_leashed! = |cmd|
 		match Host.cmd_spawn!(to_host_cmd(cmd), Bool.True) {
 			Ok(id) => Ok(Child.{ id: id })
 			Err(err) => Err(SpawnFailed(err))
 		}
 
-	## Kill all processes spawned via [Cmd.spawn_grouped!] and their children.
+	## Kill all processes spawned via [Cmd.spawn_leashed!] and their children.
 	##
 	## This is called automatically on normal program exit, but you can call it
 	## explicitly for immediate cleanup.
-	kill_grouped! : {} => Try({}, [KillFailed(IOErr), ..])
-	kill_grouped! = |{}|
-		Host.cmd_kill_all_grouped!().map_err(|err| KillFailed(err))
+	kill_leashed! : {} => Try({}, [KillFailed(IOErr), ..])
+	kill_leashed! = |{}|
+		Host.cmd_kill_all_leashed!().map_err(|err| KillFailed(err))
 
 	## Simplest way to execute a command by name with arguments.
 	## Stdin, stdout, and stderr are inherited from the parent process.

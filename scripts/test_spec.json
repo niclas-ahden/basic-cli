@@ -87,7 +87,7 @@
             "banana",
             "cherry",
             "killed exit code: 1",
-            "all grouped children killed"
+            "all leashed children killed"
           ]
         }
       ]
@@ -104,7 +104,7 @@
             "sort exit code: 0",
             "poll saw exit code 7",
             "stderr said: oops",
-            "all grouped children killed"
+            "all leashed children killed"
           ]
         }
       ]
