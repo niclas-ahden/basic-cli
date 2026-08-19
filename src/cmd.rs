@@ -1003,6 +1003,18 @@ fn leash_spawn(
     Ok((child, pgid, watchdog))
 }
 
+/// The Windows leash: a Job Object with kill-on-close, so the kernel takes
+/// the whole job down when the last handle to it closes, which any death of
+/// this process does (clean exit, abort, TerminateProcess). Kill-on-close
+/// must be asked for: `group_spawn()` alone leaves command-group's
+/// kill_on_drop at its false default, which builds the job without
+/// JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE and reduces the leash to explicit
+/// kills only.
+#[cfg(not(unix))]
+fn leash_spawn(std_cmd: &mut std::process::Command) -> io::Result<GroupChild> {
+    std_cmd.group().kill_on_drop(true).spawn()
+}
+
 fn spawn_impl(cmd: &Cmd, leashed: bool, roc_host: &RocHost) -> io::Result<u64> {
     let mut std_cmd = cmd_to_std(cmd, roc_host)?;
     std_cmd.stdin(Stdio::piped());
@@ -1038,7 +1050,7 @@ fn spawn_impl(cmd: &Cmd, leashed: bool, roc_host: &RocHost) -> io::Result<u64> {
 
     #[cfg(not(unix))]
     let (mut child, stdin, stdout_pipe, stderr_pipe) = if leashed {
-        let mut child = std_cmd.group_spawn()?;
+        let mut child = leash_spawn(&mut std_cmd)?;
         let stdin = child.inner().stdin.take();
         let stdout_pipe = child.inner().stdout.take();
         let stderr_pipe = child.inner().stderr.take();
@@ -1616,17 +1628,28 @@ mod tests {
         })
     }
 
+    /// macOS exposes no way to read another process's signal mask (`ps -o
+    /// blocked=` reports 0 there no matter what the mask holds), so watch for
+    /// the fd sweep instead: watchdog_main runs it strictly after
+    /// sigprocmask, so the mask is up once fd 0 is the helper's only open
+    /// file.
     #[cfg(not(target_os = "linux"))]
     fn helper_blocks_sigterm(pid: libc::pid_t) -> bool {
-        let Ok(out) = std::process::Command::new("ps")
-            .args(["-p", &pid.to_string(), "-o", "blocked="])
-            .output()
-        else {
-            return false;
+        const PROC_PIDLISTFDS: libc::c_int = 1;
+        const FDINFO_SIZE: usize = 8; // sizeof(struct proc_fdinfo)
+        let mut buf = [0u8; 64 * FDINFO_SIZE];
+        let bytes = unsafe {
+            libc::proc_pidinfo(
+                pid,
+                PROC_PIDLISTFDS,
+                0,
+                buf.as_mut_ptr().cast(),
+                buf.len() as libc::c_int,
+            )
         };
-        let text = String::from_utf8_lossy(&out.stdout);
-        u64::from_str_radix(text.trim().trim_start_matches("0x"), 16)
-            .is_ok_and(|mask| mask >> (libc::SIGTERM - 1) & 1 == 1)
+        // Exactly one open fd, and it is fd 0 (the liveness pipe).
+        bytes as usize == FDINFO_SIZE
+            && i32::from_ne_bytes(buf[..4].try_into().unwrap()) == 0
     }
 
     /// Only SIGKILL may strip the leash: a catchable signal sent to the
@@ -1692,6 +1715,10 @@ mod tests {
 
         let master = unsafe { libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY) };
         assert!(master >= 0, "posix_openpt failed");
+        // CLOEXEC keeps the master out of the host and its tree. A leaked
+        // master can never be closed by this test, and closing the master is
+        // the only way out of the macOS exit-path wedge described below.
+        assert_ne!(unsafe { libc::fcntl(master, libc::F_SETFD, libc::FD_CLOEXEC) }, -1);
         let master = unsafe { std::fs::File::from_raw_fd(master) };
         unsafe {
             assert_eq!(libc::grantpt(master.as_raw_fd()), 0);
@@ -1704,11 +1731,17 @@ mod tests {
             .open(&slave_path)
             .unwrap();
 
-        // Make sure the line discipline turns ^C into SIGINT.
+        // Make sure the line discipline turns ^C into SIGINT. ECHO must be
+        // off: nothing ever reads the master after the ^C goes in, and on
+        // macOS an exiting session leader waits in the kernel for the tty's
+        // output queue (which the echoed "^C" would sit in) to drain. With
+        // echo on, the host wedges unkillable in its exit path, and every
+        // process in the session wedges behind it, until the master closes.
         unsafe {
             let mut tio: libc::termios = std::mem::zeroed();
             assert_eq!(libc::tcgetattr(slave.as_raw_fd(), &mut tio), 0);
             tio.c_lflag |= libc::ISIG;
+            tio.c_lflag &= !libc::ECHO;
             assert_eq!(libc::tcsetattr(slave.as_raw_fd(), libc::TCSANOW, &tio), 0);
         }
 
@@ -1831,7 +1864,7 @@ mod windows_tests {
 
     /// The Windows spin on the unix death matrix: re-runs this binary as a
     /// disposable host that leashes a powershell child plus a ping
-    /// grandchild through the real Job Object path (group_spawn), announces
+    /// grandchild through the real Job Object path (leash_spawn), announces
     /// the pids, and dies per `mode`. Kill-on-close must take the whole job
     /// down for every way the host can die.
     fn host_death_takes_the_tree_down(mode: &str) {
@@ -1909,7 +1942,7 @@ mod windows_tests {
              Write-Host ('leash-grandchild ' + $p.Id); Start-Sleep -Seconds 600",
         ]);
         cmd.stdout(Stdio::piped());
-        let mut child = cmd.group_spawn().unwrap();
+        let mut child = leash_spawn(&mut cmd).unwrap();
         // Relaying the announcement guarantees the grandchild exists before
         // this host dies, same as the unix fake host.
         let mut reader = std::io::BufReader::new(child.inner().stdout.take().unwrap());
