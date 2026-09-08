@@ -14,6 +14,8 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 mod cmd;
 mod http;
+#[cfg(unix)]
+mod leash;
 mod roc_platform_abi;
 mod resources;
 mod filesystem;

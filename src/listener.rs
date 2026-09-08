@@ -134,6 +134,20 @@ mod tests {
         resources::release(handle, &host);
         assert!(TcpListener::bind(address).is_err());
         resources::release(handle, &host);
-        assert!(TcpListener::bind(address).is_ok());
+        // The final release frees the port. A concurrent test that forks
+        // (the leash watchdog, or any std::process spawn) transiently
+        // duplicates every open fd of this test binary, including this
+        // socket, until the fork execs or sweeps; under load that hold can
+        // outlast a single rebind attempt. The port does come free, so poll
+        // briefly rather than demanding it on the first try.
+        let freed = (0..200).any(|_| {
+            if TcpListener::bind(address).is_ok() {
+                true
+            } else {
+                std::thread::sleep(Duration::from_millis(10));
+                false
+            }
+        });
+        assert!(freed, "port never became bindable after final release");
     }
 }

@@ -519,6 +519,40 @@
           ]
         }
       ]
+    },
+    {
+      "path": "examples/command-leashed.roc",
+      "platforms": { "windows": { "run": false } },
+      "reason": "Runtime scenario spawns Unix commands (cat, sh, sleep)",
+      "cases": [
+        {
+          "name": "happy",
+          "contains": [
+            "cat echoed: hello, leash!",
+            "leashed exit: Exited(7)",
+            "leashed tree closed"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "examples/command-leashed-windows.roc",
+      "platforms": { "linux": { "run": false }, "darwin": { "run": false } },
+      "reason": "Runtime scenario spawns Windows commands (cmd, sort, powershell)",
+      "cases": [
+        {
+          "name": "happy",
+          "timeout": 20,
+          "contains": [
+            "echo exit: Exited(0)",
+            "echo said: hello",
+            "apple",
+            "banana",
+            "cherry",
+            "leashed tree closed"
+          ]
+        }
+      ]
     }
   ]
 }

@@ -256,6 +256,31 @@ Cmd :: {
 	spawn! : Cmd => Try(Child, IOErr)
 	spawn! = |cmd| Host.cmd_spawn!(to_host_cmd(cmd)).map_ok(|handle| Child.{ host: handle })
 
+	## Start a managed child that cannot outlive this process, however this
+	## process dies. Like [spawn!], but the child (and its whole process tree)
+	## is leashed: it is taken down on a normal exit, and also on the deaths
+	## that skip cleanup entirely, such as Ctrl+C, a crash, or `kill -9`.
+	##
+	## Use this for a long-lived helper you start and supervise, such as a
+	## server or a browser driver, so a test run cancelled from the terminal
+	## never leaves a stray behind. Turns [manage_tree] on, since the leash
+	## acts on the whole group. Default streams are inherited, exactly as
+	## [spawn!].
+	##
+	## On Unix a watchdog process in the child's group takes the group down
+	## when this process disappears (Linux backs it up with `PR_SET_PDEATHSIG`
+	## for the direct child); Windows uses a Job Object that dies with this
+	## process. [Child.kill!] and [Child.close!] take down the whole tree for a
+	## child spawned this way, rather than just the child itself.
+	##
+	## Keep the returned [Child] referenced for as long as the child should
+	## run: as with every managed child, releasing its last reference
+	## terminates it, so a handle bound to `_` is killed right away.
+	spawn_leashed! : Cmd => Try(Child, IOErr)
+	spawn_leashed! = |cmd|
+		Host.cmd_spawn_leashed!(to_host_cmd(manage_tree(cmd, Bool.True)))
+			.map_ok(|handle| Child.{ host: handle })
+
 	## Add a single argument to the command.
 	## ❗ Shell features like variable substitution (e.g. `$FOO`), glob patterns (e.g. `*.txt`), ... are not available.
 	##

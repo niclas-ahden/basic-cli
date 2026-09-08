@@ -36,6 +36,11 @@ pub struct Config {
     pub pending_limit: usize,
     pub manage_tree: bool,
     pub merge_stderr: bool,
+    /// Unix only: fork a watchdog that founds the child's group and kills it
+    /// if this host dies without cleanup (Ctrl+C, crash, kill -9). Implies
+    /// `manage_tree`. On Windows the Job Object already dies with the host, so
+    /// this is ignored there. See [`crate::leash`].
+    pub leash: bool,
 }
 struct State {
     output: Output,
@@ -54,6 +59,11 @@ pub struct Child {
     shared: Arc<Shared>,
     stdin: Arc<AsyncMutex<Option<tokio::process::ChildStdin>>>,
     closed: Mutex<bool>,
+    /// Held for a leashed child so the last reference release (in compiled Roc
+    /// or the exit sweep) closes the watchdog's liveness pipe and takes the
+    /// group down. Never read. Unix only.
+    #[cfg(unix)]
+    _watchdog: Option<crate::leash::Watchdog>,
 }
 fn registry() -> &'static Mutex<Vec<Weak<Shared>>> {
     static REGISTRY: OnceLock<Mutex<Vec<Weak<Shared>>>> = OnceLock::new();
@@ -393,12 +403,61 @@ async fn spawn(mut config: Config) -> io::Result<Child> {
         }
         None
     };
+    // A leashed child joins the group the watchdog founds and leads, so a host
+    // death that skips the sweep still takes the group down. The child joins
+    // it directly rather than through process-wrap's ProcessGroup wrapper,
+    // whose kill and reap assume the child leads its own group (it derives the
+    // pgid from the child's own pid); here the watchdog leads, so the teardown
+    // path below group-kills the watchdog's pgid itself. A watchdog that fails
+    // to fork falls back to the plain managed-tree path.
+    #[cfg(unix)]
+    let (watchdog, leash_pgid) = if config.leash {
+        // Linux backs the watchdog up with PDEATHSIG for the direct child: it
+        // needs no second process and fires without the watchdog's EOF
+        // latency. PDEATHSIG is tied to the parent *thread*, not the process,
+        // so this is only sound because the spawn below forks synchronously
+        // on the calling thread (tokio's Command::spawn is plain
+        // std::process::Command::spawn), and the calling thread is the
+        // dedicated process-service thread from `service()`, which blocks on
+        // a pending future until the process exits. Never move this spawn
+        // onto a worker or blocking-pool thread: PDEATHSIG would then kill the
+        // child as soon as that thread retired.
+        #[cfg(target_os = "linux")]
+        unsafe {
+            use std::os::unix::process::CommandExt;
+            config.command.pre_exec(|| {
+                if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) == -1 {
+                    return Err(io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+        match crate::leash::Watchdog::fork() {
+            Some(w) => {
+                use std::os::unix::process::CommandExt;
+                let pgid = w.pgid();
+                config.command.process_group(pgid);
+                (Some(w), Some(pgid))
+            }
+            None => (None, None),
+        }
+    } else {
+        (None, None)
+    };
     let mut command = CommandWrap::from(tokio::process::Command::from(config.command));
     command.wrap(KillOnDrop);
-    if config.manage_tree {
-        #[cfg(unix)]
+    // A plain managed tree, or a leash whose watchdog fork failed, leads its
+    // own group and lets process-wrap kill and reap it. Windows uses a
+    // kill-on-close Job Object, which already dies with the host: process-wrap
+    // only sets JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE when KillOnDrop is wrapped
+    // too (see its JobObject::pre_spawn), so the KillOnDrop wrap above is what
+    // makes the Windows leash hold on every host death, not just on Drop.
+    #[cfg(unix)]
+    if config.manage_tree && leash_pgid.is_none() {
         command.wrap(ProcessGroup::leader());
-        #[cfg(windows)]
+    }
+    #[cfg(windows)]
+    if config.manage_tree {
         command.wrap(JobObject);
     }
     let mut child = command.spawn()?;
@@ -435,6 +494,8 @@ async fn spawn(mut config: Config) -> io::Result<Child> {
         shared: shared.clone(),
         stdin: stdin.clone(),
         closed: Mutex::new(false),
+        #[cfg(unix)]
+        _watchdog: watchdog,
     };
     tokio::spawn(async move {
         let mut readers = Vec::new();
@@ -493,14 +554,29 @@ async fn spawn(mut config: Config) -> io::Result<Child> {
             _ = shared.cancel.notified() => None,
             _ = async { if let Some(deadline)=deadline {tokio::time::sleep_until(deadline).await} else {std::future::pending::<()>().await} } => {shared.state.lock().unwrap().output.failure=1;None},
         };
+        // A leashed child is not wrapped in a process group process-wrap can
+        // kill, because the watchdog leads its group, not the child. So take
+        // the whole group down here by its known pgid: this reaches the
+        // grandchildren a bare child kill would leave holding the pipes, and
+        // matches the deliberate group kill the pre-upstream fork did.
+        #[cfg(unix)]
+        let group_kill = || {
+            if let Some(pgid) = leash_pgid {
+                unsafe { libc::kill(-pgid, libc::SIGKILL) };
+            }
+        };
         let status = match completed {
             Some(Ok(status)) => Ok(status),
             Some(Err(err)) => {
+                #[cfg(unix)]
+                group_kill();
                 let _ = child.start_kill();
                 let _ = child.wait().await;
                 Err(err)
             }
             None => {
+                #[cfg(unix)]
+                group_kill();
                 let _ = child.start_kill();
                 child.wait().await
             }
@@ -547,6 +623,7 @@ mod tests {
             pending_limit: 1024 * 1024,
             manage_tree: true,
             merge_stderr: false,
+            leash: false,
         }
     }
     #[test]
@@ -726,6 +803,44 @@ mod tests {
         let output = Child::spawn(config).unwrap().wait().unwrap();
         assert_eq!(output.stdout, [255, 42]);
     }
+    /// The leash through the production path: the child sits in a group led
+    /// by the watchdog rather than by itself, close takes the whole group
+    /// down including a backgrounded grandchild, and releasing the handle
+    /// reaps the watchdog so the pgid does not linger.
+    #[test]
+    fn leashed_close_takes_the_whole_group_down() {
+        let mut config = shell("sleep 600 & echo $!; wait");
+        config.stdout_mode = 4;
+        config.timeout_ms = 0;
+        config.leash = true;
+        let child = Child::spawn(config).unwrap();
+        let mut line = Vec::new();
+        while !line.contains(&b'\n') {
+            let event = child.read(64, 5000).unwrap();
+            assert_ne!(event.stream, 0, "child exited before announcing");
+            line.extend(event.bytes);
+        }
+        let grandchild: libc::pid_t = String::from_utf8_lossy(&line).trim().parse().unwrap();
+        let pid = child.pid().unwrap() as libc::pid_t;
+        let pgid = unsafe { libc::getpgid(pid) };
+        assert!(
+            pgid > 0 && pgid != pid,
+            "leashed child should join the watchdog's group"
+        );
+        child.close().unwrap();
+        drop(child);
+        // close reaps the direct child; the orphaned grandchild is reparented
+        // and reaped by init a moment later, and the watchdog by the drop.
+        for _ in 0..500 {
+            let grandchild_gone = unsafe { libc::kill(grandchild, 0) } == -1;
+            let group_gone = unsafe { libc::kill(-pgid, 0) } == -1;
+            if grandchild_gone && group_gone {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("leashed tree survived close: grandchild {grandchild}, group {pgid}");
+    }
     #[test]
     fn missing_program_is_spawn_error() {
         let mut config = shell("");
@@ -734,5 +849,188 @@ mod tests {
             Child::spawn(config).err().unwrap().kind(),
             io::ErrorKind::NotFound
         );
+    }
+}
+
+/// The Windows spin on the Unix death matrix in `crate::leash`. A leashed
+/// child there lives in a kill-on-close Job Object, so the whole job must die
+/// for every way the host can die, including the ones that skip all cleanup.
+/// Everything is spawned through the production path, `Child::spawn` with
+/// `manage_tree`, which is what `Cmd.spawn_leashed!` reaches on Windows.
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use super::*;
+    use std::io::BufRead as _;
+    use std::io::Write as _;
+
+    /// Starts a hidden ping grandchild that idles for ten minutes, announces
+    /// its pid on stdout, then idles itself: a two-level tree whose survival
+    /// is easy to check from outside.
+    const TREE_SCRIPT: &str = "$p = Start-Process ping -ArgumentList '-n','600','127.0.0.1' \
+         -PassThru -WindowStyle Hidden; \
+         Write-Output ('leash-grandchild ' + $p.Id); Start-Sleep -Seconds 600";
+
+    /// The config `Cmd.spawn_leashed!` produces, with stdout piped so the
+    /// tests can read the tree announcement.
+    fn leashed_tree() -> Config {
+        let mut command = std::process::Command::new("powershell");
+        command.args(["-NoProfile", "-Command", TREE_SCRIPT]);
+        Config {
+            command,
+            stdin_mode: 2,
+            stdout_mode: 4,
+            stderr_mode: 1,
+            input: Vec::new(),
+            timeout_ms: 0,
+            output_limit: 16 * 1024 * 1024,
+            pending_limit: 1024 * 1024,
+            manage_tree: true,
+            merge_stderr: false,
+            leash: true,
+        }
+    }
+
+    /// Reads the child's stdout up to the first newline and returns the
+    /// grandchild pid announced there. Generous timeout: powershell is slow
+    /// to start on a cold CI runner.
+    fn announced_grandchild(child: &Child) -> u32 {
+        let mut announcement = Vec::new();
+        while !announcement.contains(&b'\n') {
+            let event = child.read(1024, 60_000).unwrap();
+            assert_ne!(event.stream, 0, "child closed stdout before announcing");
+            announcement.extend(event.bytes);
+        }
+        let line = String::from_utf8_lossy(&announcement);
+        let rest = line
+            .trim()
+            .strip_prefix("leash-grandchild ")
+            .unwrap_or_else(|| panic!("unexpected announcement {line:?}"));
+        rest.trim().parse().unwrap()
+    }
+
+    /// Polls tasklist until `pid` no longer exists. The padded needle keeps
+    /// pid 123 from matching pid 1234's row.
+    fn wait_until_gone(pid: u32) {
+        let filter = format!("PID eq {pid}");
+        let needle = format!(" {pid} ");
+        for _ in 0..100 {
+            let out = std::process::Command::new("tasklist")
+                .args(["/NH", "/FI", &filter])
+                .output()
+                .unwrap();
+            if !String::from_utf8_lossy(&out.stdout).contains(&needle) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        panic!("process {pid} still alive after 10s");
+    }
+
+    /// close takes a running leashed job down, grandchild included, with no
+    /// host death involved: the in-process twin of the death matrix below.
+    #[test]
+    fn leashed_close_takes_the_whole_job_down() {
+        let child = Child::spawn(leashed_tree()).unwrap();
+        let grandchild = announced_grandchild(&child);
+        let pid = child.pid().unwrap();
+        child.close().unwrap();
+        drop(child);
+        wait_until_gone(pid);
+        wait_until_gone(grandchild);
+    }
+
+    /// Re-runs this test binary as a disposable host (the ignored fake_host
+    /// below), which leashes the powershell-plus-ping tree, announces the
+    /// pids on stdout, and dies the way `mode` says. Kill-on-close must take
+    /// the whole job down for every way the host can die.
+    fn host_death_takes_the_tree_down(mode: &str) {
+        let exe = std::env::current_exe().unwrap();
+        let mut host = std::process::Command::new(exe)
+            .args([
+                "process_service::windows_tests::fake_host",
+                "--exact",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env("LEASH_TEST_DEATH_MODE", mode)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let reader = std::io::BufReader::new(host.stdout.take().unwrap());
+        let mut child: u32 = 0;
+        let mut grandchild: u32 = 0;
+        for line in reader.lines() {
+            let line = line.unwrap();
+            if let Some(rest) = line.strip_prefix("leash-host ") {
+                child = rest.trim().parse().unwrap();
+            } else if let Some(rest) = line.strip_prefix("leash-grandchild ") {
+                grandchild = rest.trim().parse().unwrap();
+            }
+            if child != 0 && grandchild != 0 {
+                break;
+            }
+        }
+        assert!(
+            child > 0 && grandchild > 0,
+            "fake host never announced its tree (mode {mode})"
+        );
+        if mode == "hang" {
+            // An outside TerminateProcess: the kill -9 analog.
+            let killed = std::process::Command::new("taskkill")
+                .args(["/F", "/PID", &host.id().to_string()])
+                .status()
+                .unwrap();
+            assert!(killed.success(), "taskkill failed");
+        }
+        host.wait().unwrap();
+        wait_until_gone(child);
+        wait_until_gone(grandchild);
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_exits_without_cleanup() {
+        host_death_takes_the_tree_down("exit");
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_aborts() {
+        host_death_takes_the_tree_down("abort");
+    }
+
+    #[test]
+    fn tree_dies_when_the_host_is_terminated() {
+        host_death_takes_the_tree_down("hang");
+    }
+
+    /// Not a test: the disposable host, see the Unix twin in `crate::leash`
+    /// for the pattern. Ignored so normal runs skip it; a bare `--ignored`
+    /// run without the env var makes it a no-op.
+    #[test]
+    #[ignore]
+    fn fake_host() {
+        let Ok(mode) = std::env::var("LEASH_TEST_DEATH_MODE") else {
+            return;
+        };
+        let child = Child::spawn(leashed_tree()).unwrap();
+        // Relaying the announcement guarantees the grandchild exists before
+        // this host dies, same as the Unix fake host.
+        let grandchild = announced_grandchild(&child);
+        println!("leash-grandchild {grandchild}");
+        println!("leash-host {}", child.pid().unwrap());
+        std::io::stdout().flush().unwrap();
+        // Not dropped: a Drop here would close the job handle and clean the
+        // tree up before the death below gets to prove anything.
+        std::mem::forget(child);
+        match mode.as_str() {
+            "exit" => std::process::exit(0),
+            "abort" => std::process::abort(),
+            // For the terminated test: stay alive until the outside
+            // taskkill lands.
+            "hang" => loop {
+                std::thread::sleep(Duration::from_secs(600));
+            },
+            other => panic!("unknown death mode {other}"),
+        }
     }
 }

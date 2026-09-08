@@ -8930,6 +8930,98 @@ unsafe impl RocRelease<HostCmdSpawnArgs> for HostCmdSpawnArgsRelease {
     }
 }
 
+/// Arguments for Host.cmd_spawn_leashed!
+/// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, cwd : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), manage_tree : Bool, merge_stderr : Bool, output_limit : U64, pending_limit : U64, program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))], stderr_mode : U8, stdin_bytes : List(U8), stdin_mode : U8, stdout_mode : U8, timeout_ms : U64 } => Try(Host.Child, IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdSpawnLeashedArgs {
+    pub output_limit: u64,
+    pub pending_limit: u64,
+    pub timeout_ms: u64,
+    pub args: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub cwd: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub envs: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub program: UnixBytesOrUtf8OrWindowsU16s,
+    pub stdin_bytes: RocListWith<u8, false>,
+    pub clear_envs: bool,
+    pub manage_tree: bool,
+    pub merge_stderr: bool,
+    pub stderr_mode: u8,
+    pub stdin_mode: u8,
+    pub stdout_mode: u8,
+}
+
+/// Arguments for Host.cmd_spawn_leashed!
+/// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, cwd : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), manage_tree : Bool, merge_stderr : Bool, output_limit : U64, pending_limit : U64, program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))], stderr_mode : U8, stdin_bytes : List(U8), stdin_mode : U8, stdout_mode : U8, timeout_ms : U64 } => Try(Host.Child, IOErr)
+/// Refcounted fields are owned by the hosted function.
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdSpawnLeashedArgs {
+    pub output_limit: u64,
+    pub pending_limit: u64,
+    pub timeout_ms: u64,
+    pub args: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub cwd: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub envs: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub program: UnixBytesOrUtf8OrWindowsU16s,
+    pub stdin_bytes: RocListWith<u8, false>,
+    pub clear_envs: bool,
+    pub manage_tree: bool,
+    pub merge_stderr: bool,
+    pub stderr_mode: u8,
+    pub stdin_mode: u8,
+    pub stdout_mode: u8,
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<HostCmdSpawnLeashedArgs>() == 160, "HostCmdSpawnLeashedArgs size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<HostCmdSpawnLeashedArgs>() == 8, "HostCmdSpawnLeashedArgs alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<HostCmdSpawnLeashedArgs>() == 96, "HostCmdSpawnLeashedArgs size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<HostCmdSpawnLeashedArgs>() == 8, "HostCmdSpawnLeashedArgs alignment mismatch");
+
+impl HostCmdSpawnLeashedArgs {
+    /// Recursively decrement Roc-owned fields.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted field.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        unsafe { decref_list_of_unix_bytes_or_utf8or_windows_u16s(value.args, roc_host); }
+        unsafe { decref_list_of_unix_bytes_or_utf8or_windows_u16s(value.cwd, roc_host); }
+        unsafe { decref_list_of_unix_bytes_or_utf8or_windows_u16s(value.envs, roc_host); }
+        unsafe { value.program.decref(roc_host); }
+        unsafe { value.stdin_bytes.decref(roc_host); }
+    }
+
+    /// Increment Roc-owned fields.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        unsafe { value.args.incref(amount); }
+        unsafe { value.cwd.incref(amount); }
+        unsafe { value.envs.incref(amount); }
+        unsafe { value.program.incref(amount); }
+        unsafe { value.stdin_bytes.incref(amount); }
+    }
+}
+
+pub struct HostCmdSpawnLeashedArgsRelease;
+
+unsafe impl RocRelease<HostCmdSpawnLeashedArgs> for HostCmdSpawnLeashedArgsRelease {
+    unsafe fn release(value: HostCmdSpawnLeashedArgs, roc_host: &RocHost) {
+        unsafe { value.decref(roc_host); }
+    }
+}
+
 /// Arguments for Host.cmd_run!
 /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, cwd : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), manage_tree : Bool, merge_stderr : Bool, output_limit : U64, pending_limit : U64, program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))], stderr_mode : U8, stdin_bytes : List(U8), stdin_mode : U8, stdout_mode : U8, timeout_ms : U64 } => Try({ exit_code : I32, failure : U8, signal : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }, IOErr)
 /// Refcounted fields are owned by the hosted function.
@@ -9339,6 +9431,19 @@ pub type HostCmdSpawnArg0CwdTag = UnixBytesOrUtf8OrWindowsU16sTag;
 pub type HostCmdSpawnArg0Envs = UnixBytesOrUtf8OrWindowsU16s;
 pub type HostCmdSpawnArg0EnvsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
 pub type HostCmdSpawnArg0EnvsTag = UnixBytesOrUtf8OrWindowsU16sTag;
+pub type HostCmdSpawnLeashedArg0 = AnonStructB57902ff7f66e961;
+pub type HostCmdSpawnLeashedArg0Args = UnixBytesOrUtf8OrWindowsU16s;
+pub type HostCmdSpawnLeashedArg0ArgsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
+pub type HostCmdSpawnLeashedArg0ArgsTag = UnixBytesOrUtf8OrWindowsU16sTag;
+pub type HostCmdSpawnLeashedArg0Cwd = UnixBytesOrUtf8OrWindowsU16s;
+pub type HostCmdSpawnLeashedArg0CwdPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
+pub type HostCmdSpawnLeashedArg0CwdTag = UnixBytesOrUtf8OrWindowsU16sTag;
+pub type HostCmdSpawnLeashedArg0Envs = UnixBytesOrUtf8OrWindowsU16s;
+pub type HostCmdSpawnLeashedArg0EnvsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
+pub type HostCmdSpawnLeashedArg0EnvsTag = UnixBytesOrUtf8OrWindowsU16sTag;
+pub type HostCmdSpawnLeashedResult = HostCmdSpawnResult;
+pub type HostCmdSpawnLeashedResultPayload = HostCmdSpawnResultPayload;
+pub type HostCmdSpawnLeashedResultTag = HostCmdSpawnResultTag;
 pub type HostCmdRunArg0 = AnonStructB57902ff7f66e961;
 pub type HostCmdRunArg0Args = UnixBytesOrUtf8OrWindowsU16s;
 pub type HostCmdRunArg0ArgsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
@@ -13151,6 +13256,14 @@ unsafe extern "C" {
     ///     unsafe { arg0.decref(roc_host); }
     /// The result is owned by Roc: return exactly one owned reference.
     pub fn hosted_cmd_spawn(arg0: HostCmdSpawnArgs) -> HostCmdSpawnResult;
+
+    /// Hosted symbol for Host.cmd_spawn_leashed!
+    /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, cwd : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), manage_tree : Bool, merge_stderr : Bool, output_limit : U64, pending_limit : U64, program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))], stderr_mode : U8, stdin_bytes : List(U8), stdin_mode : U8, stdout_mode : U8, timeout_ms : U64 } => Try(Host.Child, IOErr)
+    /// Owned arguments. Release each exactly once before returning, unless it is
+    /// moved into storage or into the result:
+    ///     unsafe { arg0.decref(roc_host); }
+    /// The result is owned by Roc: return exactly one owned reference.
+    pub fn hosted_cmd_spawn_leashed(arg0: HostCmdSpawnLeashedArgs) -> HostCmdSpawnResult;
 
     /// Hosted symbol for Host.cmd_run!
     /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, cwd : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), manage_tree : Bool, merge_stderr : Bool, output_limit : U64, pending_limit : U64, program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))], stderr_mode : U8, stdin_bytes : List(U8), stdin_mode : U8, stdout_mode : U8, timeout_ms : U64 } => Try({ exit_code : I32, failure : U8, signal : I32, stderr_bytes : List(U8), stdout_bytes : List(U8) }, IOErr)

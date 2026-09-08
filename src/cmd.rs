@@ -247,7 +247,7 @@ pub extern "C" fn hosted_cmd_host_exec_exit_code(cmd: Cmd) -> CmdExitResult {
         }
     };
 
-    let config = command_config(std_cmd, &cmd, false);
+    let config = command_config(std_cmd, &cmd, false, false);
     match crate::process_service::Child::spawn(config).and_then(|child| child.wait()) {
         Ok(status) => match if status.failure == 0 && status.signal == 0 {
             Some(status.exit_code)
@@ -277,7 +277,7 @@ pub extern "C" fn hosted_cmd_host_exec_output(cmd: Cmd) -> CmdOutputResult {
         }
     };
 
-    let config = command_config(std_cmd, &cmd, true);
+    let config = command_config(std_cmd, &cmd, true, false);
     match crate::process_service::Child::spawn(config).and_then(|child| child.wait()) {
         Ok(output) => {
             let stdout_bytes = roc_u8_list_from_slice(&output.stdout, roc_host);
@@ -327,6 +327,7 @@ fn command_config(
     command: std::process::Command,
     cmd: &Cmd,
     capture_default: bool,
+    leash: bool,
 ) -> crate::process_service::Config {
     let input = cmd.stdin_bytes.as_slice().to_vec();
     unsafe {
@@ -355,6 +356,7 @@ fn command_config(
         pending_limit: cmd.pending_limit as usize,
         manage_tree: cmd.manage_tree,
         merge_stderr: cmd.merge_stderr,
+        leash,
     }
 }
 
@@ -379,7 +381,11 @@ macro_rules! normalize_command {
         }
     }};
 }
-fn managed_spawn(cmd: Cmd, capture_default: bool) -> io::Result<crate::process_service::Child> {
+fn managed_spawn(
+    cmd: Cmd,
+    capture_default: bool,
+    leash: bool,
+) -> io::Result<crate::process_service::Child> {
     let command = match cmd_to_std(&cmd, roc_host()) {
         Ok(command) => command,
         Err(err) => {
@@ -387,7 +393,7 @@ fn managed_spawn(cmd: Cmd, capture_default: bool) -> io::Result<crate::process_s
             return Err(err);
         }
     };
-    crate::process_service::Child::spawn(command_config(command, &cmd, capture_default))
+    crate::process_service::Child::spawn(command_config(command, &cmd, capture_default, leash))
 }
 fn run_output(output: crate::process_service::Output) -> HostCmdRunOk {
     HostCmdRunOk {
@@ -434,9 +440,8 @@ fn with_child<T>(handle: *mut u64, f: impl FnOnce(&crate::process_service::Child
     crate::resources::release(handle, roc_host());
     result
 }
-#[no_mangle]
-pub extern "C" fn hosted_cmd_spawn(cmd: HostCmdSpawnArgs) -> HostCmdSpawnResult {
-    match managed_spawn(normalize_command!(cmd), false) {
+fn spawn_result(child: io::Result<crate::process_service::Child>) -> HostCmdSpawnResult {
+    match child {
         Ok(child) => HostCmdSpawnResult {
             tag: HostCmdSpawnResultTag::Ok,
             payload: HostCmdSpawnResultPayload {
@@ -452,8 +457,19 @@ pub extern "C" fn hosted_cmd_spawn(cmd: HostCmdSpawnArgs) -> HostCmdSpawnResult 
     }
 }
 #[no_mangle]
+pub extern "C" fn hosted_cmd_spawn(cmd: HostCmdSpawnArgs) -> HostCmdSpawnResult {
+    spawn_result(managed_spawn(normalize_command!(cmd), false, false))
+}
+/// Like [hosted_cmd_spawn] but leashed: the child joins a watchdog-led group
+/// so it cannot outlive this host even on Ctrl+C, a crash, or kill -9. See
+/// [`crate::leash`]. Forced to `manage_tree` on the Roc side.
+#[no_mangle]
+pub extern "C" fn hosted_cmd_spawn_leashed(cmd: HostCmdSpawnLeashedArgs) -> HostCmdSpawnLeashedResult {
+    spawn_result(managed_spawn(normalize_command!(cmd), false, true))
+}
+#[no_mangle]
 pub extern "C" fn hosted_cmd_run(cmd: HostCmdRunArgs) -> HostCmdRunResult {
-    run_result(managed_spawn(normalize_command!(cmd), true).and_then(|child| child.wait()))
+    run_result(managed_spawn(normalize_command!(cmd), true, false).and_then(|child| child.wait()))
 }
 #[no_mangle]
 pub extern "C" fn hosted_child_pid(handle: *mut u64) -> HostChildPidResult {

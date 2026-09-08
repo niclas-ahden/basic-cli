@@ -142,6 +142,7 @@ Host :: [].{
 	CmdRunResult : { exit_code : I32, signal : I32, stdout_bytes : List(U8), stderr_bytes : List(U8), failure : U8 }
 	ChildEvent : { stream : U8, bytes : List(U8) }
 	cmd_spawn! : Cmd => Try(Child, IOErr)
+	cmd_spawn_leashed! : Cmd => Try(Child, IOErr)
 	cmd_run! : Cmd => Try(CmdRunResult, IOErr)
 	child_pid! : Child => Try(U32, IOErr)
 	child_wait! : Child => Try(CmdRunResult, IOErr)

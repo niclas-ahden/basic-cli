@@ -87,6 +87,7 @@ platform ""
 		"hosted_env_create_temp_dir": Host.env_create_temp_dir!,
 		"hosted_monotonic_now": Host.monotonic_now!,
 		"hosted_cmd_spawn": Host.cmd_spawn!,
+		"hosted_cmd_spawn_leashed": Host.cmd_spawn_leashed!,
 		"hosted_cmd_run": Host.cmd_run!,
 		"hosted_child_pid": Host.child_pid!,
 		"hosted_child_wait": Host.child_wait!,
