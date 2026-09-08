@@ -3,7 +3,7 @@
 ## down when this program ends, including on the deaths that skip cleanup such
 ## as Ctrl+C, a crash, or `kill -9`. Use it for a server or driver you
 ## supervise, so a cancelled run never leaves a stray behind.
-app [main!] { pf: platform "../platform/main.roc" }
+app [main!] { pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.25.0/EsdzLgcAyudLYkMqiHXGuq2xMhPhoP1GRQWb14jZxZbY.tar.zst" }
 
 import pf.Cmd
 import pf.OsStr exposing [OsStr]
