@@ -20,6 +20,7 @@ jobs:
   rust-version:
     name: read Rust version
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.read.outputs.version }}
     steps:
@@ -32,6 +33,7 @@ jobs:
   release-info:
     name: Validate release request
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       release_version: ${{ steps.validate.outputs.release_version }}
       docs_version: ${{ steps.validate.outputs.docs_version }}
@@ -63,6 +65,7 @@ jobs:
     name: Build Windows x64 host
     needs: [rust-version, release-info]
     runs-on: windows-2025
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -99,6 +102,8 @@ jobs:
     # macOS cross-compiles the Apple and Linux musl hosts. Windows is built
     # natively above because the Rust dependencies require the Windows SDK.
     runs-on: macos-15
+    # Cold compiler cache costs up to 21 minutes, the suite itself a few more.
+    timeout-minutes: 60
     outputs:
       release_version: ${{ needs.release-info.outputs.release_version }}
       docs_version: ${{ needs.release-info.outputs.docs_version }}
@@ -202,6 +207,7 @@ jobs:
     name: Test ${{ matrix.bundle_name }} bundle (${{ matrix.os }})
     needs: [rust-version, build]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -251,6 +257,7 @@ jobs:
     name: Build docs archive
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -307,6 +314,7 @@ jobs:
       - test-bundles
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
       pull-requests: write
@@ -388,6 +396,7 @@ jobs:
       - publish-release
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: write
       pull-requests: write

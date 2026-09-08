@@ -18,6 +18,7 @@ jobs:
   rust-version:
     name: read Rust version
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       version: ${{ steps.read.outputs.version }}
     steps:
@@ -31,6 +32,8 @@ jobs:
     name: validate sources
     needs: rust-version
     runs-on: ubuntu-24.04
+    # Generous enough for a cold compiler cache, which costs up to 21 minutes.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # ratchet:mlugg/setup-zig@v2.0.5
@@ -58,6 +61,7 @@ jobs:
     name: validate sources (windows)
     needs: rust-version
     runs-on: windows-2025
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427 # ratchet:roc-lang/setup-roc@v0.3.0
@@ -98,6 +102,7 @@ jobs:
             os: windows-2025
             rust_target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - name: Install Zig
@@ -150,6 +155,8 @@ jobs:
             os: windows-2025
             valgrind: false
     runs-on: ${{ matrix.os }}
+    # No compiler build here, only prebuilt binaries and their spec cases.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: Install Rust toolchain
