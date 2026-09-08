@@ -100,6 +100,10 @@ platform ""
 		"hosted_tcp_local_port": Host.tcp_local_port!,
 		"hosted_tcp_accept": Host.tcp_accept!,
 		"hosted_tcp_listener_close": Host.tcp_listener_close!,
+		"hosted_tcp_pool_create": Host.tcp_pool_create!,
+		"hosted_tcp_pool_acquire": Host.tcp_pool_acquire!,
+		"hosted_tcp_pool_release": Host.tcp_pool_release!,
+		"hosted_tcp_shutdown": Host.tcp_shutdown!,
 	}
 	targets: {
 		inputs_dir: "targets/",

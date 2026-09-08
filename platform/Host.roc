@@ -157,4 +157,11 @@ Host :: [].{
 	tcp_local_port! : TcpListener => Try(U16, Str)
 	tcp_accept! : TcpListener, U64 => Try(TcpStream, Str)
 	tcp_listener_close! : TcpListener => Try({}, Str)
+
+	## A host-managed pool of TCP connections (see `Tcp.Pool`).
+	TcpPool :: Box(U64)
+	tcp_pool_create! : Str, U16, U64 => TcpPool
+	tcp_pool_acquire! : TcpPool => Try({ fresh : Bool, metadata : List(U8), stream : TcpStream }, Str)
+	tcp_pool_release! : TcpStream, Bool, List(U8) => {}
+	tcp_shutdown! : TcpStream => {}
 }

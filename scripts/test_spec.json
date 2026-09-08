@@ -385,6 +385,20 @@
       ]
     },
     {
+      "path": "examples/tcp-pool.roc",
+      "cases": [
+        {
+          "name": "server-available",
+          "helper": "tcp",
+          "contains": [
+            "echo said: hello pool",
+            "echo said: still the same conn",
+            "tcp pool ok"
+          ]
+        }
+      ]
+    },
+    {
       "path": "examples/temp-dir.roc",
       "cases": [{ "name": "happy", "regex": ["The temp dir path is .+"] }]
     },
