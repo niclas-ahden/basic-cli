@@ -4,7 +4,7 @@
 ## exit, including a crash or an outside TerminateProcess.
 ## examples/command-leashed.roc covers the same ground with Unix commands;
 ## this one runs only on Windows.
-app [main!] { pf: platform "../platform/main.roc" }
+app [main!] { pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.25.0/EsdzLgcAyudLYkMqiHXGuq2xMhPhoP1GRQWb14jZxZbY.tar.zst" }
 
 import pf.Cmd
 import pf.OsStr exposing [OsStr]
