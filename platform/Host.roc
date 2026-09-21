@@ -165,4 +165,6 @@ Host :: [].{
 	tcp_pool_acquire! : TcpPool => Try({ fresh : Bool, metadata : List(U8), stream : TcpStream }, Str)
 	tcp_pool_release! : TcpStream, Bool, List(U8) => {}
 	tcp_shutdown! : TcpStream => {}
+
+	env_program_name! : () => Try(NativeOsStr, [ProgramNameUnavailable])
 }

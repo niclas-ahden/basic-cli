@@ -2,6 +2,8 @@
 ## SQLite, environment, random, and UTC effects.
 platform ""
 	requires {
+		## The application entry point receives command-line arguments only; the
+		## launcher-supplied program name is available from Env.program_name!.
 		main! : List([Utf8(Str), UnixBytes(List(U8)), WindowsU16s(List(U16))]) => Try({}, [Exit(I32), ..])
 	}
 	exposes [Cmd, Env, File, Http, IOErr, Locale, Monotonic, OsStr, Path, Random, Sleep, Sqlite, Stdin, Stdout, Stderr, Tcp, Tty, Url, Utc]
@@ -105,6 +107,7 @@ platform ""
 		"hosted_tcp_pool_acquire": Host.tcp_pool_acquire!,
 		"hosted_tcp_pool_release": Host.tcp_pool_release!,
 		"hosted_tcp_shutdown": Host.tcp_shutdown!,
+		"hosted_env_program_name": Host.env_program_name!,
 	}
 	targets: {
 		inputs_dir: "targets/",
@@ -137,6 +140,8 @@ import Tty
 import Url
 import Utc
 
+## The native host removes the invocation name (argv[0]) before calling this
+## function. Applications can read that value separately with Env.program_name!.
 main_for_host! : List(OsStr.OsStr) => I32
 main_for_host! = |args|
 	match main!(args) {

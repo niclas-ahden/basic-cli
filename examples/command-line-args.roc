@@ -2,13 +2,16 @@
 app [main!] { pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.25.0/EsdzLgcAyudLYkMqiHXGuq2xMhPhoP1GRQWb14jZxZbY.tar.zst" }
 
 import pf.OsStr
+import pf.Env
 import pf.Stdout
 import pf.Stderr
 
 main! : List(OsStr) => Try({}, _)
 main! = |args| {
-	# Skip first arg (executable path), get the remaining args
-	match args.drop_first(1) {
+	program_name = Env.program_name!()?
+	Stdout.line!("program name: ${OsStr.display(program_name)}")?
+
+	match args {
 		[first_arg, ..] => {
 
 			Stdout.line!("received argument: ${OsStr.display(first_arg)}")?
