@@ -116,10 +116,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
-        with:
-          version: nightly-new-compiler
-          nightly-tag: nightly-2026-09-04-c125b82
+        uses: ./.github/actions/setup-roc-pinned
 
       - name: Install Zig
         uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f
@@ -218,10 +215,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
-        with:
-          version: nightly-new-compiler
-          nightly-tag: nightly-2026-09-04-c125b82
+        uses: ./.github/actions/setup-roc-pinned
 
       - name: Install Rust
         shell: bash
@@ -264,10 +258,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
-        with:
-          version: nightly-new-compiler
-          nightly-tag: nightly-2026-09-04-c125b82
+        uses: ./.github/actions/setup-roc-pinned
 
       - name: Create docs staging tree
         run: mkdir -p docs-site
@@ -414,10 +405,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Roc
-        uses: roc-lang/setup-roc@bd311e2fb815a3d2255f7ee14a922f0b736e020b
-        with:
-          version: nightly-new-compiler
-          nightly-tag: nightly-2026-09-04-c125b82
+        uses: ./.github/actions/setup-roc-pinned
 
       - name: Download release metadata
         uses: actions/download-artifact@v8

@@ -24,12 +24,11 @@
   };
 
   outputs =
-    {
-      nixpkgs,
-      nixpkgs-x86-darwin,
-      roc-nix,
-      rust-overlay,
-      ...
+    { nixpkgs
+    , nixpkgs-x86-darwin
+    , roc-nix
+    , rust-overlay
+    , ...
     }:
     let
       inherit (nixpkgs) lib;
