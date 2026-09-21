@@ -30,23 +30,20 @@ runs:
         fi
         echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-    # A build takes 12-21 minutes depending on the runner, so cache the result.
-    # The key covers the commit and the runner, and the compiler is immutable
-    # for a given commit, so a hit is always safe to reuse.
+    # A build takes 12-41 minutes depending on the runner (the Intel macOS
+    # runners are the slowest), so cache the result. The key covers the commit
+    # and the runner, and the compiler is immutable for a given commit, so a hit
+    # is always safe to reuse. Restore and save are separate steps so the cache
+    # is written as soon as the compiler is built. With a plain actions/cache
+    # the save only runs when the whole job succeeds, so a job that failed or
+    # timed out later threw a finished 41 minute build away.
     - name: Restore cached Roc
       id: cache
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         path: .roc-bin
         key: roc-${{ runner.os }}-${{ runner.arch }}-${{ steps.pin.outputs.sha }}
 
-    # This must come BEFORE the MSVC setup below. Writing to GITHUB_PATH makes
-    # the runner rebuild PATH from its own tracked value, which discards the
-    # Path that msvc-dev-cmd exports through GITHUB_ENV. Doing it afterwards
-    # dropped the MSVC toolchain off PATH, so a later `cargo build` resolved
-    # `link` to Git Bash's coreutils `link` instead of MSVC's `link.exe` and
-    # failed with "extra operand". The directory does not exist yet at this
-    # point, which is fine: it is created before anything needs it.
     - name: Put Roc on PATH
       shell: bash
       run: echo "$GITHUB_WORKSPACE/.roc-bin" >> "$GITHUB_PATH"
@@ -66,11 +63,6 @@ runs:
         version: ${{ inputs.zig-version }}
         use-cache: true
 
-    # Building the compiler on Windows needs the MSVC environment.
-    - name: Setup MSVC
-      if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Windows'
-      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # ratchet:ilammy/msvc-dev-cmd@v1.13.0
-
     # Mirrors the workaround in roc-lang/nightlies: a stray llvm-config on the
     # arm64 Linux images gets picked up and breaks the build.
     - name: Remove conflicting llvm-config
@@ -81,7 +73,7 @@ runs:
     # Fetching the Zig dependency tarballs is flaky enough that roc-lang/roc
     # wraps this same command in a retry action, so retry here too.
     - name: Build Roc
-      if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true' && runner.os != 'Windows'
       shell: bash
       working-directory: .roc-src
       run: |
@@ -95,6 +87,31 @@ runs:
         done
         echo "Roc build failed after 3 attempts" >&2
         exit 1
+
+    # Building the compiler on Windows needs the MSVC environment, so load it
+    # with vcvars inside this one step. Do NOT use msvc-dev-cmd here: it exports
+    # the environment to every later step of the job, and its VCINSTALLDIR tells
+    # rustc it is already inside a Visual Studio shell, so rustc takes the first
+    # `link.exe` on PATH instead of locating MSVC itself. That was Git Bash's
+    # coreutils `link`, and every later `cargo build` failed with
+    # "extra operand". Only jobs that missed the cache hit it.
+    - name: Build Roc (Windows)
+      if: steps.cache.outputs.cache-hit != 'true' && runner.os == 'Windows'
+      shell: cmd
+      working-directory: .roc-src
+      run: |
+        set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+        for /f "usebackq delims=" %%i in (`"%VSWHERE%" -latest -products * -property installationPath`) do set "VSPATH=%%i"
+        if not defined VSPATH (echo Visual Studio not found & exit /b 1)
+        call "%VSPATH%\VC\Auxiliary\Build\${{ runner.arch == 'ARM64' && 'vcvarsarm64.bat' || 'vcvars64.bat' }}" || exit /b 1
+        set attempt=0
+        :retry
+        set /a attempt+=1
+        zig build build-release && exit /b 0
+        if %attempt% GEQ 3 (echo Roc build failed after 3 attempts & exit /b 1)
+        echo Roc build attempt %attempt% failed
+        powershell -NoProfile -Command "Start-Sleep -Seconds 15"
+        goto retry
 
     # Lay the binary out the way the published nightlies do. On macOS the
     # compiler looks for a 'darwin' sysroot directory next to the executable
@@ -114,6 +131,13 @@ runs:
         # otherwise sit inside this repo's workspace, where the build and test
         # scripts run. Drop it once the binary has been extracted.
         rm -rf .roc-src
+
+    - name: Save Roc to the cache
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: .roc-bin
+        key: ${{ steps.cache.outputs.cache-primary-key }}
 
     - name: Show Roc version
       shell: bash

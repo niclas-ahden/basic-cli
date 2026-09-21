@@ -32,8 +32,9 @@ jobs:
     name: validate sources
     needs: rust-version
     runs-on: ubuntu-24.04
-    # Generous enough for a cold compiler cache, which costs up to 21 minutes.
-    timeout-minutes: 45
+    # Generous enough to build the pinned Roc on a cold cache, which takes up to
+    # 41 minutes on the Intel macOS runners.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
       - uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # ratchet:mlugg/setup-zig@v2.0.5
@@ -58,7 +59,7 @@ jobs:
     name: validate sources (macos)
     needs: rust-version
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-roc-pinned
@@ -76,7 +77,7 @@ jobs:
     name: validate sources (windows)
     needs: rust-version
     runs-on: windows-2025
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-roc-pinned
@@ -114,7 +115,7 @@ jobs:
             os: windows-2025
             rust_target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
       - name: Install Zig

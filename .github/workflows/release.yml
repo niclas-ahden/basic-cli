@@ -204,7 +204,7 @@ jobs:
     name: Test ${{ matrix.bundle_name }} bundle (${{ matrix.os }})
     needs: [rust-version, build]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -251,7 +251,7 @@ jobs:
     name: Build docs archive
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
       - name: Checkout
@@ -387,7 +387,7 @@ jobs:
       - publish-release
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     permissions:
       contents: write
       pull-requests: write
