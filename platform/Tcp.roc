@@ -198,7 +198,7 @@ Tcp :: [].{
 	## Every acquired stream should be either released with [Tcp.pool_release!]
 	## (to be reused) or dropped or closed with [Tcp.close!]. A dropped stream
 	## frees its pool slot when the last reference goes away.
-	pool_acquire! : Pool => Try({ stream : Stream, fresh : Bool, metadata : List(U8) }, [TcpConnectErr(ConnectErr), ..])
+	pool_acquire! : Pool => Try({ stream : Stream, fresh : Bool, metadata : List(U8) }, [TcpConnectErr(ConnectErr)])
 	pool_acquire! = |pool|
 		match Host.tcp_pool_acquire!(pool.host) {
 			Ok(acquired) => Ok({ stream: Stream.{ host: acquired.stream }, fresh: acquired.fresh, metadata: acquired.metadata })
