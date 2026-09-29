@@ -11,7 +11,6 @@ import http.Request
 
 main! : List(OsStr) => Try({}, _)
 main! = |_args| {
-
 	hello_str = Http.get_utf8!("http://127.0.0.1:9000/utf8test") ? |err| GetUtf8Failed(err)
 	Stdout.line!("I received '${hello_str}' from the server.")?
 

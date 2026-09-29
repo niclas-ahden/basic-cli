@@ -478,7 +478,7 @@ flatten_arg_pairs = |pairs, acc, idx| {
 				flatten_arg_pairs(pairs, acc.append(pair.0).append(pair.1), idx + 1)
 			Err(_) =>
 				acc
-			}
+		}
 	}
 }
 
@@ -533,7 +533,7 @@ path_dirs = |path_value, is_windows|
 			split_on(u16s, if is_windows ';' else ':')
 				.keep_if(|segment| !List.is_empty(segment))
 				.map(Path.windows_u16s)
-		}
+	}
 
 ## Split a list into segments on a separator element (segments may be empty).
 split_on : List(a), a -> List(List(a)) where [a.is_eq : a, a -> Bool]
@@ -568,7 +568,7 @@ search_dirs! = |dirs, command, extensions, is_windows|
 			} else {
 				search_dirs!(rest, command, extensions, is_windows)
 			}
-		}
+	}
 
 search_extensions! : Path, Str, List(Str), Bool => Bool
 search_extensions! = |dir, command, extensions, is_windows|
@@ -580,7 +580,7 @@ search_extensions! = |dir, command, extensions, is_windows|
 			} else {
 				search_extensions!(dir, command, rest, is_windows)
 			}
-		}
+	}
 
 ## Whether a specific candidate path is runnable: on Windows it must exist, on
 ## Unix it must carry an executable bit. Either way a directory is rejected,
