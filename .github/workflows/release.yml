@@ -157,18 +157,21 @@ jobs:
         with:
           github_token: ${{ github.token }}
 
-      # Bootstrap exception: 0.20.0 is a .tar.br bundle in old Roc syntax and
-      # alpha-0 is also no longer parseable, so current `roc bump` cannot compare
-      # either predecessor. Change this to `require` after the first stable
-      # new-compiler .tar.zst release.
+      # 0.22.2 publicly aliases InternalHttp.TransportErr; roc bump currently
+      # rejects that alias during API extraction. Keep warning until the compiler
+      # can compare it, and bound the check so a compiler hang cannot block release.
       - name: Check version bump
-        uses: roc-lang/release-package/actions/run-bump-check@af2f0cd8662874b825ff3917f4286e793ba18c55
-        with:
-          release_version: ${{ needs.release-info.outputs.release_version }}
-          dry_run: ${{ github.event_name != 'workflow_dispatch' }}
-          bump_check: warn
-          bump_entrypoint: platform/main.roc
-          previous_url: ${{ steps.previous.outputs.previous_url }}
+        env:
+          RELEASE_VERSION: ${{ needs.release-info.outputs.release_version }}
+          DRY_RUN: ${{ github.event_name != 'workflow_dispatch' }}
+          PREVIOUS_URL: ${{ steps.previous.outputs.previous_url }}
+        run: |
+          python3 scripts/check_version_bump.py \
+            --version "$RELEASE_VERSION" \
+            --dry-run "$DRY_RUN" \
+            --mode warn \
+            --previous-url "$PREVIOUS_URL" \
+            --timeout-seconds 120
 
       - name: Bundle platform
         run: ./scripts/bundle.py --output-dir dist
@@ -364,7 +367,31 @@ jobs:
         with:
           name: platform-docs
 
-      - name: Make release notes
+      - name: Select release notes
+        id: release-notes
+        env:
+          RELEASE_VERSION: ${{ needs.build.outputs.release_version }}
+        run: |
+          if [[ -f "docs/releases/${RELEASE_VERSION}.md" ]]; then
+            echo "custom=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "custom=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Use repository release notes
+        if: steps.release-notes.outputs.custom == 'true'
+        uses: roc-lang/release-package/actions/make-release-notes@af2f0cd8662874b825ff3917f4286e793ba18c55
+        with:
+          release_version: ${{ needs.build.outputs.release_version }}
+          release_notes_command: >-
+            python3 scripts/render_release_notes.py
+            "docs/releases/${RELEASE_VERSION}.md" "$RELEASE_NOTES_PATH"
+            --repo "$GITHUB_REPOSITORY"
+            --version "$RELEASE_VERSION"
+            --bundles "$RELEASE_BUNDLES_PATH"
+
+      - name: Generate release notes
+        if: steps.release-notes.outputs.custom != 'true'
         uses: roc-lang/release-package/actions/make-release-notes@af2f0cd8662874b825ff3917f4286e793ba18c55
         with:
           release_version: ${{ needs.build.outputs.release_version }}
@@ -413,7 +440,7 @@ jobs:
           name: release-metadata
           path: .release
 
-      - name: Derive release bundle URL and update examples
+      - name: Derive release bundle URL and update examples and Nix pins
         env:
           RELEASE_VERSION: ${{ needs.build.outputs.release_version }}
         run: |
@@ -436,6 +463,9 @@ jobs:
           ./scripts/update_app_platform_urls.py \
             --platform-url "$bundle_url" \
             examples
+          python3 scripts/update_nix_release.py \
+            --version "$RELEASE_VERSION" \
+            --url "$bundle_url"
 
       - name: Validate updated examples
         run: |
@@ -517,6 +547,7 @@ jobs:
             Cargo.toml
             Cargo.lock
             examples
+            nix/release.json
           branch_prefix: release-followup
           base_branch: ${{ github.event.repository.default_branch }}
           commit_message: Update sources for ${{ needs.build.outputs.release_version }}
@@ -524,6 +555,6 @@ jobs:
           pr_body: |
             Release follow-up for ${{ needs.build.outputs.release_version }}.
 
-            Updates the Cargo package version and checked-in examples to match
-            the published platform release.
+            Updates the Cargo package version, checked-in examples, and Nix
+            release pins to match the published platform release.
           github_token: ${{ github.token }}

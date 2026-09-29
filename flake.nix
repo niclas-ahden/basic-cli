@@ -1,5 +1,5 @@
 {
-  description = "basic-cli development environment";
+  description = "basic-cli release platform and development environment";
 
   nixConfig = {
     extra-substituters = [ "https://niclas-ahden.cachix.org" ];
@@ -62,9 +62,18 @@
           inherit system;
           overlays = [ rust-overlay.overlays.default ];
         };
+      releaseFor =
+        system:
+        import ./nix/release.nix {
+          pkgs = pkgsFor system;
+          compiler = roc-nix.packages.${system}.roc;
+        };
     in
     {
       formatter = forAllSystems (system: (pkgsFor system).nixfmt);
+
+      packages = forAllSystems (system: (releaseFor system).packages);
+      checks = forAllSystems (system: (releaseFor system).checks);
 
       devShells = forAllSystems (
         system:

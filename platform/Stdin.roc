@@ -28,7 +28,10 @@ Stdin :: [].{
 	read_to_end! = || widen_stdin_err(Host.stdin_read_to_end!())
 }
 
-widen_stdin_eof_err : Try(a, [EndOfFile, StdinErr(IOErr)]) -> Try(a, [EndOfFile, StdinErr(IOErr)])
+## Rebuild the error union so it is open at call sites.
+## Passing a hosted function's result straight through leaves the union closed,
+## which stops `?` from combining it with other error types.
+widen_stdin_eof_err : Try(v, [EndOfFile, StdinErr(IOErr)]) -> Try(v, [EndOfFile, StdinErr(IOErr)])
 widen_stdin_eof_err = |result|
 	match result {
 		Ok(value) => Ok(value)
@@ -36,7 +39,7 @@ widen_stdin_eof_err = |result|
 		Err(StdinErr(err)) => Err(StdinErr(err))
 	}
 
-widen_stdin_err : Try(a, [StdinErr(IOErr)]) -> Try(a, [StdinErr(IOErr)])
+widen_stdin_err : Try(v, [StdinErr(IOErr)]) -> Try(v, [StdinErr(IOErr)])
 widen_stdin_err = |result|
 	match result {
 		Ok(value) => Ok(value)

@@ -28,7 +28,10 @@ Stdout :: [].{
 	write_bytes! = |bytes| widen_stdout_err(Host.stdout_write_bytes!(bytes))
 }
 
-widen_stdout_err : Try(a, [StdoutErr(IOErr)]) -> Try(a, [StdoutErr(IOErr)])
+## Rebuild the error union so it is open at call sites.
+## Passing a hosted function's result straight through leaves the union closed,
+## which stops `?` from combining it with other error types.
+widen_stdout_err : Try(v, [StdoutErr(IOErr)]) -> Try(v, [StdoutErr(IOErr)])
 widen_stdout_err = |result|
 	match result {
 		Ok(value) => Ok(value)

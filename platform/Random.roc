@@ -13,7 +13,10 @@ Random :: [].{
 	seed_u32! = || widen_random_err(Host.random_seed_u32!())
 }
 
-widen_random_err : Try(a, [RandomErr(IOErr)]) -> Try(a, [RandomErr(IOErr)])
+## Rebuild the error union so it is open at call sites.
+## Passing a hosted function's result straight through leaves the union closed,
+## which stops `?` from combining it with other error types.
+widen_random_err : Try(v, [RandomErr(IOErr)]) -> Try(v, [RandomErr(IOErr)])
 widen_random_err = |result|
 	match result {
 		Ok(value) => Ok(value)
