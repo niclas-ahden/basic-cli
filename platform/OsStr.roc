@@ -43,9 +43,9 @@ OsStr := [
 	from_interpolation = |first, rest|
 		Utf8(rest.fold(first, |acc, (interpolated, segment)| acc.concat(interpolated).concat(segment)))
 
-	## TODO: Restore generic parser_for and encoder_for helpers when the compiler
-	## no longer treats auto-derived `_` declarations in platforms as hosted:
-	## https://github.com/roc-lang/roc/issues/10162
+	## Parse and encode every OS string representation as a lossless tagged value.
+	parser_for : _
+	encoder_for : _
 
 	## Convert an OS string to a string if its raw representation is valid text.
 	to_str_try : OsStr -> Try(Str, [InvalidStr(U64)])
@@ -268,3 +268,11 @@ expect OsStr.to_bytes(OsStr.unix("abc")) == [97, 98, 99]
 expect OsStr.to_bytes(OsStr.unix_bytes([97, 255, 98])) == [97, 255, 98]
 expect OsStr.to_bytes(OsStr.windows("abc")) == [97, 98, 99]
 expect OsStr.to_bytes(OsStr.windows_u16s([0xD800, 97])) == [0xEF, 0xBF, 0xBD, 97]
+
+## Generic codecs roundtrip non-text representations without loss.
+expect {
+	original = OsStr.windows_u16s([0xD800, 97])
+	decoded : Try(OsStr, _)
+	decoded = Json.parse(Json.to_str(original))
+	decoded == Ok(original)
+}

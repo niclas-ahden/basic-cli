@@ -241,9 +241,10 @@ Path := [
 	from_interpolation = |first, rest|
 		Utf8(rest.fold(first, |acc, (interpolated, segment)| acc.concat(interpolated).concat(segment)))
 
-	## TODO: Restore generic parser_for and encoder_for helpers when the compiler
-	## no longer treats auto-derived `_` declarations in platforms as hosted:
-	## https://github.com/roc-lang/roc/issues/10162
+	## TODO: Add parser_for and encoder_for that go through the lossless raw shape.
+	## Since roc-lang/roc#11769 a method can call another type's derived (`_`)
+	## codec, but a parser_for that does so fails to type-check once the value
+	## sits in a list or a record (roc-lang/roc#11838).
 
 	## Create a Unix path from a Roc string by storing its UTF-8 bytes.
 	unix : Str -> Path

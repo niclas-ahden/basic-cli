@@ -58,17 +58,13 @@ query_todos_by_status! = |db_path, status|
 		rows: decode_todo,
 	})
 
-# A row decoder is `List(Str) -> (Stmt => Try(a, err))`; the new compiler does not
-# support the old record-builder (`<-`) sugar, so we combine the leaf decoders by hand.
+# A row decoder is `List(Str) -> (Stmt => Try(a, err))`. It combines the leaf decoders by hand.
 decode_todo = |cols|
 	|stmt| {
 		id = Sqlite.i64("id")(cols)(stmt)?
 		task = Sqlite.str("task")(cols)(stmt)?
-		status_str = Sqlite.str("status")(cols)(stmt)?
-		match decode_todo_status(status_str) {
-			Ok(status) => Ok({ id: I64.to_str(id), task, status })
-			Err(ParseError(message)) => Err(ParseError(message))
-		}
+		status = decode_todo_status(Sqlite.str("status")(cols)(stmt)?)?
+		Ok({ id: I64.to_str(id), task, status })
 	}
 
 TodoStatus : [Todo, Completed, InProgress]

@@ -70,11 +70,7 @@ reject_invalid_json! = || {
 
 	match result {
 		Err(JsonErr(_)) => write_line!("invalid JSON was rejected.")
-		# WORKAROUND: Passing `err` on as is makes `roc build` panic with
-		# "instantiation widened a closed tag union", so it goes through
-		# Str.inspect for now. Once https://github.com/roc-lang/roc/issues/11528
-		# is fixed, this should be `Err(err) => Err(InvalidJsonRejectedWithWrongError(err))`.
-		Err(err) => Err(InvalidJsonRejectedWithWrongError(Str.inspect(err)))
+		Err(err) => Err(InvalidJsonRejectedWithWrongError(err))
 		Ok(_) => Err(InvalidJsonUnexpectedlySucceeded)
 	}
 }

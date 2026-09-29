@@ -2,15 +2,9 @@ import InternalSqlite
 import Host
 import Path
 
-# Porting notes for the new (zig) compiler: the decoder combinator API is written
-# with fully-literal nested lambdas (`|name| |cols| |stmt| ...`) and relies on
-# structural type inference. This is deliberate — the current compiler (a) treats
-# an associated member whose body returns a function via a non-lambda expression as
-# a hosted declaration, and (b) does not unify an associated `:` type alias (e.g.
-# `Value`) with the structural tag union it aliases when used as a function
-# parameter, nor support open tag-union extension (`[Tag]ext`) in annotations. So
-# the decoders are left unannotated and all decoder errors live in one closed set
-# of tags (see DecodeErr below for the documented shape).
+# The decoder combinators are fully literal nested lambdas (`|name| |cols| |stmt| ...`)
+# without annotations, so each decoder infers its error tags structurally.
+# DecodeErr below documents the set.
 ## Execute SQLite statements and decode rows using either one-shot or reusable
 ## prepared APIs. Application code works with the public `Value`, `Binding`,
 ## `Stmt`, and `ErrCode` types below; raw host ABI records remain internal.
@@ -517,8 +511,7 @@ code_from_i64 = |code|
 
 ## A row decoder written the way an application writes one.
 ## The compiler has to settle its type right here, before `query_many!`
-## ever gets to say what `cols` is. Each call infers the type of `cols` separately,
-## and since roc-lang/roc#10984 these types are no longer resolved together.
+## ever gets to say what `cols` is. Each call infers the type of `cols` separately.
 ##
 ## The test is successful if this snippet compiles.
 expect {

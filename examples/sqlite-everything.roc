@@ -39,7 +39,7 @@ run! = || {
 
 	print_line!("All Todos:")?
 	for t in all_todos {
-		print_line!("    id: ${I64.to_str(t.id)}, task: ${t.task}, status: ${status_to_str(t.status)}, edited: ${edited_to_str(decode_edited(t.edited_val))}")?
+		print_line!("    id: ${I64.to_str(t.id)}, task: ${t.task}, status: ${status_to_str(t.status)}, edited: ${edited_to_str(t.edited)}")?
 	}
 
 	# Keep a runtime-allocated string live after binding it. This guards against
@@ -194,33 +194,22 @@ run! = || {
 print_line! : Str => Try({}, _)
 print_line! = |s| Stdout.line!(s)
 
-# Decode every column of the todos table. The nullable `edited` column is returned
-# raw (`[NotNull(I64), Null]`) and interpreted by `decode_edited` at the call site:
-# decoding both `status` (via `?`) and `edited` inside this nested decoder lambda
-# currently panics the type checker, so we keep only one interpreting `?` here.
+# Decode every column of the todos table.
 decode_full_todo = |cols|
 	|stmt| {
 		id = Sqlite.i64("id")(cols)(stmt)?
 		task = Sqlite.str("task")(cols)(stmt)?
-		status_str = Sqlite.str("status")(cols)(stmt)?
-		match decode_status(status_str) {
-			Ok(status) => {
-				edited_val = Sqlite.nullable_i64("edited")(cols)(stmt)?
-				Ok({ id, task, status, edited_val })
-			}
-			Err(ParseError(message)) => Err(ParseError(message))
-		}
+		status = decode_status(Sqlite.str("status")(cols)(stmt)?)?
+		edited = decode_edited(Sqlite.nullable_i64("edited")(cols)(stmt)?)
+		Ok({ id, task, status, edited })
 	}
 
 # Decode just the task and status columns.
 decode_task_status = |cols|
 	|stmt| {
 		task = Sqlite.str("task")(cols)(stmt)?
-		status_str = Sqlite.str("status")(cols)(stmt)?
-		match decode_status(status_str) {
-			Ok(status) => Ok({ task, status })
-			Err(ParseError(message)) => Err(ParseError(message))
-		}
+		status = decode_status(Sqlite.str("status")(cols)(stmt)?)?
+		Ok({ task, status })
 	}
 
 TodoStatus : [Todo, Completed, InProgress]
