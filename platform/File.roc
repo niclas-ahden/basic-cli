@@ -1,6 +1,6 @@
 import Host
 import Path
-import IOErr exposing [IOErr]
+import IOErr
 
 ## Read file bytes incrementally and seek within files.
 ##

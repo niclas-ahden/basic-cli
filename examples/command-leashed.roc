@@ -6,7 +6,7 @@
 app [main!] { pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.26.0/EuuihZ91yAY1ANck1QytRBcW2jexEfH6yVmxcPCHEHDz.tar.zst" }
 
 import pf.Cmd
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Stdout
 
 main! : List(OsStr) => Try({}, _)

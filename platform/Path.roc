@@ -1,6 +1,6 @@
-import IOErr exposing [IOErr]
+import IOErr
 import Host
-import OsStr exposing [OsStr]
+import OsStr
 
 path_type_from_host : Host.PathType -> [IsFile, IsDir, IsSymLink, IsOther]
 path_type_from_host = |path_type|
