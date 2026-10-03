@@ -8,6 +8,7 @@ use std::ffi::CStr;
 use std::ffi::{c_char, c_void, OsStr as StdOsStr, OsString};
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read, Write};
+use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
@@ -2182,7 +2183,7 @@ pub extern "C" fn hosted_utc_now() -> HostUtcNowResult {
 }
 
 #[no_mangle]
-pub extern "C" fn roc_alloc(length: usize, alignment: usize) -> *mut c_void {
+pub extern "C" fn roc_alloc(length: usize, alignment: usize) -> NonNull<c_void> {
     DefaultAllocators::roc_alloc(roc_host_ptr(), length, alignment)
 }
 
@@ -2196,7 +2197,7 @@ pub extern "C" fn roc_realloc(
     ptr: *mut c_void,
     new_length: usize,
     alignment: usize,
-) -> *mut c_void {
+) -> NonNull<c_void> {
     DefaultAllocators::roc_realloc(roc_host_ptr(), ptr, new_length, alignment)
 }
 
