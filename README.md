@@ -9,6 +9,19 @@ A Roc [platform](https://github.com/roc-lang/roc/wiki/Roc-concepts-explained#pla
 
 `basic-cli` supports command execution, directories, environment variables, files, HTTP, locales, paths, random seeds, sleeping, SQLite, standard input/output/error, TCP, terminal raw mode, and UTC time.
 
+## Usage
+
+```roc
+app [main!] { pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.28.0/AP9SGT1yrhCKcFxKcoA5tBkNCM6ibBjBxcQGMTb6krev.tar.zst" }
+
+import pf.Stdout
+
+main! = |_args| {
+    Stdout.line!("Hello, World!")?
+    Ok({})
+}
+```
+
 ## Supported targets
 
 The platform builds and runs on these targets in CI:
