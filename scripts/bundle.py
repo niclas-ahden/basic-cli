@@ -28,7 +28,8 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     output_dir = output_dir.resolve()
 
-    roc_files = sorted(PLATFORM_DIR.glob("*.roc"))
+    # `roc bundle` builds its first .roc file as the entry, so main.roc leads.
+    roc_files = sorted(PLATFORM_DIR.glob("*.roc"), key=lambda path: (path.name != "main.roc", path.name))
     library_files = sorted(
         path
         for path in (PLATFORM_DIR / "targets").rglob("*")
