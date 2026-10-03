@@ -3,7 +3,7 @@
 ## down when this program ends, including on the deaths that skip cleanup such
 ## as Ctrl+C, a crash, or `kill -9`. Use it for a server or driver you
 ## supervise, so a cancelled run never leaves a stray behind.
-app [main!] { pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.26.0/EuuihZ91yAY1ANck1QytRBcW2jexEfH6yVmxcPCHEHDz.tar.zst" }
+app [main!] { pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.28.0/AP9SGT1yrhCKcFxKcoA5tBkNCM6ibBjBxcQGMTb6krev.tar.zst" }
 
 import pf.Cmd
 import pf.OsStr
