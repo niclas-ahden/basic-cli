@@ -1,10 +1,10 @@
 {
-  "version": "0.23.0",
-  "url": "https://github.com/roc-lang/basic-cli/releases/download/0.23.0/GNN5tt2gKdX4dhawg4915C4YB193woHFdcCkz31fhGxv.tar.zst",
-  "hash": "sha256-4VgiMf8RF0N2DQSZemn+7CHqJ+F9dVS01Fuheh0kezY=",
+  "version": "0.28.0",
+  "url": "https://github.com/niclas-ahden/basic-cli/releases/download/0.28.0/AP9SGT1yrhCKcFxKcoA5tBkNCM6ibBjBxcQGMTb6krev.tar.zst",
+  "hash": "sha256-wtMlwJyBUhXso8jB+FepeJX1ch8zetoVAYToFlrqsjs=",
   "dependencies": {
     "http": {
-      "url": "https://github.com/roc-lang/http/releases/download/1.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",
+      "url": "https://github.com/roc-lang/http/releases/download/2.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",
       "hash": "sha256-6e+qlQ5y9vds326vAEJFcvppsEumEnMjV6wEU2ePArQ="
     }
   }
