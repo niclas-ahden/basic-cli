@@ -237,9 +237,8 @@ Path := [
 
 	## Create a UTF-8 path from an interpolated string literal.
 	## This performs textual concatenation; use [join] for path-component joining.
-	from_interpolation : Str, Iter((Str, Str)) -> Path
-	from_interpolation = |first, rest|
-		Utf8(rest.fold(first, |acc, (interpolated, segment)| acc.concat(interpolated).concat(segment)))
+	from_interpolation : List(Str) -> Try((List(Str) -> Path), [InvalidInterpolation(Str)])
+	from_interpolation = |segments| Str.from_interpolation(segments).map_ok(|assemble| |values| Utf8(assemble(values)))
 
 	## TODO: Add parser_for and encoder_for that go through the lossless raw shape.
 	## Since roc-lang/roc#11769 a method can call another type's derived (`_`)

@@ -39,9 +39,8 @@ OsStr := [
 	from_quote = |str| Ok(Utf8(str))
 
 	## Build a UTF-8 OS string from an interpolated string literal.
-	from_interpolation : Str, Iter((Str, Str)) -> OsStr
-	from_interpolation = |first, rest|
-		Utf8(rest.fold(first, |acc, (interpolated, segment)| acc.concat(interpolated).concat(segment)))
+	from_interpolation : List(Str) -> Try((List(Str) -> OsStr), [InvalidInterpolation(Str)])
+	from_interpolation = |segments| Str.from_interpolation(segments).map_ok(|assemble| |values| Utf8(assemble(values)))
 
 	## Parse and encode every OS string representation as a lossless tagged value.
 	parser_for : _

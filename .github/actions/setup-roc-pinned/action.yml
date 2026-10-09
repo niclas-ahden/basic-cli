@@ -11,7 +11,7 @@ inputs:
   zig-version:
     description: "Zig version used to build the compiler."
     required: false
-    default: "0.16.0"
+    default: "0.17.0"
 
 runs:
   using: composite
