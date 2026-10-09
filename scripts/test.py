@@ -138,15 +138,43 @@ def stage_enabled(defaults: dict[str, bool], app: dict[str, object], stage: str)
     return app_enabled and enabled
 
 
+def missing_target_inputs() -> list[Path]:
+    """The input files platform/main.roc declares that no build has put in place."""
+    platform_dir = ROOT / "platform"
+    header = (platform_dir / "main.roc").read_text()
+    missing = []
+    for target, inputs in re.findall(r"^\s+(\w+): \{ inputs: \[(.*?)\] \}", header, re.MULTILINE):
+        for name in re.findall(r'"([^"]+)"', inputs):
+            path = platform_dir / "targets" / target / name
+            if not path.exists():
+                missing.append(path)
+    return missing
+
+
 def create_bundle() -> Path:
-    result = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "bundle.py")],
-        cwd=ROOT,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        check=True,
-    )
+    # roc bundle refuses a platform with a declared target input missing, and a
+    # test run builds only the targets it tests. The others get empty stand-ins
+    # for the length of the bundling, since nothing links them.
+    stand_ins = missing_target_inputs()
+    try:
+        for path in stand_ins:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch()
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "bundle.py")],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+    finally:
+        for path in stand_ins:
+            path.unlink(missing_ok=True)
+            with contextlib.suppress(OSError):
+                path.parent.rmdir()
+    if result.returncode != 0:
+        print(result.stdout, end="")
+        raise subprocess.CalledProcessError(result.returncode, result.args)
     print(result.stdout, end="")
     matches = re.findall(r"^Created:\s+(.+\.tar\.zst)\s*$", result.stdout, re.MULTILINE)
     if not matches:
