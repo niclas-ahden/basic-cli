@@ -13,7 +13,7 @@ main! : List(OsStr) => Try({}, _)
 main! = |_args| {
 	# --- talk to a leashed child over pipes ---
 	# Default streams are inherited, exactly as spawn!, so ask for pipes.
-	cat = Cmd.new_str("cat").stdin(Pipe).stdout(Pipe).spawn_leashed!() ? |e| SpawnFailed(e)
+	cat = leash!(Cmd.new_str("cat").stdin(Pipe).stdout(Pipe))?
 	cat.write!(Str.to_utf8("hello, leash!\n"), 1_000) ? |e| WriteFailed(e)
 	cat.close_stdin!() ? |e| CloseStdinFailed(e)
 	echoed = read_all!(cat, []) ? |e| ReadFailed(e)
@@ -21,18 +21,14 @@ main! = |_args| {
 	_ = cat.wait!() ? |e| WaitFailed(e)
 
 	# --- a leashed child reports its own exit status ---
-	coder = Cmd.new_str("sh").args_str(["-c", "exit 7"]).spawn_leashed!() ? |e| SpawnFailed(e)
+	coder = leash!(Cmd.new_str("sh").args_str(["-c", "exit 7"]))?
 	done = coder.wait!() ? |e| WaitFailed(e)
 	Stdout.line!("leashed exit: ${Str.inspect(done.status)}")?
 
 	# --- close! takes a running leashed tree down at once ---
 	# The child backgrounds a grandchild, so this proves the whole group goes,
 	# not just the direct child. `up` on stdout is the readiness signal.
-	server =
-		Cmd.new_str("sh")
-			.args_str(["-c", "sleep 100 & echo up; wait"])
-			.stdout(Pipe)
-			.spawn_leashed!() ? |e| SpawnFailed(e)
+	server = leash!(Cmd.new_str("sh").args_str(["-c", "sleep 100 & echo up; wait"]).stdout(Pipe))?
 	_marker = read_all_until_newline!(server, []) ? |e| ReadFailed(e)
 	server.close!() ? |e| CloseFailed(e)
 	Stdout.line!("leashed tree closed")?
@@ -63,3 +59,12 @@ read_all_until_newline! = |child, acc|
 			End => Ok(acc)
 		}
 	}
+
+## Start a leashed child.
+##
+## WORKAROUND: on roc 3ee70f0 a third `.spawn_leashed!()` call site in this
+## file crashes compile-time evaluation ("hosted function
+## `hosted_cmd_spawn_leashed` is not available while evaluating at compile
+## time"), so every spawn goes through this one call.
+leash! : Cmd.Cmd => Try(Cmd.Child, _)
+leash! = |cmd| Ok(cmd.spawn_leashed!() ? |e| SpawnFailed(e))

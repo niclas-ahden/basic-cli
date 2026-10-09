@@ -14,17 +14,17 @@ main! : List(OsStr) => Try({}, _)
 main! = |_args| {
 	# --- a leashed child reports its own exit status and output ---
 	# Default streams are inherited, exactly as spawn!, so ask for capture.
-	greeter =
+	greeter = leash!(
 		Cmd.new_str("cmd")
 			.args_str(["/c", "echo hello"])
-			.stdout(Capture)
-			.spawn_leashed!() ? |e| SpawnFailed(e)
+			.stdout(Capture),
+	)?
 	greeted = greeter.wait!() ? |e| WaitFailed(e)
 	Stdout.line!("echo exit: ${Str.inspect(greeted.status)}")?
 	Stdout.line!("echo said: ${Str.from_utf8_lossy(greeted.stdout_bytes).trim()}")?
 
 	# --- talk to a leashed child over pipes ---
-	sorter = Cmd.new_str("sort").stdin(Pipe).stdout(Pipe).spawn_leashed!() ? |e| SpawnFailed(e)
+	sorter = leash!(Cmd.new_str("sort").stdin(Pipe).stdout(Pipe))?
 	sorter.write!(Str.to_utf8("banana\r\napple\r\ncherry\r\n"), 1_000) ? |e| WriteFailed(e)
 	sorter.close_stdin!() ? |e| CloseStdinFailed(e)
 	sorted = read_all!(sorter, []) ? |e| ReadFailed(e)
@@ -34,15 +34,15 @@ main! = |_args| {
 	# --- close! takes a running leashed tree down at once ---
 	# The child starts a grandchild, so this proves the whole job goes, not
 	# just the direct child. `up` on stdout is the readiness signal.
-	server =
+	server = leash!(
 		Cmd.new_str("powershell")
 			.args_str([
 				"-NoProfile",
 				"-Command",
 				"Start-Process ping -ArgumentList '-n','600','127.0.0.1' -WindowStyle Hidden; Write-Output up; Start-Sleep -Seconds 600",
 			])
-			.stdout(Pipe)
-			.spawn_leashed!() ? |e| SpawnFailed(e)
+			.stdout(Pipe),
+	)?
 	_marker = read_all_until_newline!(server, []) ? |e| ReadFailed(e)
 	server.close!() ? |e| CloseFailed(e)
 	Stdout.line!("leashed tree closed")?
@@ -73,3 +73,12 @@ read_all_until_newline! = |child, acc|
 			End => Ok(acc)
 		}
 	}
+
+## Start a leashed child.
+##
+## WORKAROUND: on roc 3ee70f0 a third `.spawn_leashed!()` call site in this
+## file crashes compile-time evaluation ("hosted function
+## `hosted_cmd_spawn_leashed` is not available while evaluating at compile
+## time"), so every spawn goes through this one call.
+leash! : Cmd.Cmd => Try(Cmd.Child, _)
+leash! = |cmd| Ok(cmd.spawn_leashed!() ? |e| SpawnFailed(e))
