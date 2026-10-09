@@ -399,7 +399,7 @@ decode_rows! = |stmt, gen_decode| {
 					Err(e) => Err(e)
 					Ok(row) => helper!(out.append(row))
 				}
-			}
+		}
 	helper!([])
 }
 

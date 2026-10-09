@@ -93,7 +93,7 @@ File :: [].{
 										Ok(bytes) => Ok((Ok(bytes), Reading(current)))
 										Err(FileErr(err)) => Ok((Err(FileErr(err)), Finished))
 									}
-								},
+							},
 					),
 				)
 			}
