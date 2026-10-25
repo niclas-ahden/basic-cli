@@ -181,7 +181,9 @@ def create_bundle() -> Path:
         raise SystemExit("Bundle creation did not report a created archive")
     bundle = Path(matches[-1])
     if not bundle.is_absolute():
-        bundle = ROOT / bundle
+        # roc reports the archive relative to where it ran, and bundle.py runs
+        # it from platform/.
+        bundle = ROOT / "platform" / bundle
     if not bundle.is_file():
         raise SystemExit(f"Bundle creation did not produce an archive: {bundle}")
     return bundle.resolve()

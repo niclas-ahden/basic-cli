@@ -1,9 +1,8 @@
-{ pkgs }:
+# `compiler` is the Roc that flake.nix pins. release.json records the commit
+# that built the release, which is the same one until the pin moves on.
+{ pkgs, compiler }:
 let
   release = builtins.fromJSON (builtins.readFile ./release.json);
-  # Must compile the pinned release, so it comes from release.json, not from
-  # the nightly used for development.
-  compiler = pkgs.rocpkgs.${release.compiler};
   bundle = pkgs.fetchurl { inherit (release) url hash; };
   unpack =
     name: archive:

@@ -28,10 +28,10 @@ class ReleaseMetadataTests(unittest.TestCase):
             return io.BytesIO(downloads[url])
 
         with patch("scripts.update_nix_release.urllib.request.urlopen", side_effect=open_url):
-            metadata = release_metadata("0.24.0", platform_url, "nightly-2026-10-09-258ab27")
+            metadata = release_metadata("0.24.0", platform_url, "54283d46d5bd1741dbe677f54ef4646eee4623ff")
         self.assertEqual(metadata["version"], "0.24.0")
         self.assertEqual(metadata["url"], platform_url)
-        self.assertEqual(metadata["compiler"], "nightly-2026-10-09-258ab27")
+        self.assertEqual(metadata["compiler"], "54283d46d5bd1741dbe677f54ef4646eee4623ff")
         for entry in [metadata, metadata["dependencies"]["http"]]:
             expected = base64.b64encode(hashlib.sha256(downloads[entry["url"]]).digest()).decode()
             self.assertEqual(entry["hash"], "sha256-" + expected)
@@ -43,8 +43,8 @@ class ReleaseMetadataTests(unittest.TestCase):
             package_urls('platform ""')
 
     def test_compiler_pin_matches_devshell(self):
-        flake = '          pkgs.rocpkgs."nightly-2026-10-09-258ab27"'
-        self.assertEqual(COMPILER_PIN.search(flake)[1], "nightly-2026-10-09-258ab27")
+        flake = '    roc-src.url = "github:roc-lang/roc/54283d46d5bd1741dbe677f54ef4646eee4623ff?dir=src";'
+        self.assertEqual(COMPILER_PIN.search(flake)[1], "54283d46d5bd1741dbe677f54ef4646eee4623ff")
 
     def test_comments_and_empty_packages(self):
         self.assertEqual(package_urls('platform "" packages {\n # no dependencies\n }'), {})

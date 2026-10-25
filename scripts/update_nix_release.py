@@ -13,7 +13,7 @@ import tempfile
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPILER_PIN = re.compile(r'rocpkgs\."(nightly-[^"]+)"')
+COMPILER_PIN = re.compile(r'roc-src\.url\s*=\s*"github:roc-lang/roc/([0-9a-f]{40})\?dir=src"')
 
 
 def download(url: str, destination: Path) -> str:
@@ -38,10 +38,10 @@ def package_urls(source: str) -> dict[str, str]:
 
 
 def devshell_compiler(flake: Path) -> str:
-    """The nightly the release workflow builds with, as pinned in the devshell."""
+    """The Roc commit the release workflow builds with, as pinned in the flake."""
     match = COMPILER_PIN.search(flake.read_text(encoding="utf-8"))
     if match is None:
-        raise ValueError(f"No Roc nightly pin found in {flake}")
+        raise ValueError(f"No Roc commit pin found in {flake}")
     return match[1]
 
 
@@ -73,7 +73,7 @@ def main() -> None:
     parser.add_argument("--url", required=True)
     parser.add_argument(
         "--compiler",
-        help="rocpkgs attribute that built the release (default: the flake.nix devshell nightly)",
+        help="Roc commit that built the release (default: the roc-src commit in flake.nix)",
     )
     parser.add_argument("--output", type=Path, default=ROOT / "nix/release.json")
     args = parser.parse_args()

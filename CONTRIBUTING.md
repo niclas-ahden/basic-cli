@@ -2,10 +2,10 @@
 
 Thanks for helping improve `basic-cli`.
 
-CI uses a pinned Roc nightly from [`roc-lang/nightlies`](https://github.com/roc-lang/nightlies).
-For local work, use the `nightly-tag` pinned in [the CI workflow](.github/workflows/ci.yml),
-matching the generated ABI. Download the archive for that tag and your operating
-system from [`roc-lang/nightlies` releases](https://github.com/roc-lang/nightlies/releases).
+The Roc compiler is pinned to one commit of [`roc-lang/roc`](https://github.com/roc-lang/roc):
+the `roc-src` input in `flake.nix`, locked in `flake.lock`. The Nix shell and CI
+both build that commit, so the compiler, the committed host ABI glue and the
+examples always agree.
 
 ## Code of Conduct
 
@@ -19,13 +19,13 @@ Check the compiler available locally:
 roc version
 ```
 
-To install the pinned nightly locally, extract the downloaded archive and add
-the directory containing the `roc` executable to your `PATH`.
+Without Nix, check out the pinned commit of `roc-lang/roc`, build it with
+`zig build roc`, and add its `zig-out/bin` directory to your `PATH`.
 
 ## Nix Development Environment
 
 With Nix's `nix-command` and `flakes` features enabled, the flake provides the
-pinned Roc nightly, the Rust toolchain and cross-compilation standard
+pinned Roc compiler, the Rust toolchain and cross-compilation standard
 libraries, Zig, Python, Valgrind (Linux only), and the documentation preview
 server on supported Linux and macOS systems. Enter it with:
 
@@ -42,18 +42,8 @@ your direnv version does not provide it. Then simply approve `.envrc` once:
 direnv allow
 ```
 
-The lock file pins every flake input. The Roc nightly is pinned on top of that,
-by release tag in `flake.nix`, and must name the same nightly the workflows
-pin so the shell and CI cannot drift apart; see
-[Updating Roc Glue](#updating-roc-glue). The tags come from
-[`roc-overlay`](https://github.com/roc-lang/roc-overlay), which mirrors the
-official [`roc-lang/nightlies`](https://github.com/roc-lang/nightlies)
-binaries. After editing the tag, refresh that input so the new nightly is
-recorded:
-
-```sh
-nix flake update roc-overlay
-```
+The lock file pins every flake input, the Roc compiler included. To move to
+another Roc commit, see [Updating Roc Glue](#updating-roc-glue).
 
 Bumping `channel` in `rust-toolchain.toml` similarly needs
 
@@ -66,11 +56,11 @@ whenever the requested version is newer than the manifests in the locked
 
 ## Updating Roc Glue
 
-CI pins a specific nightly so the compiler and committed host ABI glue cannot
-drift independently. When updating the nightly pin in the workflows:
+CI builds the compiler that `flake.lock` pins, so the compiler and the
+committed host ABI glue cannot drift apart. To move the pin:
 
-1. Update `flake.nix` to the same `rocpkgs` release tag, then run
-   `nix flake update roc-overlay`.
+1. Change the commit in the `roc-src` url in `flake.nix`, then run
+   `nix flake lock`.
 2. Run `./ci/regenerate_glue.sh` to refresh `src/roc_platform_abi.rs`.
 3. Reconcile `src/lib.rs` if generated names or layouts changed.
 4. Run the Rust checks under [Verification](#verification) and `./scripts/test.py`.
@@ -152,7 +142,7 @@ or crate-wide.
 Release-tooling regression tests run with:
 
 ```sh
-python3 -m unittest scripts/test_check_release_version.py scripts/test_check_release_branch.py scripts/test_check_version_bump.py scripts/test_update_nix_release.py scripts/test_check_roc_nightly.py scripts/test_windows_runtime.py
+python3 -m unittest scripts/test_check_release_version.py scripts/test_check_release_branch.py scripts/test_check_version_bump.py scripts/test_update_nix_release.py scripts/test_check_roc_pin.py scripts/test_windows_runtime.py
 ```
 
 Stable releases must be dispatched from the default branch. To publish a branch
@@ -423,7 +413,7 @@ for! item in conn.lines() {
 ## Examples
 
 Every checked-in example should pass `roc check`, `roc test`, and `roc build`
-with the current nightly.
+with the pinned compiler.
 
 Examples are executable documentation for representative, realistic workflows;
 they are not intended to exhaustively exercise every public API function.
@@ -432,7 +422,7 @@ Examples should include a top-level `main!` annotation. When the full platform e
 
 HTTP examples use Roc's builtin `Json` parser directly through `Http.get!`.
 
-Examples that are intentionally kept out of CI while an API or compiler blocker is tracked use the `.todoroc` extension and must include a TODO comment with a GitHub issue link. Rename them back to `.roc` only after they check and build with the current nightly.
+Examples that are intentionally kept out of CI while an API or compiler blocker is tracked use the `.todoroc` extension and must include a TODO comment with a GitHub issue link. Rename them back to `.roc` only after they check and build with the pinned compiler.
 
 ## Documentation
 

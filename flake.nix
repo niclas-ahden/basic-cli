@@ -1,14 +1,21 @@
 {
   description = "basic-cli release platform and development environment";
 
+  nixConfig = {
+    extra-substituters = [ "https://niclas-ahden.cachix.org" ];
+    extra-trusted-public-keys = [ "niclas-ahden.cachix.org-1:FdGli1vBk0cTuVJV27Tau/JvlbW+Ly3pRwFByyqdke0=" ];
+  };
+
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     # nixos-unstable no longer supports Intel macOS.
     nixpkgs-x86-darwin.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
-    roc-overlay = {
-      url = "github:roc-lang/roc-overlay/b8868a7b57a75f22accac7abe84553e34e6031cf";
+    # The Roc compiler revision, keep the `?dir=src` at the end
+    roc-src.url = "github:roc-lang/roc/54283d46d5bd1741dbe677f54ef4646eee4623ff?dir=src";
+    roc-nix = {
+      url = "github:niclas-ahden/roc-nix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.nixpkgs-darwin.follows = "nixpkgs-x86-darwin";
+      inputs.roc-src.follows = "roc-src";
     };
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
@@ -20,7 +27,7 @@
     {
       nixpkgs,
       nixpkgs-x86-darwin,
-      roc-overlay,
+      roc-nix,
       rust-overlay,
       ...
     }:
@@ -54,12 +61,14 @@
         system:
         import (if system == "x86_64-darwin" then nixpkgs-x86-darwin else nixpkgs) {
           inherit system;
-          overlays = [
-            roc-overlay.overlays.default
-            rust-overlay.overlays.default
-          ];
+          overlays = [ rust-overlay.overlays.default ];
         };
-      releaseFor = system: import ./nix/release.nix { pkgs = pkgsFor system; };
+      releaseFor =
+        system:
+        import ./nix/release.nix {
+          pkgs = pkgsFor system;
+          compiler = roc-nix.packages.${system}.roc;
+        };
     in
     {
       formatter = forAllSystems (system: (pkgsFor system).nixfmt);
@@ -78,8 +87,7 @@
         {
           default = pkgs.mkShell {
             packages = [
-              # Keep in sync with the nightly pinned in .github/workflows.
-              pkgs.rocpkgs."nightly-2026-10-12-2664a27"
+              roc-nix.packages.${system}.roc
               pkgs.python3
               rustToolchain
               pkgs.simple-http-server
