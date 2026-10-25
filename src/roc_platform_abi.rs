@@ -14477,6 +14477,102 @@ unsafe impl RocRelease<HostCmdSpawnArgs> for HostCmdSpawnArgsRelease {
     }
 }
 
+/// Arguments for Host.cmd_spawn_leashed!
+/// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, cwd : [Dir([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), Inherit], envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), manage_tree : Bool, output_limit : [MaxBytes(U64), NoLimit], pending_limit : U64, program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))], stderr : [Capture, File({ create_permissions : [Default, OwnerOnly, PublicRead], mode : [Append, RequireNew, Truncate], path : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] }), Inherit, MergeWithStdout, Null, Pipe, Tee], stdin : [Bytes(List(U8)), Inherit, Null, Pipe], stdout : [Capture, File({ create_permissions : [Default, OwnerOnly, PublicRead], mode : [Append, RequireNew, Truncate], path : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] }), Inherit, InheritStderr, Null, Pipe, Tee], timeout : [AfterNanos(U64), NoTimeout] } => Try(Resource.Handle([ChildKind]), [CmdErr([IOErr(IOErr), OutputLimitExceeded({ stderr_bytes : List(U8), stdout_bytes : List(U8) }), StartFailed(IOErr), TimedOut({ stderr_bytes : List(U8), stdout_bytes : List(U8) })]), Interrupted])
+/// Refcounted fields are owned by the hosted function.
+#[cfg(target_pointer_width = "32")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdSpawnLeashedArgs {
+    pub output_limit: MaxBytesOrNoLimit,
+    pub pending_limit: u64,
+    pub timeout: AfterNanosOrNoTimeout,
+    pub args: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub cwd: DirOrInherit,
+    pub envs: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub program: UnixBytesOrUtf8OrWindowsU16s,
+    pub stderr: CaptureOrFileOrInheritOrMergeWithStdoutOrNullOrPipeOrTee,
+    pub stdin: BytesOrInheritOrNullOrPipe,
+    pub stdout: CaptureOrFileOrInheritOrInheritStderrOrNullOrPipeOrTee,
+    pub clear_envs: bool,
+    pub manage_tree: bool,
+}
+
+/// Arguments for Host.cmd_spawn_leashed!
+/// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, cwd : [Dir([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), Inherit], envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), manage_tree : Bool, output_limit : [MaxBytes(U64), NoLimit], pending_limit : U64, program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))], stderr : [Capture, File({ create_permissions : [Default, OwnerOnly, PublicRead], mode : [Append, RequireNew, Truncate], path : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] }), Inherit, MergeWithStdout, Null, Pipe, Tee], stdin : [Bytes(List(U8)), Inherit, Null, Pipe], stdout : [Capture, File({ create_permissions : [Default, OwnerOnly, PublicRead], mode : [Append, RequireNew, Truncate], path : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] }), Inherit, InheritStderr, Null, Pipe, Tee], timeout : [AfterNanos(U64), NoTimeout] } => Try(Resource.Handle([ChildKind]), [CmdErr([IOErr(IOErr), OutputLimitExceeded({ stderr_bytes : List(U8), stdout_bytes : List(U8) }), StartFailed(IOErr), TimedOut({ stderr_bytes : List(U8), stdout_bytes : List(U8) })]), Interrupted])
+/// Refcounted fields are owned by the hosted function.
+#[cfg(not(target_pointer_width = "32"))]
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct HostCmdSpawnLeashedArgs {
+    pub output_limit: MaxBytesOrNoLimit,
+    pub pending_limit: u64,
+    pub timeout: AfterNanosOrNoTimeout,
+    pub args: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub cwd: DirOrInherit,
+    pub envs: RocList<UnixBytesOrUtf8OrWindowsU16s>,
+    pub program: UnixBytesOrUtf8OrWindowsU16s,
+    pub stderr: CaptureOrFileOrInheritOrMergeWithStdoutOrNullOrPipeOrTee,
+    pub stdin: BytesOrInheritOrNullOrPipe,
+    pub stdout: CaptureOrFileOrInheritOrInheritStderrOrNullOrPipeOrTee,
+    pub clear_envs: bool,
+    pub manage_tree: bool,
+}
+
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::size_of::<HostCmdSpawnLeashedArgs>() == 296, "HostCmdSpawnLeashedArgs size mismatch");
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(core::mem::align_of::<HostCmdSpawnLeashedArgs>() == 8, "HostCmdSpawnLeashedArgs alignment mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::size_of::<HostCmdSpawnLeashedArgs>() == 168, "HostCmdSpawnLeashedArgs size mismatch");
+#[cfg(target_pointer_width = "32")]
+const _: () = assert!(core::mem::align_of::<HostCmdSpawnLeashedArgs>() == 8, "HostCmdSpawnLeashedArgs alignment mismatch");
+
+impl HostCmdSpawnLeashedArgs {
+    /// Recursively decrement Roc-owned fields.
+    ///
+    /// # Safety
+    /// `self` must own one live Roc reference for each refcounted field.
+    pub unsafe fn decref(self, roc_host: &RocHost) {
+        let value = self;
+        unsafe { value.output_limit.decref(roc_host); }
+        unsafe { value.timeout.decref(roc_host); }
+        unsafe { decref_list_of_unix_bytes_or_utf8or_windows_u16s(value.args, roc_host); }
+        unsafe { value.cwd.decref(roc_host); }
+        unsafe { decref_list_of_unix_bytes_or_utf8or_windows_u16s(value.envs, roc_host); }
+        unsafe { value.program.decref(roc_host); }
+        unsafe { value.stderr.decref(roc_host); }
+        unsafe { value.stdin.decref(roc_host); }
+        unsafe { value.stdout.decref(roc_host); }
+    }
+
+    /// Increment Roc-owned fields.
+    ///
+    /// # Safety
+    /// `self` must point at live Roc allocations. The retained references must
+    /// be balanced by later decrefs.
+    pub unsafe fn incref(self, amount: isize) {
+        let value = self;
+        unsafe { value.output_limit.incref(amount); }
+        unsafe { value.timeout.incref(amount); }
+        unsafe { value.args.incref(amount); }
+        unsafe { value.cwd.incref(amount); }
+        unsafe { value.envs.incref(amount); }
+        unsafe { value.program.incref(amount); }
+        unsafe { value.stderr.incref(amount); }
+        unsafe { value.stdin.incref(amount); }
+        unsafe { value.stdout.incref(amount); }
+    }
+}
+
+pub struct HostCmdSpawnLeashedArgsRelease;
+
+unsafe impl RocRelease<HostCmdSpawnLeashedArgs> for HostCmdSpawnLeashedArgsRelease {
+    unsafe fn release(value: HostCmdSpawnLeashedArgs, roc_host: &RocHost) {
+        unsafe { value.decref(roc_host); }
+    }
+}
+
 /// Arguments for Host.dir_create!
 /// Roc signature: [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] => Try({}, [DirErr(IOErr)])
 /// Refcounted fields are owned by the hosted function.
@@ -15472,6 +15568,24 @@ pub type HostCmdSpawnErrCmdErrPayload = IOErrOrOutputLimitExceededOrStartFailedO
 pub type HostCmdSpawnErrCmdErrTag = IOErrOrOutputLimitExceededOrStartFailedOrTimedOutTag;
 pub type HostCmdSpawnErrCmdErrOutputLimitExceeded = AnonStruct3e7554e024207e25;
 pub type HostCmdSpawnErrCmdErrTimedOut = AnonStruct3e7554e024207e25;
+pub type HostCmdSpawnLeashedArg0 = AnonStruct1027aaeb0344dea1;
+pub type HostCmdSpawnLeashedArg0Args = UnixBytesOrUtf8OrWindowsU16s;
+pub type HostCmdSpawnLeashedArg0ArgsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
+pub type HostCmdSpawnLeashedArg0ArgsTag = UnixBytesOrUtf8OrWindowsU16sTag;
+pub type HostCmdSpawnLeashedArg0Envs = UnixBytesOrUtf8OrWindowsU16s;
+pub type HostCmdSpawnLeashedArg0EnvsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
+pub type HostCmdSpawnLeashedArg0EnvsTag = UnixBytesOrUtf8OrWindowsU16sTag;
+pub type HostCmdSpawnLeashedResult = HostCmdSpawnResult;
+pub type HostCmdSpawnLeashedResultPayload = HostCmdSpawnResultPayload;
+pub type HostCmdSpawnLeashedResultTag = HostCmdSpawnResultTag;
+pub type HostCmdSpawnLeashedErr = CmdErrOrInterrupted;
+pub type HostCmdSpawnLeashedErrPayload = CmdErrOrInterruptedPayload;
+pub type HostCmdSpawnLeashedErrTag = CmdErrOrInterruptedTag;
+pub type HostCmdSpawnLeashedErrCmdErr = IOErrOrOutputLimitExceededOrStartFailedOrTimedOut;
+pub type HostCmdSpawnLeashedErrCmdErrPayload = IOErrOrOutputLimitExceededOrStartFailedOrTimedOutPayload;
+pub type HostCmdSpawnLeashedErrCmdErrTag = IOErrOrOutputLimitExceededOrStartFailedOrTimedOutTag;
+pub type HostCmdSpawnLeashedErrCmdErrOutputLimitExceeded = AnonStruct3e7554e024207e25;
+pub type HostCmdSpawnLeashedErrCmdErrTimedOut = AnonStruct3e7554e024207e25;
 pub type HostDirCreateAllResult = HostDirCreateResult;
 pub type HostDirCreateAllResultPayload = HostDirCreateResultPayload;
 pub type HostDirCreateAllResultTag = HostDirCreateResultTag;
@@ -21973,6 +22087,14 @@ unsafe extern "C" {
     ///     unsafe { arg0.decref(roc_host); }
     /// The result is owned by Roc: return exactly one owned reference.
     pub fn hosted_cmd_spawn(arg0: HostCmdSpawnArgs) -> HostCmdSpawnResult;
+
+    /// Hosted symbol for Host.cmd_spawn_leashed!
+    /// Roc signature: { args : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), clear_envs : Bool, cwd : [Dir([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), Inherit], envs : List([UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))]), manage_tree : Bool, output_limit : [MaxBytes(U64), NoLimit], pending_limit : U64, program : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))], stderr : [Capture, File({ create_permissions : [Default, OwnerOnly, PublicRead], mode : [Append, RequireNew, Truncate], path : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] }), Inherit, MergeWithStdout, Null, Pipe, Tee], stdin : [Bytes(List(U8)), Inherit, Null, Pipe], stdout : [Capture, File({ create_permissions : [Default, OwnerOnly, PublicRead], mode : [Append, RequireNew, Truncate], path : [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] }), Inherit, InheritStderr, Null, Pipe, Tee], timeout : [AfterNanos(U64), NoTimeout] } => Try(Resource.Handle([ChildKind]), [CmdErr([IOErr(IOErr), OutputLimitExceeded({ stderr_bytes : List(U8), stdout_bytes : List(U8) }), StartFailed(IOErr), TimedOut({ stderr_bytes : List(U8), stdout_bytes : List(U8) })]), Interrupted])
+    /// Owned arguments. Release each exactly once before returning, unless it is
+    /// moved into storage or into the result:
+    ///     unsafe { arg0.decref(roc_host); }
+    /// The result is owned by Roc: return exactly one owned reference.
+    pub fn hosted_cmd_spawn_leashed(arg0: HostCmdSpawnLeashedArgs) -> HostCmdSpawnResult;
 
     /// Hosted symbol for Host.dir_create!
     /// Roc signature: [UnixBytes(List(U8)), Utf8(Str), WindowsU16s(List(U16))] => Try({}, [DirErr(IOErr)])

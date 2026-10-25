@@ -133,6 +133,7 @@ Host :: [].{
 	CmdOutput : { status : [Exited(I32), Signaled(I32)], stdout_bytes : List(U8), stderr_bytes : List(U8) }
 	CmdErr : [StartFailed(IOErr), TimedOut(CmdPartialOutput), OutputLimitExceeded(CmdPartialOutput), IOErr(IOErr)]
 	cmd_spawn! : Cmd => Try(Resource.Child, [CmdErr(CmdErr), Interrupted])
+	cmd_spawn_leashed! : Cmd => Try(Resource.Child, [CmdErr(CmdErr), Interrupted])
 	cmd_run! : Cmd => Try(CmdOutput, [CmdErr(CmdErr), Interrupted])
 	child_pid! : Resource.Child => U32
 	child_wait! : Resource.Child => Try(CmdOutput, [Closed, Interrupted, CmdErr(CmdErr)])

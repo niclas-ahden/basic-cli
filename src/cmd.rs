@@ -153,6 +153,7 @@ fn command_config(cmd: Cmd, roc_host: &RocHost) -> io::Result<Config> {
         },
         pending_limit: usize::try_from(cmd.pending_limit).unwrap_or(usize::MAX),
         manage_tree: cmd.manage_tree,
+        leash: false,
     })
 }
 
@@ -226,33 +227,40 @@ fn stderr_config(
     Ok((StderrMode::Separate(mode), None))
 }
 
-fn same_command(cmd: HostCmdSpawnArgs) -> Cmd {
-    Cmd {
-        args: cmd.args,
-        clear_envs: cmd.clear_envs,
-        cwd: cmd.cwd,
-        envs: cmd.envs,
-        manage_tree: cmd.manage_tree,
-        output_limit: cmd.output_limit,
-        pending_limit: cmd.pending_limit,
-        program: cmd.program,
-        stderr: cmd.stderr,
-        stdin: cmd.stdin,
-        stdout: cmd.stdout,
-        timeout: cmd.timeout,
-    }
+/// The glue gives every hosted function's command record a type of its own,
+/// all with the same fields.
+macro_rules! same_command {
+    ($cmd:expr) => {{
+        let cmd = $cmd;
+        Cmd {
+            args: cmd.args,
+            clear_envs: cmd.clear_envs,
+            cwd: cmd.cwd,
+            envs: cmd.envs,
+            manage_tree: cmd.manage_tree,
+            output_limit: cmd.output_limit,
+            pending_limit: cmd.pending_limit,
+            program: cmd.program,
+            stderr: cmd.stderr,
+            stdin: cmd.stdin,
+            stdout: cmd.stdout,
+            timeout: cmd.timeout,
+        }
+    }};
 }
 
 /// Start a command. A command that cannot be converted for this operating
 /// system never starts, which is the same failure as a program that is missing.
-fn start(cmd: Cmd) -> Result<Child, Error> {
-    let config = command_config(cmd, roc_host()).map_err(|error| {
+/// A leashed command cannot outlive this process, see [`crate::leash`].
+fn start(cmd: Cmd, leash: bool) -> Result<Child, Error> {
+    let mut config = command_config(cmd, roc_host()).map_err(|error| {
         if error.kind() == io::ErrorKind::Interrupted && crate::signals::is_pending() {
             Error::Interrupted
         } else {
             Error::Start(error)
         }
     })?;
+    config.leash = leash;
     Child::spawn(config)
 }
 
@@ -387,9 +395,8 @@ fn with_child<T>(handle: *mut u64, f: impl FnOnce(&Child) -> T) -> T {
     result
 }
 
-#[no_mangle]
-pub extern "C" fn hosted_cmd_spawn(cmd: HostCmdSpawnArgs) -> HostCmdSpawnResult {
-    let spawned = start(same_command(cmd))
+fn spawn_result(cmd: Cmd, leash: bool) -> HostCmdSpawnResult {
+    let spawned = start(cmd, leash)
         .and_then(|child| crate::resources::box_resource(child, roc_host()).map_err(Error::Start));
     match spawned {
         Ok(handle) => HostCmdSpawnResult {
@@ -408,8 +415,23 @@ pub extern "C" fn hosted_cmd_spawn(cmd: HostCmdSpawnArgs) -> HostCmdSpawnResult 
 }
 
 #[no_mangle]
+pub extern "C" fn hosted_cmd_spawn(cmd: HostCmdSpawnArgs) -> HostCmdSpawnResult {
+    spawn_result(same_command!(cmd), false)
+}
+
+/// Like [hosted_cmd_spawn] but leashed: on Unix the child joins a
+/// watchdog-led group so it cannot outlive this host even on Ctrl+C, a crash,
+/// or kill -9. Forced to `manage_tree` on the Roc side.
+#[no_mangle]
+pub extern "C" fn hosted_cmd_spawn_leashed(
+    cmd: HostCmdSpawnLeashedArgs,
+) -> HostCmdSpawnLeashedResult {
+    spawn_result(same_command!(cmd), true)
+}
+
+#[no_mangle]
 pub extern "C" fn hosted_cmd_run(cmd: HostCmdRunArgs) -> HostCmdRunResult {
-    let finished = start(cmd).and_then(|child| match child.wait_foreground() {
+    let finished = start(cmd, false).and_then(|child| match child.wait_foreground() {
         Ok(output) => Ok(output),
         Err(ChildError::Cmd(error)) => Err(error),
         // Nothing else holds this child, so nothing can have closed it.

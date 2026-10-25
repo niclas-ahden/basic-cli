@@ -407,6 +407,43 @@ Cmd :: [].{
 				Err(Interrupted) => Err(Interrupted)
 			}
 
+		## Start a managed child that cannot outlive this process, however this
+		## process dies. Like [spawn!], but the child (and its whole process tree)
+		## is leashed: it is taken down on a normal exit, and also on the deaths
+		## that skip cleanup entirely, such as Ctrl+C, a crash, or `kill -9`.
+		##
+		## Use this for a long-lived helper you start and supervise, such as a
+		## server or a browser driver, so a test run cancelled from the terminal
+		## never leaves a stray behind. Turns [manage_tree] on, since the leash
+		## acts on the whole group. Standard streams are inherited unless the
+		## command sets them, exactly as with [spawn!].
+		##
+		## On Unix a watchdog process in the child's group takes the group down
+		## when this process disappears (Linux backs it up with `PR_SET_PDEATHSIG`
+		## for the direct child). Windows uses a Job Object that dies with this
+		## process. [Child.kill!] and [Child.close!] take down the whole tree for a
+		## child spawned this way, rather than just the child itself.
+		##
+		## Keep the returned [Child] for as long as the child should run. As with
+		## every managed child, releasing its last reference terminates it.
+		spawn_leashed! : Command => Try(Child, [CmdErr(Err), Interrupted])
+		spawn_leashed! = |cmd| {
+			leashed = cmd.manage_tree(Bool.True)
+			match Host.cmd_spawn_leashed!(to_host_cmd(leashed, Spawn)) {
+				Ok(handle) =>
+					Ok(
+						Child.{
+							host: handle,
+							pid_value: Host.child_pid!(handle),
+							command: to_str(leashed),
+							program: leashed.program,
+						},
+					)
+				Err(CmdErr(err)) => Err(CmdErr(from_host_err(err, leashed.program)))
+				Err(Interrupted) => Err(Interrupted)
+			}
+		}
+
 		## The program and its arguments, separated by spaces, for messages and logs.
 		## An argument that is empty or contains a space or a quote is written as a
 		## quoted, escaped string. The environment, the working directory and the

@@ -20,6 +20,8 @@ mod file_security;
 mod file_writer;
 mod filesystem;
 mod http;
+#[cfg(unix)]
+mod leash;
 mod listener;
 mod native_stdio;
 mod process_service;
