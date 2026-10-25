@@ -414,7 +414,7 @@ Cmd :: [].{
 		##
 		## Use this for a long-lived helper you start and supervise, such as a
 		## server or a browser driver, so a test run cancelled from the terminal
-		## never leaves a stray behind. Turns [manage_tree] on, since the leash
+		## never leaves a stray behind. Turns [Command.manage_tree] on, since the leash
 		## acts on the whole group. Standard streams are inherited unless the
 		## command sets them, exactly as with [spawn!].
 		##
