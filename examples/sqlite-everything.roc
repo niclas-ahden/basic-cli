@@ -202,9 +202,8 @@ decode_full_todo = {
 	edited: Decoder.bool("edited").nullable().map(decode_edited),
 }.Decoder
 
-# Decode just the task and status columns, leaving the status as text. With
-# only the leaf decoders, the error type is `Sqlite.DecodeErr`. It is left
-# open here so that `map_try` below can add an error of its own.
+# Decode just the task and status columns, leaving the status as text. The
+# error type is left open (`_`) so that `map_try` below can add its own errors.
 decode_task_text : Decoder({ task : Str, status : Str }, _)
 decode_task_text = { task: Decoder.str("task"), status: Decoder.str("status") }.Decoder
 

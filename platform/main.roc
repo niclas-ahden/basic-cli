@@ -26,7 +26,6 @@ platform ""
 		"hosted_cmd_exec": Host.cmd_exec!,
 		"hosted_cmd_run": Host.cmd_run!,
 		"hosted_cmd_spawn": Host.cmd_spawn!,
-		"hosted_cmd_spawn_leashed": Host.cmd_spawn_leashed!,
 		"hosted_dir_create": Host.dir_create!,
 		"hosted_dir_create_all": Host.dir_create_all!,
 		"hosted_dir_delete_all": Host.dir_delete_all!,
@@ -92,6 +91,7 @@ platform ""
 		"hosted_random_seed_u32": Host.random_seed_u32!,
 		"hosted_random_seed_u64": Host.random_seed_u64!,
 		"hosted_signal_catch": Host.signal_catch!,
+		"hosted_signal_interrupted_exit_code": Host.signal_interrupted_exit_code!,
 		"hosted_signal_poll": Host.signal_poll!,
 		"hosted_sleep_nanos": Host.sleep_nanos!,
 		"hosted_sqlite_close": Host.sqlite_close!,
@@ -141,8 +141,8 @@ platform ""
 		x64mac: { inputs: ["libhost.a", app] },
 		arm64mac: { inputs: ["libhost.a", app] },
 		x64win: { inputs: ["host.lib", app, "windows_support.lib"] },
-		x64musl: { inputs: ["crt1.o", "libhost.a", "libunwind.a", app, "libc.a"] },
-		arm64musl: { inputs: ["crt1.o", "libhost.a", "libunwind.a", app, "libc.a"] },
+		x64musl: { inputs: ["rcrt1.o", "libhost.a", "libunwind.a", app, "libc.a"] },
+		arm64musl: { inputs: ["rcrt1.o", "libhost.a", "libunwind.a", app, "libc.a"] },
 	}
 
 import Cmd
@@ -180,7 +180,7 @@ main_for_host! = |args|
 		Err(Exit(code)) => code
 		Err(Interrupted) => {
 			Tty.disable_raw_mode!() ?? {}
-			if (Signal.poll!().contains(Terminate)) 143 else 130
+			Host.signal_interrupted_exit_code!()
 		}
 		Err(other) => {
 			# Leave raw mode first, so the message is not printed without line breaks.
