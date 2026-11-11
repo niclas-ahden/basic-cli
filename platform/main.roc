@@ -26,6 +26,7 @@ platform ""
 		"hosted_cmd_exec": Host.cmd_exec!,
 		"hosted_cmd_run": Host.cmd_run!,
 		"hosted_cmd_spawn": Host.cmd_spawn!,
+		"hosted_cmd_spawn_leashed": Host.cmd_spawn_leashed!,
 		"hosted_dir_create": Host.dir_create!,
 		"hosted_dir_create_all": Host.dir_create_all!,
 		"hosted_dir_delete_all": Host.dir_delete_all!,
