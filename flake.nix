@@ -11,7 +11,7 @@
     # nixos-unstable no longer supports Intel macOS.
     nixpkgs-x86-darwin.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
     # The Roc compiler revision, keep the `?dir=src` at the end
-    roc-src.url = "github:roc-lang/roc/54283d46d5bd1741dbe677f54ef4646eee4623ff?dir=src";
+    roc-src.url = "github:roc-lang/roc/bf477beeebe1fc788fd66ada9826ccc95c676c6d?dir=src";
     roc-nix = {
       url = "github:niclas-ahden/roc-nix";
       inputs.nixpkgs.follows = "nixpkgs";
