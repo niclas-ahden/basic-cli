@@ -291,8 +291,22 @@ mod tests {
         assert_eq!(server.read(&mut byte).unwrap(), 0);
         drop((server, client, listener));
 
-        listen("127.0.0.1".into(), address.port(), LONG)
-            .expect("could not restart listener with a connection in TIME_WAIT");
+        // A concurrent test that forks (the leash watchdog, or any
+        // std::process spawn) briefly holds a copy of the dropped listener's
+        // fd, so the port can take a moment to come free. Poll briefly, as
+        // the release test below does.
+        let restarted = (0..200).any(|_| {
+            if listen("127.0.0.1".into(), address.port(), LONG).is_ok() {
+                true
+            } else {
+                std::thread::sleep(Duration::from_millis(10));
+                false
+            }
+        });
+        assert!(
+            restarted,
+            "could not restart listener with a connection in TIME_WAIT"
+        );
     }
 
     #[test]
