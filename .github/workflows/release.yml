@@ -110,9 +110,7 @@ jobs:
     needs: [rust-version, release-info, build-windows-host]
     # macOS cross-compiles the Apple and Linux musl hosts. Windows is built
     # natively above because the Rust dependencies require the Windows SDK.
-    # TEMPORARY: macos-15 (arm64) runners are not acquired for this fork, so
-    # the bundle is built on Intel, which cross-compiles every target anyway.
-    runs-on: macos-15-intel
+    runs-on: macos-15
     timeout-minutes: 75
     outputs:
       release_version: ${{ needs.release-info.outputs.release_version }}
@@ -196,7 +194,7 @@ jobs:
         uses: roc-lang/release-package/actions/prepare-bundles@af2f0cd8662874b825ff3917f4286e793ba18c55
         with:
           bundle_glob: dist/*.tar.zst
-          test_os_json: '["macos-15-intel","ubuntu-22.04","windows-2025"]'
+          test_os_json: '["macos-15","macos-15-intel","ubuntu-22.04","windows-2025"]'
 
       - name: Upload release bundles
         uses: actions/upload-artifact@v7
