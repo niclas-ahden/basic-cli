@@ -961,6 +961,119 @@ impl<T: core::fmt::Debug, const ELEMENTS_REFCOUNTED: bool> core::fmt::Debug for 
     }
 }
 
+/// A Roc list whose items have a type only the application knows.
+///
+/// This host knows neither the size of an item nor whether items are
+/// refcounted, so it cannot read an item, allocate such a list, or release
+/// one. It can move the list, retain it, and pass it back to Roc. To release
+/// it, pass it to a Roc function that takes ownership of it.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct RocOpaqueList {
+    pub elements: *mut c_void,
+    pub length: usize,
+    pub capacity_or_alloc_ptr: usize,
+}
+
+impl RocOpaqueList {
+    /// Return the number of items in the list.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
+    /// Return true if the list has zero items.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+
+    /// Increment the reference count by `amount`.
+    ///
+    /// # Safety
+    /// `self` must point at a live Roc list allocation. The retained references
+    /// must be handed back to Roc.
+    pub unsafe fn incref(self, amount: isize) {
+        unsafe { retain_list_allocation(self.elements as *mut u8, self.capacity_or_alloc_ptr, amount); }
+    }
+}
+
+/// A Roc list whose items hold opaque Roc values.
+///
+/// The items have a known layout, so the host can read them. Whether the
+/// opaque values inside them are refcounted is known only to Roc, and the
+/// list's allocation header depends on it, so the host cannot allocate such
+/// a list or release one. It can move the list, retain it, and pass it back
+/// to Roc. To release it, pass it to a Roc function that takes ownership of
+/// it.
+#[repr(C)]
+pub struct RocHeldList<T> {
+    pub elements: *mut T,
+    pub length: usize,
+    pub capacity_or_alloc_ptr: usize,
+}
+
+impl<T> Clone for RocHeldList<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Copy for RocHeldList<T> {}
+
+impl<T> RocHeldList<T> {
+    /// Return the number of items in the list.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.length
+    }
+
+    /// Return true if the list has zero items.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+
+    /// Return the list items as a slice.
+    pub fn as_slice(&self) -> &[T] {
+        if self.elements.is_null() {
+            &[]
+        } else {
+            unsafe { core::slice::from_raw_parts(self.elements, self.length) }
+        }
+    }
+
+    /// Increment the reference count by `amount`.
+    ///
+    /// # Safety
+    /// `self` must point at a live Roc list allocation. The retained references
+    /// must be handed back to Roc.
+    pub unsafe fn incref(self, amount: isize) {
+        unsafe { retain_list_allocation(self.elements as *mut u8, self.capacity_or_alloc_ptr, amount); }
+    }
+}
+
+/// Add `amount` references to a list's allocation. The refcount slot sits
+/// directly before the allocation's first item whatever the item type is,
+/// and a seamless slice names its allocation in `capacity_or_alloc_ptr`.
+unsafe fn retain_list_allocation(elements: *mut u8, capacity_or_alloc_ptr: usize, amount: isize) {
+    let alloc_ptr = if (capacity_or_alloc_ptr & 1) != 0 {
+        (capacity_or_alloc_ptr & !1) as *mut u8
+    } else {
+        elements
+    };
+    if alloc_ptr.is_null() {
+        return;
+    }
+    let rc = unsafe { (alloc_ptr as *mut AtomicIsize).sub(1) };
+    if unsafe { (*rc).load(Ordering::Relaxed) } == 0 {
+        return; // REFCOUNT_STATIC_DATA
+    }
+    unsafe {
+        (*rc).fetch_add(amount, Ordering::Relaxed);
+    }
+}
+
 /// Statically describes how to release one owned Roc ABI value of type `T`.
 ///
 /// # Safety
@@ -15643,9 +15756,9 @@ pub type HostChildWriteErrCmdErrTimedOut = AnonStruct3e7554e024207e25;
 pub type HostCmdExecArg2 = UnixBytesOrUtf8OrWindowsU16s;
 pub type HostCmdExecArg2Payload = UnixBytesOrUtf8OrWindowsU16sPayload;
 pub type HostCmdExecArg2Tag = UnixBytesOrUtf8OrWindowsU16sTag;
-pub type FailedOrInterrupted = FailedOrInterruptedType386;
-pub type FailedOrInterruptedPayload = FailedOrInterruptedType386Payload;
-pub type FailedOrInterruptedTag = FailedOrInterruptedType386Tag;
+pub type HostCmdExec = FailedOrInterruptedType386;
+pub type HostCmdExecPayload = FailedOrInterruptedType386Payload;
+pub type HostCmdExecTag = FailedOrInterruptedType386Tag;
 pub type HostCmdRunArg0 = AnonStruct1027aaeb0344dea1;
 pub type HostCmdRunArg0Args = UnixBytesOrUtf8OrWindowsU16s;
 pub type HostCmdRunArg0ArgsPayload = UnixBytesOrUtf8OrWindowsU16sPayload;
@@ -15866,13 +15979,6 @@ pub type HostSignalCatchArg0Terminate = SystemUnix;
 pub type HostSignalCatchArg0User1 = SystemUnix;
 pub type HostSignalCatchArg0User2 = SystemUnix;
 pub type HostSignalCatchArg0WindowResize = SystemUnix;
-pub type InterruptOrTerminateOrUser1OrUser2OrWindowResize = InterruptOrTerminateOrUser1OrUser2OrWindowResizeType380;
-pub type InterruptOrTerminateOrUser1OrUser2OrWindowResizePayload = InterruptOrTerminateOrUser1OrUser2OrWindowResizeType380Payload;
-pub type InterruptOrTerminateOrUser1OrUser2OrWindowResizeTag = InterruptOrTerminateOrUser1OrUser2OrWindowResizeType380Tag;
-pub type InterruptOrTerminateOrUser1OrUser2OrWindowResizeTerminate = SystemUnix;
-pub type InterruptOrTerminateOrUser1OrUser2OrWindowResizeUser1 = SystemUnix;
-pub type InterruptOrTerminateOrUser1OrUser2OrWindowResizeUser2 = SystemUnix;
-pub type InterruptOrTerminateOrUser1OrUser2OrWindowResizeWindowResize = SystemUnix;
 pub type HostSignalPoll = InterruptOrTerminateOrUser1OrUser2OrWindowResizeType384;
 pub type HostSqliteCloseErr = AnonStruct8dda646697632dbf;
 pub type HostSqliteExecuteArg2 = BytesOrIntegerOrNullOrRealOrString;
@@ -15905,7 +16011,6 @@ pub type HostSqliteOpenErr = FailedOrInterruptedType115;
 pub type HostSqliteOpenErrPayload = FailedOrInterruptedType115Payload;
 pub type HostSqliteOpenErrTag = FailedOrInterruptedType115Tag;
 pub type HostSqliteOpenErrFailed = AnonStruct8dda646697632dbf;
-pub type FailedOrInterruptedFailed = AnonStruct8dda646697632dbf;
 pub type HostSqliteQueryArg2 = BytesOrIntegerOrNullOrRealOrString;
 pub type HostSqliteQueryArg2Payload = BytesOrIntegerOrNullOrRealOrStringPayload;
 pub type HostSqliteQueryArg2Tag = BytesOrIntegerOrNullOrRealOrStringTag;
