@@ -110,7 +110,9 @@ jobs:
     needs: [rust-version, release-info, build-windows-host]
     # macOS cross-compiles the Apple and Linux musl hosts. Windows is built
     # natively above because the Rust dependencies require the Windows SDK.
-    runs-on: macos-15
+    # MACOS_ARM64_RUNNER (a JSON runs-on value) sends the arm64 macOS jobs to a
+    # self-hosted runner when GitHub's hosted ones are out of capacity.
+    runs-on: ${{ vars.MACOS_ARM64_RUNNER && fromJSON(vars.MACOS_ARM64_RUNNER) || 'macos-15' }}
     timeout-minutes: 75
     outputs:
       release_version: ${{ needs.release-info.outputs.release_version }}
@@ -219,7 +221,7 @@ jobs:
   test-bundles:
     name: Test ${{ matrix.bundle_name }} bundle (${{ matrix.os }})
     needs: [rust-version, build]
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ (matrix.os == 'macos-15' && vars.MACOS_ARM64_RUNNER) && fromJSON(vars.MACOS_ARM64_RUNNER) || matrix.os }}
     timeout-minutes: 75
     strategy:
       fail-fast: false
