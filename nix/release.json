@@ -1,8 +1,8 @@
 {
-  "version": "0.31.0",
-  "compiler": "bf477beeebe1fc788fd66ada9826ccc95c676c6d",
-  "url": "https://github.com/niclas-ahden/basic-cli/releases/download/0.31.0/Ff3fkK1TjYTVxMj9V21FP24ojTJXYk314Fbo1whBZ6Yf.tar.zst",
-  "hash": "sha256-IBxXZeDEcptY/Daj0ZPznF+ZlPzVSrLaDICi+0CmKQU=",
+  "version": "0.32.0",
+  "compiler": "165a1baad4971048167702feedbca344ca93ecfc",
+  "url": "https://github.com/niclas-ahden/basic-cli/releases/download/0.32.0/3MnQnCrtfe6XS5qx58MnAGU6iWk8i1N24MYfoejcWeax.tar.zst",
+  "hash": "sha256-bt0RBjcivyNF2KXpZCh/UQBdpMx/4Xqnorl10wudEeE=",
   "dependencies": {
     "http": {
       "url": "https://github.com/roc-lang/http/releases/download/1.0.0/6ZUwqYhCS8PU9Mo6MF7oV82ET2o7KYb57CLKDq4cq4sS.tar.zst",

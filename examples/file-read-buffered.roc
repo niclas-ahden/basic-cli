@@ -3,7 +3,7 @@
 ## This can be useful to process large files without using a lot of RAM or
 ## requiring the user to wait until the complete file is processed when they
 ## only wanted to look at the first page.
-app [main!] { pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.31.0/Ff3fkK1TjYTVxMj9V21FP24ojTJXYk314Fbo1whBZ6Yf.tar.zst" }
+app [main!] { pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.32.0/3MnQnCrtfe6XS5qx58MnAGU6iWk8i1N24MYfoejcWeax.tar.zst" }
 
 import pf.OsStr
 import pf.Stdout
