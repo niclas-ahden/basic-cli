@@ -47,6 +47,9 @@ checksum = |bytes| bytes.fold(0.U64, |sum, byte| sum + byte.to_u64())
 expect checksum([]) == 0
 expect checksum([1, 2, 250]) == 253
 
+## WORKAROUND: the modes below check their results with `if` and `CheckFailed`
+## instead of nested `expect`s, which make `roc test` run out of memory on
+## x86_64 macOS (roc-lang/roc#13186). Back to `expect` once roc is fixed.
 text : List(U8) -> Str
 text = |bytes| Str.inspect(Str.from_utf8_lossy(bytes))
 
@@ -121,7 +124,9 @@ read_to_end! = || {
 	response = Http.send_streaming!(get("/stream/sized"), {})?
 
 	limited = response.read_to_end!(MaxBytes(1000))
-	expect limited == Err(ReadLimitExceeded(1000))
+	if limited != Err(ReadLimitExceeded(1000)) {
+		return Err(CheckFailed("MaxBytes(1000): ${Str.inspect(limited.map_ok(List.len))}"))
+	}
 	Stdout.line!("MaxBytes(1000): ${Str.inspect(limited.map_ok(List.len))}")?
 	just_short = response.read_to_end!(MaxBytes(199_999))
 	Stdout.line!("MaxBytes(199_999): ${Str.inspect(just_short.map_ok(List.len))}")?
@@ -206,7 +211,9 @@ idle_timeout! = || {
 zero_timeouts! : () => Try({}, _)
 zero_timeouts! = || {
 	immediate = Http.send_streaming!(get("/stream/sized"), { idle_timeout: After(Duration.zero) }).map_ok(|response| response.status())
-	expect immediate == Err(HttpErr(Timeout))
+	if immediate != Err(HttpErr(Timeout)) {
+		return Err(CheckFailed("After(Duration.zero): ${Str.inspect(immediate)}"))
+	}
 	Stdout.line!("After(Duration.zero): ${Str.inspect(immediate)}")?
 
 	# No deadline and no idle timeout: the slow body arrives in its own time.
@@ -229,7 +236,9 @@ deadline! = || {
 	response = Http.send_streaming!(request, { idle_timeout: NoTimeout })?
 	Stdout.line!("send_streaming!: status ${response.status().to_str()} before the deadline")?
 	downloaded = File.with_writer!(destination, Truncate, {}, |writer| writer.write_stream!(response.chunks()))
-	expect downloaded == Err(SourceErr(HttpErr(Timeout)))
+	if downloaded != Err(SourceErr(HttpErr(Timeout))) {
+		return Err(CheckFailed("download: ${Str.inspect(downloaded)}"))
+	}
 	Stdout.line!("download: ${Str.inspect(downloaded)}")?
 	Stdout.line!("written before the deadline: ${Str.inspect(destination.read_utf8!()?)}")?
 
@@ -248,7 +257,9 @@ broken_body! = || {
 	response = Http.send_streaming!(get("/stream/broken"), {})?
 	Stdout.line!("status: ${response.status().to_str()}, ${Str.inspect(response.content_length())}")?
 	downloaded = File.with_writer!(destination, Truncate, {}, |writer| writer.write_stream!(response.chunks()))
-	expect downloaded == Err(SourceErr(HttpErr(BadBody)))
+	if downloaded != Err(SourceErr(HttpErr(BadBody))) {
+		return Err(CheckFailed("download: ${Str.inspect(downloaded)}"))
+	}
 	Stdout.line!("download: ${Str.inspect(downloaded)}")?
 	written = destination.read_bytes!()?
 	Stdout.line!("written before the failure: ${written.len().to_str()} bytes, checksum ${checksum(written).to_str()}")?
@@ -290,7 +301,9 @@ error_rows! = |arg_count| {
 	Stdout.line!("qualified: ${text(Http.StreamingResponse.read_to_end!(Http.send_streaming!(get("/utf8test"), {})?, NoLimit)?)}")?
 
 	bad_url = Http.send_streaming!(Request.from_method(GET).with_uri("ftp://example.com"), {}).map_ok(|_| {})
-	expect bad_url == Err(InvalidUrl(UnsupportedScheme("ftp")))
+	if bad_url != Err(InvalidUrl(UnsupportedScheme("ftp"))) {
+		return Err(CheckFailed("invalid URL: ${Str.inspect(bad_url)}"))
+	}
 	Stdout.line!("invalid URL: ${Str.inspect(bad_url)}")?
 
 	# Nothing listens on port 9: the failure is a transport error with a message.
